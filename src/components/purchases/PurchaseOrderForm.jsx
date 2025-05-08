@@ -29,7 +29,6 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
 
   // Form state
   const [formData, setFormData] = useState({
-    id: '',
     supplier: '',
     branch: '',
     branchName: '',
@@ -138,9 +137,38 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
   // Initialize form with data if editing
   useEffect(() => {
     if (initialData) {
+      // Map items to ensure price is properly set from unitPrice if available
+      const mappedItems = initialData.items ? initialData.items.map(item => {
+        const mappedItem = { ...item };
+        
+        // If unitPrice exists but price doesn't, use unitPrice for price
+        if (mappedItem.unitPrice !== undefined && (mappedItem.price === undefined || mappedItem.price === 0)) {
+          mappedItem.price = parseFloat(mappedItem.unitPrice);
+        }
+        // If price exists but unitPrice doesn't, use price for unitPrice
+        else if (mappedItem.price !== undefined && (mappedItem.unitPrice === undefined || mappedItem.unitPrice === 0)) {
+          mappedItem.unitPrice = parseFloat(mappedItem.price);
+        }
+        
+        // Ensure both price and unitPrice are numbers and not NaN
+        mappedItem.price = parseFloat(mappedItem.price) || 0;
+        mappedItem.unitPrice = parseFloat(mappedItem.unitPrice) || 0;
+        
+        // Recalculate total based on quantity and price
+        mappedItem.total = (parseFloat(mappedItem.quantity) || 0) * mappedItem.price;
+        
+        // Add tempId for frontend tracking if not present
+        if (!mappedItem.tempId) {
+          mappedItem.tempId = Date.now() + Math.random();
+        }
+        
+        return mappedItem;
+      }) : [];
+      
       setFormData({
         ...initialData,
         date: initialData.date || new Date().toISOString().split('T')[0],
+        items: mappedItems
       });
     }
   }, [initialData]);
@@ -289,12 +317,16 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
 
   // Handle product selection from search results
   const handleProductSelect = (product) => {
+    // Ensure price is a valid number
+    const price = parseFloat(product.price) || 0;
+    const quantity = parseFloat(currentItem.quantity) || 1;
+    
     setCurrentItem({
       ...currentItem,
       product: product.id,
       name: product.name,
-      price: product.price,
-      total: product.price * (parseFloat(currentItem.quantity) || 1)
+      price: price,
+      total: price * quantity
     });
     setProductSearch('');
     setShowProductResults(false);
@@ -337,9 +369,10 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
       return;
     }
     
+    // Use a temporary ID for frontend tracking only, don't use Date.now() as _id
     const newItem = {
       ...currentItem,
-      id: Date.now(),
+      tempId: Date.now(), // Use tempId instead of id to avoid MongoDB _id conflicts
     };
     
     setFormData(prev => ({
@@ -362,7 +395,7 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
   const removeItem = (itemId) => {
     setFormData(prev => ({
       ...prev,
-      items: prev.items.filter(item => item.id !== itemId),
+      items: prev.items.filter(item => item.tempId !== itemId),
     }));
   };
 
@@ -384,11 +417,72 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
       return;
     }
     
+    // Prepare data for submission - remove any fields that could cause MongoDB _id conflicts
     const purchaseOrderData = {
       ...formData,
-      id: formData.id || `PO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
-      amount: totalAmount,
+      // Don't set an ID - let MongoDB generate it
+      // If editing an existing PO, the _id will already be in formData
+      subtotal: totalAmount,
+      totalAmount: totalAmount, // Set both subtotal and totalAmount
+      // Map date field to orderDate for MongoDB
+      orderDate: formData.date,
+      // Clean up items to avoid _id conflicts
+      items: formData.items.map(item => {
+        // Create a clean copy of the item without tempId
+        const cleanItem = { ...item };
+        delete cleanItem.tempId;
+        delete cleanItem.id; // Remove any id field that might exist
+        
+        // Ensure item has the correct field names for the backend and all values are numbers
+        if (cleanItem.price !== undefined) {
+          // Convert price to a number and ensure it's not NaN
+          const numericPrice = parseFloat(cleanItem.price);
+          cleanItem.unitPrice = isNaN(numericPrice) ? 0 : numericPrice;
+          cleanItem.price = cleanItem.unitPrice; // Keep price for backward compatibility
+        } else if (cleanItem.unitPrice !== undefined) {
+          // If unitPrice is already set, ensure it's a number
+          const numericUnitPrice = parseFloat(cleanItem.unitPrice);
+          cleanItem.unitPrice = isNaN(numericUnitPrice) ? 0 : numericUnitPrice;
+        } else {
+          // Default to 0 if neither price nor unitPrice is set
+          cleanItem.unitPrice = 0;
+          cleanItem.price = 0;
+        }
+        
+        // Ensure quantity is a number
+        if (cleanItem.quantity !== undefined) {
+          const numericQuantity = parseFloat(cleanItem.quantity);
+          cleanItem.quantity = isNaN(numericQuantity) ? 1 : numericQuantity;
+        } else {
+          cleanItem.quantity = 1;
+        }
+        
+        // Recalculate total to ensure it's correct
+        cleanItem.total = cleanItem.quantity * cleanItem.unitPrice;
+        
+        // Map product to inventory field for MongoDB
+        if (cleanItem.product !== undefined && !cleanItem.inventory) {
+          cleanItem.inventory = cleanItem.product;
+        }
+        
+        return cleanItem;
+      })
     };
+    
+    // Remove any empty ID fields that could cause MongoDB casting errors
+    if (purchaseOrderData._id === '') {
+      delete purchaseOrderData._id;
+    }
+    
+    // Also remove any 'id' field if it exists
+    if (purchaseOrderData.id === '') {
+      delete purchaseOrderData.id;
+    }
+    
+    // If this is a new PO, we can set orderNumber but not _id
+    if (!formData._id) {
+      purchaseOrderData.orderNumber = `PO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
+    }
     
     onSave(purchaseOrderData);
   };
@@ -823,15 +917,19 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {formData.items.map(item => (
-                  <tr key={item.id}>
+                  <tr key={item.tempId}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.quantity}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${parseFloat(item.price).toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${parseFloat(item.total).toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      ${(parseFloat(item.price) || 0).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      ${(parseFloat(item.total) || 0).toFixed(2)}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         type="button"
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => removeItem(item.tempId)}
                         className="text-red-600 hover:text-red-900"
                       >
                         Remove

@@ -88,12 +88,25 @@ const PurchaseOrdersPage = () => {
       setLoading(true);
       let response;
       
+      // Make sure we're not sending any id field that could conflict with MongoDB's _id
+      const cleanedData = { ...poData };
+      
+      // For new POs, remove any id or _id fields to let MongoDB generate _id
+      if (!currentPO) {
+        if (cleanedData.id !== undefined) {
+          delete cleanedData.id;
+        }
+        if (cleanedData._id !== undefined) {
+          delete cleanedData._id;
+        }
+      }
+      
       if (currentPO) {
         // Update existing purchase order
-        response = await api.purchaseOrders.update(currentPO._id, poData);
+        response = await api.purchaseOrders.update(currentPO._id, cleanedData);
       } else {
         // Create new purchase order
-        response = await api.purchaseOrders.create(poData);
+        response = await api.purchaseOrders.create(cleanedData);
       }
       
       if (response && response.success) {
