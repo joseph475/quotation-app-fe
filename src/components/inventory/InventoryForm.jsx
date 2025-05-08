@@ -30,7 +30,6 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
 
   // Form state
   const [formData, setFormData] = useState({
-    id: '',
     name: '',
     itemCode: '',
     brand: '',
@@ -54,6 +53,7 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
   // Initialize form with data if editing and fetch branches
   useEffect(() => {
     if (initialData) {
+      // Make sure we preserve the MongoDB _id field when editing
       setFormData({
         ...initialData,
       });
@@ -70,20 +70,20 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
       }
     }
     
-    // Fetch branches from API
-    const fetchBranches = async () => {
-      setLoadingBranches(true);
-      try {
-        const response = await api.branches.getAll();
-        if (response && response.data) {
-          setBranches(response.data);
-        }
-      } catch (err) {
-        console.error('Error fetching branches:', err);
-      } finally {
-        setLoadingBranches(false);
+  // Fetch branches from API
+  const fetchBranches = async () => {
+    setLoadingBranches(true);
+    try {
+      const response = await api.branches.getAll();
+      if (response && response.data) {
+        setBranches(response.data);
       }
-    };
+    } catch (err) {
+      console.error('Error fetching branches:', err);
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
     
     fetchBranches();
   }, [initialData, user]);
@@ -180,11 +180,19 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
       return;
     }
     
-    // Generate an ID if it's a new item
-    const inventoryData = {
-      ...formData,
-      id: formData.id || Date.now(),
-    };
+  // Handle ID fields properly
+  // For new items: remove any id/ID fields to let MongoDB generate them
+  // For existing items: preserve the MongoDB _id field
+  const { id, ID, ...dataWithoutClientIds } = formData;
+  
+  // Ensure branch is properly formatted (as a string ID, not an object)
+  const branch = typeof formData.branch === 'object' && formData.branch?._id 
+    ? formData.branch._id 
+    : formData.branch;
+  
+  const inventoryData = initialData 
+    ? { ...dataWithoutClientIds, _id: initialData._id, branch } 
+    : { ...dataWithoutClientIds, branch };
     
     // Call the save handler
     onSave(inventoryData);
@@ -427,7 +435,12 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
                   <select
                     id="branch"
                     name="branch"
-                    value={formData.branch}
+                    value={
+                      // Handle different branch formats
+                      typeof formData.branch === 'object' && formData.branch?._id 
+                        ? formData.branch._id 
+                        : formData.branch
+                    }
                     onChange={handleChange}
                     className={`${inputClasses} appearance-none pr-10 ${errors.branch ? 'border-red-300' : ''}`}
                     disabled={loadingBranches || (user && user.role === 'user')}

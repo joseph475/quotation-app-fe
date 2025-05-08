@@ -1,11 +1,12 @@
 import { h, Fragment } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 import Router from 'preact-router';
-import { getCurrentUrl, route } from 'preact-router';
+import { getCurrentUrl } from 'preact-router';
 import useAuth from '../hooks/useAuth';
+import { RoleProtectedRoute } from '../utils/pageHelpers';
 
-// Development mode flag - set to true to bypass authentication for testing
-const DEV_MODE = true;
+// Development mode flag - set to false for production
+const DEV_MODE = false;
 
 // Layout Components
 import Header from './layout/Header';
@@ -29,39 +30,6 @@ import SuppliersPage from '../pages/suppliers/SuppliersPage';
 import BranchesPage from '../pages/branches/BranchesPage';
 import LoginPage from '../pages/auth/LoginPage';
 
-/**
- * Protected Route Component
- * Redirects to login if user is not authenticated
- */
-const ProtectedRoute = ({ component: Component, ...rest }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  
-  useEffect(() => {
-    // If authentication check is complete and user is not authenticated
-    if (!isLoading && !isAuthenticated) {
-      // Redirect to login
-      route('/login', true);
-    }
-  }, [isAuthenticated, isLoading]);
-
-  // Show loading state while checking authentication
-  if (isLoading) {
-    return (
-      <div class="flex items-center justify-center h-screen">
-        <div class="text-center">
-          <svg class="mx-auto h-12 w-12 text-gray-400 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p class="mt-2 text-sm text-gray-500">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Render the component only if authenticated
-  return isAuthenticated ? <Component {...rest} /> : null;
-};
 
 const App = () => {
   const [currentUrl, setCurrentUrl] = useState(getCurrentUrl());
@@ -87,21 +55,21 @@ const App = () => {
             {/* In development mode, allow direct access to development pages for testing */}
             {DEV_MODE && <DevDashboardPage path="/dev-dashboard" />}
             {DEV_MODE && <InputComponentsExamplePage path="/examples/input-components" />}
-            <ProtectedRoute component={DashboardPage} path="/" />
-            <ProtectedRoute component={InventoryPage} path="/inventory" />
-            <ProtectedRoute component={StockTransferPage} path="/stock-transfers" />
-            <ProtectedRoute component={SalesPage} path="/sales" />
-            <ProtectedRoute component={CustomersPage} path="/customers" />
-            <ProtectedRoute component={QuotationsPage} path="/quotations" />
-            <ProtectedRoute component={PurchaseOrdersPage} path="/purchase-orders" />
-            <ProtectedRoute component={PurchaseReceivingPage} path="/purchase-receiving" />
-            <ProtectedRoute component={ProfilePage} path="/profile" />
-            <ProtectedRoute component={UserManagementPage} path="/user-management" />
-            <ProtectedRoute component={SuppliersPage} path="/suppliers" />
-            <ProtectedRoute component={BranchesPage} path="/branches" />
+            <RoleProtectedRoute component={DashboardPage} path="/" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={InventoryPage} path="/inventory" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={StockTransferPage} path="/stock-transfers" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={SalesPage} path="/sales" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={CustomersPage} path="/customers" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={QuotationsPage} path="/quotations" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={PurchaseOrdersPage} path="/purchase-orders" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={PurchaseReceivingPage} path="/purchase-receiving" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={ProfilePage} path="/profile" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={UserManagementPage} path="/user-management" allowedRoles={['admin']} />
+            <RoleProtectedRoute component={SuppliersPage} path="/suppliers" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={BranchesPage} path="/branches" allowedRoles={['admin', 'user']} />
             <LoginPage path="/login" />
             {/* Redirect to dashboard if no route matches */}
-            <ProtectedRoute component={DashboardPage} default />
+            <RoleProtectedRoute component={DashboardPage} default allowedRoles={['admin', 'user']} />
           </Router>
         </main>
       </div>

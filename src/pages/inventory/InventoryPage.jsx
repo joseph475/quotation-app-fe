@@ -552,10 +552,10 @@ const InventoryPage = () => {
               
               let response;
               if (currentItem) {
-                // Update existing item
+                // Update existing item - use MongoDB's _id
                 response = await api.inventory.update(currentItem._id, itemWithBranch);
               } else {
-                // Create new item
+                // Create new item - let MongoDB generate the _id
                 response = await api.inventory.create(itemWithBranch);
               }
               

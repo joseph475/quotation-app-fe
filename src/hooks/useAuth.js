@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'preact/hooks';
+import { route } from 'preact-router';
 import api from '../services/api';
 
 /**
@@ -65,6 +66,8 @@ const useAuth = () => {
       } catch (err) {
         console.error('Authentication error:', err);
         setError(err.message);
+        localStorage.removeItem('authToken'); // Ensure token is removed on error
+        setIsAuthenticated(false); // Ensure authentication state is false
         setIsLoading(false);
       }
     };
@@ -121,7 +124,8 @@ const useAuth = () => {
         setIsLoading(false);
         
         // After successful login, redirect to dashboard
-        window.location.href = '/';
+        // Use route instead of window.location.href to prevent hard navigation
+        route('/', true);
         
         return userData;
       } else {
@@ -150,7 +154,8 @@ const useAuth = () => {
       setIsAuthenticated(false);
       
       // Redirect to login page
-      window.location.href = '/login';
+      // Use route instead of window.location.href to prevent hard navigation
+      route('/login', true);
     }
   };
 

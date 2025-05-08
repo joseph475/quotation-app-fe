@@ -34,7 +34,7 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
     branchName: '',
     date: new Date().toISOString().split('T')[0],
     expectedDeliveryDate: '',
-    status: 'Draft',
+    status: initialData?.status || 'Draft', // Use initialData status if available
     items: [],
     notes: '',
   });
@@ -165,10 +165,24 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
         return mappedItem;
       }) : [];
       
+      // Handle supplier field which could be an object (from MongoDB populate) or a string
+      let supplierName = '';
+      if (initialData.supplier) {
+        // If supplier is an object with a name property (from MongoDB populate)
+        if (typeof initialData.supplier === 'object' && initialData.supplier.name) {
+          supplierName = initialData.supplier.name;
+        } 
+        // If supplier is already a string
+        else if (typeof initialData.supplier === 'string') {
+          supplierName = initialData.supplier;
+        }
+      }
+      
       setFormData({
         ...initialData,
         date: initialData.date || new Date().toISOString().split('T')[0],
-        items: mappedItems
+        items: mappedItems,
+        supplier: supplierName // Set supplier to the extracted name
       });
     }
   }, [initialData]);

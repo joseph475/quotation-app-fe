@@ -43,8 +43,17 @@ async function request(endpoint, options = {}) {
     if (response.status === 401) {
       // Clear token and redirect to login
       localStorage.removeItem('authToken');
-      window.location.href = '/login';
-      return null;
+      
+      // Only redirect if we're not already on the login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+      
+      // Return a structured error response instead of null
+      return {
+        success: false,
+        message: 'Authentication failed. Please log in again.'
+      };
     }
     
     const data = await response.json();

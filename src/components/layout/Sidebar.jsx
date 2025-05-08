@@ -1,6 +1,7 @@
 import { h } from 'preact';
 import { useState, useRef, useEffect } from 'preact/hooks';
 import useAuth from '../../hooks/useAuth';
+import { hasPermission } from '../../utils/pageHelpers';
 
 // Development mode flag - import from App.jsx or set here
 const DEV_MODE = true;
@@ -11,8 +12,8 @@ const Sidebar = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef(null);
   
-  // Check if user is admin
-  const isAdmin = user?.role === 'admin';
+  // Check user permissions
+  const canManageUsers = hasPermission('user-management', user);
   
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
@@ -147,8 +148,8 @@ const Sidebar = () => {
               ),
               path: '/suppliers',
             },
-            // Only show User Management for admin users
-            ...(isAdmin ? [{
+            // Only show User Management for users with permission
+            ...(canManageUsers ? [{
               name: 'User Management',
               icon: (
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

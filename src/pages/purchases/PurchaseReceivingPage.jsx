@@ -41,9 +41,16 @@ const PurchaseReceivingPage = () => {
       ? receipt.supplier 
       : (receipt.supplier?.name || '');
       
-    const matchesSearch = supplierName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         (receipt.id?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                         (receipt.purchaseOrderId?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+    // Handle purchase order which might be an object or string
+    const poNumber = typeof receipt.purchaseOrder === 'string'
+      ? receipt.purchaseOrder
+      : (receipt.purchaseOrder?.orderNumber || '');
+      
+    const matchesSearch = 
+      supplierName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (receipt._id?.toString() || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (receipt.receivingNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      poNumber.toLowerCase().includes(searchTerm.toLowerCase());
     
     // Simple date filtering logic
     let matchesDate = true;
@@ -124,7 +131,8 @@ const PurchaseReceivingPage = () => {
 
   // Calculate total received items
   const totalReceivedItems = purchaseReceipts.reduce((total, receipt) => {
-    return total + receipt.items.reduce((itemTotal, item) => itemTotal + item.receivedQuantity, 0);
+    if (!Array.isArray(receipt.items)) return total;
+    return total + receipt.items.reduce((itemTotal, item) => itemTotal + (item.quantityReceived || 0), 0);
   }, 0);
 
   return (
@@ -290,17 +298,24 @@ const PurchaseReceivingPage = () => {
                 </tr>
               ) : (
                 filteredReceipts.map((receipt) => (
-                  <tr key={receipt.id}>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">{receipt.id}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{receipt.purchaseOrderId}</td>
+                  <tr key={receipt._id}>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">{receipt.receivingNumber || receipt._id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {receipt.purchaseOrder?.orderNumber || 
+                       (typeof receipt.purchaseOrder === 'string' ? receipt.purchaseOrder : 'N/A')}
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {typeof receipt.supplier === 'string' 
                         ? receipt.supplier 
                         : (receipt.supplier?.name || 'Unknown Supplier')}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{receipt.receivingDate}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {receipt.items.reduce((total, item) => total + item.receivedQuantity, 0)}
+                      {receipt.receivingDate ? new Date(receipt.receivingDate).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {Array.isArray(receipt.items) 
+                        ? receipt.items.reduce((total, item) => total + (item.quantityReceived || 0), 0)
+                        : 0}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div class="flex justify-end space-x-2">
@@ -315,7 +330,7 @@ const PurchaseReceivingPage = () => {
                         </button>
                         <button 
                           class="text-red-600 hover:text-red-900"
-                          onClick={() => handleDeleteReceipt(receipt.id)}
+                          onClick={() => handleDeleteReceipt(receipt._id)}
                         >
                           Delete
                         </button>
