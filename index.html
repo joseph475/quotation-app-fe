@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quotation App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .navbar {
+            margin-bottom: 20px;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+        .error-message {
+            color: #dc3545;
+            margin: 10px 0;
+        }
+        .success-message {
+            color: #198754;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">Quotation App</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" id="dashboard-link">Dashboard</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="inventory-link">Inventory</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="customers-link">Customers</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="quotations-link">Quotations</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="sales-link">Sales</a>
+                        </li>
+                    </ul>
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item" id="login-nav-item">
+                            <a class="nav-link" href="#" id="login-link">Login</a>
+                        </li>
+                        <li class="nav-item d-none" id="logout-nav-item">
+                            <a class="nav-link" href="#" id="logout-link">Logout</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div id="login-section" class="card">
+            <div class="card-header">
+                <h2>Login</h2>
+            </div>
+            <div class="card-body">
+                <form id="login-form">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                    <div id="login-error" class="error-message"></div>
+                </form>
+            </div>
+        </div>
+
+        <div id="dashboard-section" class="d-none">
+            <h1>Dashboard</h1>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Summary</h5>
+                        </div>
+                        <div class="card-body" id="dashboard-summary">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Recent Sales</h5>
+                        </div>
+                        <div class="card-body" id="recent-sales">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Low Stock Items</h5>
+                        </div>
+                        <div class="card-body" id="low-stock">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="inventory-section" class="d-none">
+            <h1>Inventory</h1>
+            <button class="btn btn-primary mb-3" id="add-inventory-btn">Add New Item</button>
+            <div id="inventory-list">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <div id="customers-section" class="d-none">
+            <h1>Customers</h1>
+            <button class="btn btn-primary mb-3" id="add-customer-btn">Add New Customer</button>
+            <div id="customers-list">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <div id="quotations-section" class="d-none">
+            <h1>Quotations</h1>
+            <button class="btn btn-primary mb-3" id="add-quotation-btn">Create New Quotation</button>
+            <div id="quotations-list">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <div id="sales-section" class="d-none">
+            <h1>Sales</h1>
+            <div id="sales-list">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,584 @@
+import { h } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
+import Modal from '../../components/common/Modal';
+import { FilterSelect } from '../../components/common';
+import InventoryForm from '../../components/inventory/InventoryForm';
+import useAuth from '../../hooks/useAuth';
+import api from '../../services/api';
+
+const InventoryPage = () => {
+  // Get user data from auth context
+  const { user } = useAuth();
+  
+  // State for user's branch
+  const [userBranchName, setUserBranchName] = useState('');
+  const [userBranchId, setUserBranchId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [branchFilter, setBranchFilter] = useState('');
+  
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
+  
+  // State for branches
+  const [branches, setBranches] = useState([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+
+  // Form state
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [currentItem, setCurrentItem] = useState(null);
+
+  // Inventory state
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  // Fetch inventory items and branches from API
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Fetch branches first
+      setLoadingBranches(true);
+      const branchesResponse = await api.branches.getAll();
+      if (branchesResponse && branchesResponse.data) {
+        setBranches(branchesResponse.data);
+        // If user has a branch assigned, find it and set as default filter
+        if (user && user.branch) {
+          // Check if branch is an ObjectId or a string like 'All'
+          if (user.branch === 'All') {
+            // For admin users with 'All' branch
+            setBranchFilter('all');
+            setUserBranchName('All Branches');
+          } else {
+            // For users with a specific branch ID
+            const userBranch = branchesResponse.data.find(branch => {
+              return branch._id === user.branch || branch.name === 'Main Branch';
+            });
+            
+            if (userBranch) {
+              setUserBranchName(userBranch.name);
+              setUserBranchId(userBranch._id);
+              
+              // Always set branch filter to user's branch name
+              setBranchFilter(userBranch.name);
+            } else {
+              // Default to Main Branch if available
+              const mainBranch = branchesResponse.data.find(branch => branch.name === 'Main Branch');
+              if (mainBranch) {
+                setBranchFilter(mainBranch.name);
+                setUserBranchName(mainBranch.name);
+                setUserBranchId(mainBranch._id);
+              }
+            }
+          }
+        } else if (user && user.role === 'admin') {
+          // For admin users without a branch, set to 'all'
+          setBranchFilter('all');
+        }
+      }
+      setLoadingBranches(false);
+      
+      // Always fetch all inventory items
+      const inventoryResponse = await api.inventory.getAll();
+      
+      if (inventoryResponse && inventoryResponse.success) {
+        // Add status field based on quantity
+        const itemsWithStatus = (inventoryResponse.data || []).map(item => {
+          let status = 'In Stock';
+          if (item.quantity <= 0) {
+            status = 'Out of Stock';
+          } else if (item.quantity <= item.reorderLevel) {
+            status = 'Low Stock';
+          }
+          return { ...item, status };
+        });
+        
+        setInventoryItems(itemsWithStatus);
+        setError(null);
+      } else {
+        throw new Error(inventoryResponse.message || 'Failed to fetch inventory items');
+      }
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to load data. Please try again.');
+    } finally {
+      setLoading(false);
+      setLoadingBranches(false);
+    }
+  };
+  
+  // Initial data fetch
+  useEffect(() => {
+    fetchData();
+  }, [user]); // Add user to dependency array so fetchData is called when user is available
+
+  // Available categories for filtering
+  const categories = ['all', 'Widgets', 'Components', 'Parts', 'Tools'];
+
+  // Apply client-side filtering for search term and category
+  const filteredItems = inventoryItems
+    .filter(item => {
+      const matchesSearch = searchTerm === '' || 
+                           item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           (item.itemCode && item.itemCode.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
+      
+      // Branch filtering logic
+      let matchesBranch = false;
+      
+      // If branchFilter is 'all' or empty, show all items
+      if (branchFilter === 'all' || branchFilter === '') {
+        matchesBranch = true;
+      } 
+      // Otherwise, check if the item's branch matches the selected branch
+      else if (item.branch) {
+        // Get the branch name from the item
+        let itemBranchName = '';
+        
+        // Case 1: Branch is an object with name property
+        if (typeof item.branch === 'object' && item.branch.name) {
+          itemBranchName = item.branch.name;
+        } 
+        // Case 2: Branch is an ID, find the corresponding branch name
+        else {
+          const matchingBranch = branches.find(branch => branch._id === item.branch);
+          if (matchingBranch) {
+            itemBranchName = matchingBranch.name;
+          }
+        }
+        
+        // Compare the item's branch name with the selected branch filter
+        matchesBranch = (itemBranchName === branchFilter);
+      }
+      
+      return matchesSearch && matchesCategory && matchesBranch;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'name') {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortBy === 'quantity') {
+        comparison = a.quantity - b.quantity;
+      } else if (sortBy === 'costPrice') {
+        comparison = a.costPrice - b.costPrice;
+      } else if (sortBy === 'sellingPrice') {
+        comparison = a.sellingPrice - b.sellingPrice;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+  // Handle sorting
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+  
+  // Export to CSV
+  const exportToCSV = (items) => {
+    // Define CSV headers
+    const headers = [
+      'Item Code',
+      'Name',
+      'Category',
+      'Branch',
+      'Quantity',
+      'Unit',
+      'Cost Price',
+      'Selling Price',
+      'Status'
+    ];
+    
+    // Convert items to CSV rows
+    const rows = items.map(item => {
+      let branchName = '';
+      if (item.branch) {
+        if (typeof item.branch === 'object' && item.branch.name) {
+          branchName = item.branch.name;
+        } else {
+          const matchingBranch = branches.find(branch => branch._id === item.branch);
+          if (matchingBranch) {
+            branchName = matchingBranch.name;
+          }
+        }
+      }
+      
+      return [
+        item.itemCode || '',
+        item.name || '',
+        item.category || '',
+        branchName,
+        item.quantity || 0,
+        item.unit || '',
+        item.costPrice ? `$${item.costPrice.toFixed(2)}` : '$0.00',
+        item.sellingPrice ? `$${item.sellingPrice.toFixed(2)}` : '$0.00',
+        item.status
+      ];
+    });
+    
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `inventory_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getSortIcon = (field) => {
+    if (sortBy !== field) return null;
+    return sortOrder === 'asc' ? (
+      <svg class="w-4 h-4 ml-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+      </svg>
+    ) : (
+      <svg class="w-4 h-4 ml-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+      </svg>
+    );
+  };
+  
+  // Calculate inventory statistics
+  const inventoryStats = {
+    totalItems: filteredItems.length,
+    inStock: filteredItems.filter(item => item.status === 'In Stock').length,
+    lowStock: filteredItems.filter(item => item.status === 'Low Stock').length,
+    outOfStock: filteredItems.filter(item => item.status === 'Out of Stock').length,
+    totalValue: filteredItems.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0).toFixed(2)
+  };
+
+  return (
+    <div>
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Inventory Management</h1>
+        <p class="mt-1 text-sm text-gray-500">Manage your inventory items, stock levels, and pricing</p>
+      </div>
+      
+      {/* Inventory Statistics */}
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div class="bg-white shadow rounded-lg p-4 flex flex-col items-center justify-center">
+          <span class="text-sm font-medium text-gray-500">Total Items</span>
+          <span class="text-2xl font-bold text-gray-900">{inventoryStats.totalItems}</span>
+        </div>
+        <div class="bg-white shadow rounded-lg p-4 flex flex-col items-center justify-center">
+          <span class="text-sm font-medium text-gray-500">In Stock</span>
+          <span class="text-2xl font-bold text-green-600">{inventoryStats.inStock}</span>
+        </div>
+        <div class="bg-white shadow rounded-lg p-4 flex flex-col items-center justify-center">
+          <span class="text-sm font-medium text-gray-500">Low Stock</span>
+          <span class="text-2xl font-bold text-yellow-600">{inventoryStats.lowStock}</span>
+        </div>
+        <div class="bg-white shadow rounded-lg p-4 flex flex-col items-center justify-center">
+          <span class="text-sm font-medium text-gray-500">Out of Stock</span>
+          <span class="text-2xl font-bold text-red-600">{inventoryStats.outOfStock}</span>
+        </div>
+        <div class="bg-white shadow rounded-lg p-4 flex flex-col items-center justify-center">
+          <span class="text-sm font-medium text-gray-500">Total Value</span>
+          <span class="text-2xl font-bold text-primary-600">${inventoryStats.totalValue}</span>
+        </div>
+      </div>
+
+      {/* Filters and Actions */}
+      <div class="bg-white shadow rounded-lg mb-6">
+        <div class="p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+          <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+            {/* Search */}
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Search items..."
+                value={searchTerm}
+                onInput={(e) => setSearchTerm(e.target.value)}
+                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              />
+            </div>
+
+            {/* Category Filter */}
+            <div>
+              <FilterSelect
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                options={categories.map(category => ({
+                  id: category,
+                  name: category === 'all' ? 'All Categories' : category
+                }))}
+                optionValueKey="id"
+                optionLabelKey="name"
+              />
+            </div>
+
+            {/* Branch Filter */}
+            <div>
+              <FilterSelect
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                options={[{ id: 'all', name: 'All Branches' }, ...branches.map(branch => ({ id: branch.name, name: branch.name }))]}
+                optionValueKey="id"
+                optionLabelKey="name"
+                disabled={loadingBranches}
+              />
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div class="flex space-x-3">
+            <button 
+              class="btn btn-outline flex items-center"
+              onClick={() => exportToCSV(filteredItems)}
+            >
+              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+              Export CSV
+            </button>
+            <button 
+              class="btn btn-primary flex items-center"
+              onClick={() => {
+                setCurrentItem(null);
+                setIsFormOpen(true);
+              }}
+            >
+              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+              </svg>
+              Add Item
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Error message */}
+      {error && (
+        <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-red-700">
+                {error}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Loading state */}
+      {loading && !isFormOpen && (
+        <div class="text-center py-12 bg-white rounded-lg shadow mb-6">
+          <svg class="mx-auto h-12 w-12 text-gray-400 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p class="mt-2 text-sm text-gray-500">Loading inventory items...</p>
+        </div>
+      )}
+      
+      {/* Inventory Table */}
+      {!loading && (
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('name')}>
+                      Item
+                      {getSortIcon('name')}
+                    </div>
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    SKU
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Branch
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('quantity')}>
+                      Stock
+                      {getSortIcon('quantity')}
+                    </div>
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('costPrice')}>
+                      Cost Price
+                      {getSortIcon('costPrice')}
+                    </div>
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('sellingPrice')}>
+                      Selling Price
+                      {getSortIcon('sellingPrice')}
+                    </div>
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                {filteredItems.map((item) => (
+                  <tr key={item._id || item.id}>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex items-center">
+                        <div class="h-10 w-10 flex-shrink-0 bg-gray-100 rounded-md flex items-center justify-center text-gray-500">
+                          {item.name.charAt(0)}
+                        </div>
+                        <div class="ml-4">
+                          <div class="text-sm font-medium text-gray-900">{item.name}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.itemCode}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.category}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.branch && typeof item.branch === 'object' && item.branch.name 
+                        ? item.branch.name 
+                        : branches.find(branch => branch._id === item.branch)?.name || '-'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.quantity}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      ${item.costPrice.toFixed(2)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      ${item.sellingPrice.toFixed(2)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        item.status === 'In Stock' ? 'bg-green-100 text-green-800' : 
+                        item.status === 'Out of Stock' ? 'bg-red-100 text-red-800' : 
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {item.status}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div class="flex justify-end space-x-2">
+                        <button 
+                          class="text-primary-600 hover:text-primary-900"
+                          onClick={() => {
+                            setCurrentItem(item);
+                            setIsFormOpen(true);
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          class="text-red-600 hover:text-red-900"
+                          onClick={async () => {
+                            if (confirm(`Are you sure you want to delete ${item.name}?`)) {
+                              try {
+                                setLoading(true);
+                                const response = await api.inventory.delete(item._id);
+                                
+                                if (response && response.success) {
+                                  // Remove from local state
+                                  setInventoryItems(prev => prev.filter(i => i._id !== item._id));
+                                  setError(null);
+                                } else {
+                                  throw new Error(response.message || 'Failed to delete inventory item');
+                                }
+                              } catch (err) {
+                                console.error('Error deleting inventory item:', err);
+                                setError(err.message || 'Failed to delete inventory item. Please try again.');
+                              } finally {
+                                setLoading(false);
+                              }
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Form Modal */}
+      <Modal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        title={currentItem ? "Edit Inventory Item" : "Add New Inventory Item"}
+        size="5xl"
+      >
+        <InventoryForm
+          initialData={currentItem}
+          onCancel={() => setIsFormOpen(false)}
+          onSave={async (itemData) => {
+            try {
+              setLoading(true);
+              
+              // Ensure the branch is set to the user's branch
+              const itemWithBranch = {
+                ...itemData,
+                branch: itemData.branch || userBranchId
+              };
+              
+              let response;
+              if (currentItem) {
+                // Update existing item
+                response = await api.inventory.update(currentItem._id, itemWithBranch);
+              } else {
+                // Create new item
+                response = await api.inventory.create(itemWithBranch);
+              }
+              
+              if (response && response.success) {
+                // Refresh inventory list
+                fetchData();
+                setError(null);
+              } else {
+                throw new Error(response.message || 'Failed to save inventory item');
+              }
+              
+              setIsFormOpen(false);
+            } catch (err) {
+              console.error('Error saving inventory item:', err);
+              setError(err.message || 'Failed to save inventory item. Please try again.');
+            } finally {
+              setLoading(false);
+            }
+          }}
+        />
+      </Modal>
+    </div>
+  );
+};
+
+export default InventoryPage;
