@@ -1,5 +1,5 @@
 import { h } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import PurchaseReceivingForm from '../../components/purchases/PurchaseReceivingForm';
 import api from '../../services/api';
@@ -83,23 +83,48 @@ const PurchaseReceivingPage = () => {
     return matchesSearch && matchesDate;
   });
 
-  // Handle save purchase receipt
-  const handleSaveReceipt = async (receiptData) => {
+  // Track submission state to prevent duplicate submissions
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Use a ref to track if a submission is in progress
+  const submissionInProgressRef = useRef(false);
+
+  // Handle save purchase receipt - this is the ONLY place where API calls to save data should happen
+  const handleSaveReceipt = async (formData) => {
+    console.log('handleSaveReceipt called with form data:', formData);
+    
+    // Multiple checks to prevent duplicate submissions
+    if (isSubmitting || submissionInProgressRef.current) {
+      console.log('Submission already in progress, ignoring duplicate request');
+      return;
+    }
+    
+    // Set flags to prevent duplicate submissions
+    setIsSubmitting(true);
+    submissionInProgressRef.current = true;
+    
     try {
       setLoading(true);
       setError(null);
+      console.log('Processing submission in page component...');
+      
+      // This is now the ONLY place where the API call happens
       let response;
       
       if (currentReceipt) {
         // Update existing purchase receipt
-        response = await api.purchaseReceiving.update(currentReceipt._id, receiptData);
+        console.log('Updating existing receipt:', currentReceipt._id);
+        response = await api.purchaseReceiving.update(currentReceipt._id, formData);
       } else {
-        // Create new purchase receipt
-        response = await api.purchaseReceiving.create(receiptData);
+        // Create new receiving
+        console.log('Creating new receipt');
+        response = await api.purchaseReceiving.create(formData);
       }
+      
+      console.log('API response:', response);
       
       if (response && response.success) {
         // Refresh purchase receipts list
+        console.log('Refreshing receipt list');
         const updatedReceipts = await api.purchaseReceiving.getAll();
         setPurchaseReceipts(updatedReceipts.data || []);
         setError(null);
@@ -115,14 +140,19 @@ const PurchaseReceivingPage = () => {
       setError(errorMessage);
       
       // Don't close the modal if there's an error
-      if (errorMessage.includes('already exists')) {
+      if (errorMessage.includes('duplicate key') || errorMessage.includes('already exists')) {
         // If it's a duplicate record error, show a more helpful message
-        setError('A receiving record already exists for this purchase order. Please find and update the existing record instead.');
+        setError('A receiving record with this number already exists. This may be due to a duplicate submission. Please check the existing records or try again.');
       } else {
         setError(`Failed to save purchase receipt: ${errorMessage}`);
       }
     } finally {
       setLoading(false);
+      // Reset submission state after a delay to prevent immediate resubmission
+      setTimeout(() => {
+        setIsSubmitting(false);
+        submissionInProgressRef.current = false;
+      }, 1000);
     }
   };
 

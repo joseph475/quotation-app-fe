@@ -1,5 +1,5 @@
 import { h } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import api from '../../services/api';
@@ -258,12 +258,21 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
   // Calculate total received items
   const totalReceivedItems = formData.items.reduce((sum, item) => sum + (item.receivedQuantity || 0), 0);
 
+  // Track submission state to prevent double submissions
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Use a ref to track if the form has been submitted
+  const hasSubmittedRef = useRef(false);
+
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Prevent double submission
-    if (loading) {
+    console.log('Form submission attempt - Loading:', loading, 'IsSubmitting:', isSubmitting, 'HasSubmitted:', hasSubmittedRef.current);
+    
+    // Prevent double submission using multiple checks
+    if (loading || isSubmitting || hasSubmittedRef.current) {
+      console.log('Preventing duplicate submission');
       return;
     }
     
@@ -280,10 +289,15 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
     }
     
     try {
+      // Set flags to prevent double submission
       setLoading(true);
+      setIsSubmitting(true);
+      hasSubmittedRef.current = true;
       setError(null);
       
-      // Prepare data for API
+      console.log('Form submission proceeding - preparing data');
+      
+      // Prepare data for parent component
       const receivingData = {
         purchaseOrder: formData.purchaseOrderId,
         receivingDate: formData.receivingDate,
@@ -300,27 +314,27 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
             notes: item.notes
           }))
       };
-      
-      let response;
+
+      // If we're editing an existing record, include the _id to ensure we update rather than create
       if (initialData && initialData._id) {
-        // Update existing receiving
-        response = await api.purchaseReceiving.update(initialData._id, receivingData);
-      } else {
-        // Create new receiving
-        response = await api.purchaseReceiving.create(receivingData);
+        receivingData._id = initialData._id;
       }
       
-      if (response && response.success) {
-        // Call the save handler with the response data
-        onSave(response.data);
-      } else {
-        throw new Error('Failed to save purchase receiving');
-      }
+      console.log('Form validation passed, calling parent onSave with data');
+      
+      // Pass the data to the parent component to handle the API call
+      // This prevents duplicate API calls
+      onSave(receivingData);
     } catch (err) {
       console.error('Error saving purchase receiving:', err);
       setError('Failed to save purchase receiving: ' + (err.message || 'Unknown error'));
+      // Reset submission flags on error to allow retry
+      setIsSubmitting(false);
+      hasSubmittedRef.current = false;
     } finally {
       setLoading(false);
+      // Note: We don't reset isSubmitting here to prevent further submissions
+      // It will be reset when the component unmounts or when a new form is opened
     }
   };
 
@@ -660,7 +674,7 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
           type="submit"
           variant="primary"
           size="lg"
-          disabled={!selectedPO || totalReceivedItems === 0}
+          disabled={!selectedPO || totalReceivedItems === 0 || isSubmitting}
         >
           <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

@@ -6,25 +6,24 @@ import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 
 /**
- * QuotationForm component for creating and editing quotations
+ * SaleForm component for creating and editing sales
  * 
  * @param {Object} props - Component props
- * @param {Object} [props.initialData] - Initial quotation data for editing
+ * @param {Object} [props.initialData] - Initial sale data for editing
  * @param {Function} props.onCancel - Cancel handler
  * @param {Function} props.onSave - Save handler
  */
-const QuotationForm = ({ initialData, onCancel, onSave }) => {
+const SaleForm = ({ initialData, onCancel, onSave }) => {
   // Form state
   const [formData, setFormData] = useState({
-    quotationNumber: '',
+    saleNumber: '',
     customer: '',
     branch: '',
     date: new Date().toISOString().split('T')[0], // Today's date
-    validUntil: '', // Will be set to 14 days from today by default
-    status: 'draft', // Default status is 'draft' (Pending)
+    status: 'pending',
+    paymentMethod: 'cash',
     items: [],
     notes: '',
-    terms: '', // Terms and conditions for the quotation
     customerName: '', // Store customer name for display
   });
 
@@ -236,18 +235,6 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     }
   }, [user, branches]);
 
-  // Set default valid until date (14 days from today)
-  useEffect(() => {
-    const today = new Date();
-    const validUntil = new Date();
-    validUntil.setDate(today.getDate() + 14);
-    
-    setFormData(prev => ({
-      ...prev,
-      validUntil: validUntil.toISOString().split('T')[0],
-    }));
-  }, []);
-
   // Initialize form with data if editing
   useEffect(() => {
     if (initialData) {
@@ -269,10 +256,10 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
       
       console.log('Initializing form with branch:', branchId, 'Branch name:', branchName);
     } else {
-      // Generate a new quotation number for new quotations
+      // Generate a new sale number for new sales
       setFormData(prev => ({
         ...prev,
-        quotationNumber: `Q-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
+        saleNumber: `S-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
       }));
     }
   }, [initialData]);
@@ -440,7 +427,7 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
       return;
     }
     
-    // Prepare quotation data for submission
+    // Prepare sale data for submission
     // Map items to remove the frontend-only 'id' field and ensure proper structure
     const mappedItems = formData.items.map(item => ({
       inventory: item.inventory, // This is the MongoDB ObjectId reference
@@ -453,31 +440,19 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
       // Explicitly omit the 'id' field which is only used for frontend tracking
     }));
     
-    // Validate validUntil date
-    if (!formData.validUntil) {
-      newErrors.validUntil = 'Valid until date is required';
-      setErrors(newErrors);
-      return;
-    }
-    
-    const quotationData = {
-      quotationNumber: formData.quotationNumber,
-      customer: formData.customer,
-      branch: formData.branch,
-      date: formData.date,
-      validUntil: formData.validUntil,
-      status: formData.status,
-      items: mappedItems,
-      notes: formData.notes,
-      terms: formData.terms,
+    const saleData = {
+      ...formData,
+      items: mappedItems, // Use the properly mapped items
       subtotal,
       discountAmount,
       taxAmount,
-      total: totalAmount
+      total: totalAmount,
+      balance: totalAmount, // Initially, balance equals total amount
+      amountPaid: 0 // Initially, no amount is paid
     };
     
     // Call the save handler
-    onSave(quotationData);
+    onSave(saleData);
   };
 
   // Common input classes for consistency
@@ -489,18 +464,18 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Basic Information */}
-      <Card title="Quotation Information">
+      <Card title="Sale Information">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          {/* Quotation Number */}
+          {/* Sale Number */}
           <div>
-            <label htmlFor="quotationNumber" className={labelClasses}>
-              Quotation Number
+            <label htmlFor="saleNumber" className={labelClasses}>
+              Sale Number
             </label>
             <input
               type="text"
-              id="quotationNumber"
-              name="quotationNumber"
-              value={formData.quotationNumber}
+              id="saleNumber"
+              name="saleNumber"
+              value={formData.saleNumber}
               onChange={handleChange}
               className={inputClasses}
               disabled
@@ -510,7 +485,7 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
           {/* Date */}
           <div>
             <label htmlFor="date" className={labelClasses}>
-              Quotation Date <span className="text-red-500">*</span>
+              Sale Date <span className="text-red-500">*</span>
             </label>
             <input
               type="date"
@@ -647,25 +622,6 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
             )}
           </div>
 
-          {/* Valid Until */}
-          <div>
-            <label htmlFor="validUntil" className={labelClasses}>
-              Valid Until <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              id="validUntil"
-              name="validUntil"
-              value={formData.validUntil}
-              onChange={handleChange}
-              className={`${inputClasses} ${errors.validUntil ? 'border-red-300' : ''}`}
-              required
-            />
-            {errors.validUntil && (
-              <p className={errorClasses}>{errors.validUntil}</p>
-            )}
-          </div>
-
           {/* Status */}
           <div>
             <label htmlFor="status" className={labelClasses}>
@@ -679,11 +635,38 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
                 onChange={handleChange}
                 className={`${inputClasses} appearance-none pr-10`}
               >
-                <option value="draft">Pending</option>
-                <option value="sent">Sent</option>
-                <option value="accepted">Approved</option>
-                <option value="rejected">Rejected</option>
-                <option value="expired">Expired</option>
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="partially_paid">Partially Paid</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="refunded">Refunded</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Method */}
+          <div>
+            <label htmlFor="paymentMethod" className={labelClasses}>
+              Payment Method
+            </label>
+            <div className="relative">
+              <select
+                id="paymentMethod"
+                name="paymentMethod"
+                value={formData.paymentMethod}
+                onChange={handleChange}
+                className={`${inputClasses} appearance-none pr-10`}
+              >
+                <option value="cash">Cash</option>
+                <option value="check">Check</option>
+                <option value="credit_card">Credit Card</option>
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="online_payment">Online Payment</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                 <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -708,30 +691,14 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
               placeholder="Add any notes or special instructions here"
             ></textarea>
           </div>
-
-          {/* Terms & Conditions */}
-          <div className="sm:col-span-2">
-            <label htmlFor="terms" className={labelClasses}>
-              Terms & Conditions
-            </label>
-            <textarea
-              id="terms"
-              name="terms"
-              rows="3"
-              value={formData.terms}
-              onChange={handleChange}
-              className={inputClasses}
-              placeholder="Terms and conditions for this quotation"
-            ></textarea>
-          </div>
         </div>
       </Card>
 
       {/* Items */}
-      <Card title="Quotation Items">
+      <Card title="Sale Items">
         {/* Add Item Form */}
         <div className="mb-6 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
-          <h4 className="text-lg font-medium text-gray-800 mb-4">Add Item to Quotation</h4>
+          <h4 className="text-lg font-medium text-gray-800 mb-4">Add Item to Sale</h4>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-12">
             {/* Inventory Search */}
             <div id="inventorySearchContainer" className="sm:col-span-5 relative">
@@ -976,7 +943,7 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
                         <svg className="h-12 w-12 text-gray-300 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                         </svg>
-                        <p>No items added to this quotation yet</p>
+                        <p>No items added to this sale yet</p>
                         <p className="text-xs mt-1">Search for inventory items above</p>
                       </div>
                     </td>
@@ -1079,11 +1046,11 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
           variant="primary"
           disabled={loading.form}
         >
-          {loading.form ? 'Saving...' : initialData ? 'Update Quotation' : 'Create Quotation'}
+          {loading.form ? 'Saving...' : initialData ? 'Update Sale' : 'Create Sale'}
         </Button>
       </div>
     </form>
   );
 };
 
-export default QuotationForm;
+export default SaleForm;
