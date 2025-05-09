@@ -3,6 +3,8 @@ import { useState, useEffect } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import QuotationForm from '../../components/quotations/QuotationForm';
 import api from '../../services/api';
+import useAuth from '../../hooks/useAuth';
+import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 
 const QuotationsPage = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -13,6 +15,13 @@ const QuotationsPage = () => {
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Get current user from auth context
+  const { user } = useAuth();
+  
+  // Get modal contexts
+  const { showConfirm, showDeleteConfirm } = useConfirmModal();
+  const { showError } = useErrorModal();
   
   // Fetch quotations from API
   useEffect(() => {
@@ -353,7 +362,10 @@ const QuotationsPage = () => {
                     <div class="flex justify-end space-x-2">
                       <button class="text-primary-600 hover:text-primary-900">View</button>
                       <button class="text-primary-600 hover:text-primary-900">Edit</button>
-                      <button class="text-primary-600 hover:text-primary-900">Convert to Sale</button>
+                      {/* Only show delete/convert buttons for non-user roles */}
+                      {user && user.role !== 'user' && (
+                        <button class="text-primary-600 hover:text-primary-900">Convert to Sale</button>
+                      )}
                     </div>
                   </td>
                 </tr>

@@ -225,16 +225,38 @@ export const useCrud = (api, options = {}) => {
   };
   
   // Handle delete
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, confirmModalContext = null) => {
     if (!canDelete) {
       setError(`You don't have permission to delete this ${entityName}`);
       return false;
     }
     
-    if (!confirm(`Are you sure you want to delete this ${entityName}?`)) {
-      return false;
+    // If confirm modal context is provided, use it for confirmation
+    if (confirmModalContext) {
+      return new Promise((resolve) => {
+        confirmModalContext.showDeleteConfirm({
+          itemName: entityName,
+          onConfirm: async () => {
+            const result = await performDelete(id);
+            resolve(result);
+          },
+          onCancel: () => {
+            resolve(false);
+          }
+        });
+      });
+    } else {
+      // Fallback to browser's native confirm
+      if (!confirm(`Are you sure you want to delete this ${entityName}?`)) {
+        return false;
+      }
+      
+      return await performDelete(id);
     }
-    
+  };
+  
+  // Perform the actual delete operation
+  const performDelete = async (id) => {
     setIsLoading(true);
     setError(null);
     

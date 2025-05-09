@@ -155,19 +155,37 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
       }
     };
     
-    const fetchBranches = async () => {
-      setLoading(prev => ({ ...prev, branches: true }));
-      try {
-        const response = await api.branches.getAll();
-        if (response && response.success) {
-          setBranches(response.data || []);
+  const fetchBranches = async () => {
+    setLoading(prev => ({ ...prev, branches: true }));
+    try {
+      const response = await api.branches.getAll();
+      console.log('Branches API response:', response);
+      
+      // More detailed logging to debug the issue
+      if (!response) {
+        console.error('Response is undefined or null');
+      } else {
+        console.log('Response structure:', Object.keys(response));
+        if (response.data) {
+          console.log('Data exists, length:', response.data.length);
+          console.log('First branch (if any):', response.data[0]);
+        } else {
+          console.error('No data property in response');
         }
-      } catch (error) {
-        console.error('Error fetching branches:', error);
-      } finally {
-        setLoading(prev => ({ ...prev, branches: false }));
       }
-    };
+      
+      if (response && response.success) {
+        setBranches(response.data || []);
+        console.log('Branches set:', response.data);
+      } else {
+        console.error('Failed to fetch branches:', response);
+      }
+    } catch (error) {
+      console.error('Error fetching branches:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, branches: false }));
+    }
+  };
 
     const fetchInventory = async () => {
       console.log('aaaa', user);
@@ -220,10 +238,23 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
   // Initialize form with data if editing
   useEffect(() => {
     if (initialData) {
+      // Handle branch which might be an object or string ID
+      const branchId = typeof initialData.branch === 'object' && initialData.branch?._id 
+        ? initialData.branch._id 
+        : initialData.branch;
+      
+      const branchName = typeof initialData.branch === 'object' && initialData.branch?.name
+        ? initialData.branch.name
+        : '';
+      
       setFormData({
         ...initialData,
+        branch: branchId, // Ensure branch is set as ID string
+        branchName: branchName, // Store branch name for display
         date: initialData.date || new Date().toISOString().split('T')[0],
       });
+      
+      console.log('Initializing form with branch:', branchId, 'Branch name:', branchName);
     } else {
       // Generate a new sale number for new sales
       setFormData(prev => ({
@@ -570,11 +601,15 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
                 disabled={user && user.role !== 'admin'} // Only admin can change branch
               >
                 <option value="">Select Branch</option>
-                {branches.map(branch => (
-                  <option key={branch._id} value={branch._id}>
-                    {branch.name}
-                  </option>
-                ))}
+                {branches.length === 0 ? (
+                  <option value="" disabled>No branches available</option>
+                ) : (
+                  branches.map(branch => (
+                    <option key={branch._id} value={branch._id}>
+                      {branch.name}
+                    </option>
+                  ))
+                )}
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                 <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">

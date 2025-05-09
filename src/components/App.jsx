@@ -4,6 +4,8 @@ import Router from 'preact-router';
 import { getCurrentUrl } from 'preact-router';
 import useAuth from '../hooks/useAuth';
 import { RoleProtectedRoute } from '../utils/pageHelpers';
+import { ModalProvider } from '../contexts/ModalContext';
+import { ApiErrorHandler } from '../services/api';
 
 // Development mode flag - set to false for production
 const DEV_MODE = false;
@@ -31,7 +33,7 @@ import BranchesPage from '../pages/branches/BranchesPage';
 import LoginPage from '../pages/auth/LoginPage';
 
 
-const App = () => {
+const AppContent = () => {
   const [currentUrl, setCurrentUrl] = useState(getCurrentUrl());
   const { isAuthenticated } = useAuth();
   
@@ -75,6 +77,16 @@ const App = () => {
       </div>
       {!isAuthRoute && <Footer />}
     </div>
+  );
+};
+
+// Wrap the app with the modal provider
+const App = () => {
+  return (
+    <ModalProvider>
+      <ApiErrorHandler />
+      <AppContent />
+    </ModalProvider>
   );
 };
 

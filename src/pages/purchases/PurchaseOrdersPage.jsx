@@ -4,9 +4,17 @@ import Modal from '../../components/common/Modal';
 import PurchaseOrderForm from '../../components/purchases/PurchaseOrderForm';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
+import { useConfirmModal } from '../../contexts/ModalContext';
 
 const PurchaseOrdersPage = () => {
   const { user, isAuthenticated } = useAuth();
+  const confirmModal = useConfirmModal();
+  // Force isAdmin to false unless explicitly set to 'admin'
+  const isAdmin = user && user.role === 'admin';
+  
+  console.log('User object:', user);
+  console.log('Is admin:', isAdmin);
+  console.log('User role:', user?.role);
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
@@ -136,24 +144,40 @@ const PurchaseOrdersPage = () => {
       return;
     }
     
-    if (confirm('Are you sure you want to delete this purchase order?')) {
-      try {
-        setLoading(true);
-        const response = await api.purchaseOrders.delete(poId);
-        
-        if (response && response.success) {
-          // Remove from local state
-          setPurchaseOrders(prev => prev.filter(po => po._id !== poId));
-          setError(null);
-        } else {
-          throw new Error('Failed to delete purchase order');
+    // Use confirmation modal if available
+    if (confirmModal) {
+      confirmModal.showDeleteConfirm({
+        itemName: 'purchase order',
+        onConfirm: async () => {
+          await performDeletePO(poId);
         }
-      } catch (err) {
-        console.error('Error deleting purchase order:', err);
-        setError('Failed to delete purchase order');
-      } finally {
-        setLoading(false);
+      });
+    } else {
+      // Fallback to browser's native confirm
+      if (confirm('Are you sure you want to delete this purchase order?')) {
+        await performDeletePO(poId);
       }
+    }
+  };
+  
+  // Perform the actual delete operation
+  const performDeletePO = async (poId) => {
+    try {
+      setLoading(true);
+      const response = await api.purchaseOrders.delete(poId);
+      
+      if (response && response.success) {
+        // Remove from local state
+        setPurchaseOrders(prev => prev.filter(po => po._id !== poId));
+        setError(null);
+      } else {
+        throw new Error('Failed to delete purchase order');
+      }
+    } catch (err) {
+      console.error('Error deleting purchase order:', err);
+      setError('Failed to delete purchase order');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -165,6 +189,36 @@ const PurchaseOrdersPage = () => {
       return;
     }
     
+    // For approve/reject actions, use confirmation modal
+    if ((newStatus === 'Approved' || newStatus === 'Rejected') && confirmModal) {
+      const isApprove = newStatus === 'Approved';
+      const modalConfig = {
+        itemName: 'purchase order',
+        onConfirm: async () => {
+          await performStatusChange(poId, newStatus);
+        }
+      };
+      
+      if (isApprove) {
+        confirmModal.showApproveConfirm(modalConfig);
+      } else {
+        confirmModal.showConfirm({
+          title: 'Reject Purchase Order',
+          message: 'Are you sure you want to reject this purchase order?',
+          confirmText: 'Reject',
+          cancelText: 'Cancel',
+          confirmButtonClass: 'bg-red-600 hover:bg-red-700',
+          onConfirm: modalConfig.onConfirm
+        });
+      }
+    } else {
+      // For other status changes, proceed without confirmation
+      await performStatusChange(poId, newStatus);
+    }
+  };
+  
+  // Perform the actual status change
+  const performStatusChange = async (poId, newStatus) => {
     try {
       setLoading(true);
       const response = await api.purchaseOrders.updateStatus(poId, newStatus);
@@ -345,12 +399,14 @@ const PurchaseOrdersPage = () => {
 
           {/* Actions */}
           <div class="flex space-x-3">
-            <button class="btn btn-outline flex items-center">
-              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-              </svg>
-              Export
-            </button>
+            {isAdmin && (
+              <button class="btn btn-outline flex items-center">
+                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                Export
+              </button>
+            )}
             <button 
               class="btn btn-primary flex items-center"
               onClick={() => {
@@ -488,7 +544,7 @@ const PurchaseOrdersPage = () => {
                           </button>
                         )}
                         
-                        {po.status === 'Submitted' && (
+                        {isAdmin && po.status === 'Submitted' && (
                           <>
                             <button 
                               class="text-green-600 hover:text-green-900"
@@ -514,12 +570,14 @@ const PurchaseOrdersPage = () => {
                           </button>
                         )}
                         
-                        <button 
-                          class="text-red-600 hover:text-red-900"
-                          onClick={() => handleDeletePO(po._id)}
-                        >
-                          Delete
-                        </button>
+                        {isAdmin && (
+                          <button 
+                            class="text-red-600 hover:text-red-900"
+                            onClick={() => handleDeletePO(po._id)}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

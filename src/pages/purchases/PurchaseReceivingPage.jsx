@@ -3,8 +3,18 @@ import { useState, useEffect } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import PurchaseReceivingForm from '../../components/purchases/PurchaseReceivingForm';
 import api from '../../services/api';
+import { useConfirmModal } from '../../contexts/ModalContext';
+import useAuth from '../../hooks/useAuth';
 
 const PurchaseReceivingPage = () => {
+  const confirmModal = useConfirmModal();
+  const { user } = useAuth();
+  // Force isAdmin to false unless explicitly set to 'admin'
+  const isAdmin = user && user.role === 'admin';
+  
+  console.log('User object:', user);
+  console.log('Is admin:', isAdmin);
+  console.log('User role:', user?.role);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -77,6 +87,7 @@ const PurchaseReceivingPage = () => {
   const handleSaveReceipt = async (receiptData) => {
     try {
       setLoading(true);
+      setError(null);
       let response;
       
       if (currentReceipt) {
@@ -92,15 +103,24 @@ const PurchaseReceivingPage = () => {
         const updatedReceipts = await api.purchaseReceiving.getAll();
         setPurchaseReceipts(updatedReceipts.data || []);
         setError(null);
+        setIsFormModalOpen(false);
+        setCurrentReceipt(null);
       } else {
         throw new Error('Failed to save purchase receipt');
       }
-      
-      setIsFormModalOpen(false);
-      setCurrentReceipt(null);
     } catch (err) {
       console.error('Error saving purchase receipt:', err);
-      setError('Failed to save purchase receipt');
+      // Extract error message from API response if available
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to save purchase receipt';
+      setError(errorMessage);
+      
+      // Don't close the modal if there's an error
+      if (errorMessage.includes('already exists')) {
+        // If it's a duplicate record error, show a more helpful message
+        setError('A receiving record already exists for this purchase order. Please find and update the existing record instead.');
+      } else {
+        setError(`Failed to save purchase receipt: ${errorMessage}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -108,24 +128,40 @@ const PurchaseReceivingPage = () => {
 
   // Handle delete purchase receipt
   const handleDeleteReceipt = async (receiptId) => {
-    if (confirm('Are you sure you want to delete this receipt?')) {
-      try {
-        setLoading(true);
-        const response = await api.purchaseReceiving.delete(receiptId);
-        
-        if (response && response.success) {
-          // Remove from local state
-          setPurchaseReceipts(prev => prev.filter(receipt => receipt._id !== receiptId));
-          setError(null);
-        } else {
-          throw new Error('Failed to delete purchase receipt');
+    // Use confirmation modal if available
+    if (confirmModal) {
+      confirmModal.showDeleteConfirm({
+        itemName: 'purchase receipt',
+        onConfirm: async () => {
+          await performDeleteReceipt(receiptId);
         }
-      } catch (err) {
-        console.error('Error deleting purchase receipt:', err);
-        setError('Failed to delete purchase receipt');
-      } finally {
-        setLoading(false);
+      });
+    } else {
+      // Fallback to browser's native confirm
+      if (confirm('Are you sure you want to delete this receipt?')) {
+        await performDeleteReceipt(receiptId);
       }
+    }
+  };
+  
+  // Perform the actual delete operation
+  const performDeleteReceipt = async (receiptId) => {
+    try {
+      setLoading(true);
+      const response = await api.purchaseReceiving.delete(receiptId);
+      
+      if (response && response.success) {
+        // Remove from local state
+        setPurchaseReceipts(prev => prev.filter(receipt => receipt._id !== receiptId));
+        setError(null);
+      } else {
+        throw new Error('Failed to delete purchase receipt');
+      }
+    } catch (err) {
+      console.error('Error deleting purchase receipt:', err);
+      setError('Failed to delete purchase receipt');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -247,12 +283,14 @@ const PurchaseReceivingPage = () => {
 
           {/* Actions */}
           <div class="flex space-x-3">
-            <button class="btn btn-outline flex items-center">
-              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-              </svg>
-              Export
-            </button>
+            {isAdmin && (
+              <button class="btn btn-outline flex items-center">
+                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                Export
+              </button>
+            )}
             <button 
               class="btn btn-primary flex items-center"
               onClick={() => {
@@ -326,14 +364,16 @@ const PurchaseReceivingPage = () => {
                             setIsFormModalOpen(true);
                           }}
                         >
-                          View
+                          {isAdmin ? "View" : "Edit"}
                         </button>
-                        <button 
-                          class="text-red-600 hover:text-red-900"
-                          onClick={() => handleDeleteReceipt(receipt._id)}
-                        >
-                          Delete
-                        </button>
+                        {isAdmin && (
+                          <button 
+                            class="text-red-600 hover:text-red-900"
+                            onClick={() => handleDeleteReceipt(receipt._id)}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

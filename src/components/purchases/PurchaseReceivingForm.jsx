@@ -3,6 +3,7 @@ import { useState, useEffect } from 'preact/hooks';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import api from '../../services/api';
+import useAuth from '../../hooks/useAuth';
 
 /**
  * PurchaseReceivingForm component for receiving items from purchase orders
@@ -13,6 +14,13 @@ import api from '../../services/api';
  * @param {Function} props.onSave - Save handler
  */
 const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
+  const { user } = useAuth();
+  // Force isAdmin to false unless explicitly set to 'admin'
+  const isAdmin = user && user.role === 'admin';
+  
+  console.log('Form - User object:', user);
+  console.log('Form - Is admin:', isAdmin);
+  console.log('Form - User role:', user?.role);
   // State for purchase orders
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -254,6 +262,11 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Prevent double submission
+    if (loading) {
+      return;
+    }
+    
     // Validate form
     const newErrors = {};
     if (!formData.purchaseOrderId) newErrors.purchaseOrderId = 'Purchase order is required';
@@ -268,6 +281,7 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
     
     try {
       setLoading(true);
+      setError(null);
       
       // Prepare data for API
       const receivingData = {
@@ -304,7 +318,7 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
       }
     } catch (err) {
       console.error('Error saving purchase receiving:', err);
-      setError('Failed to save purchase receiving');
+      setError('Failed to save purchase receiving: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -651,7 +665,7 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
           <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
           </svg>
-          Confirm Receipt
+          {initialData ? "Save Changes" : "Confirm Receipt"}
         </Button>
       </div>
     </form>
