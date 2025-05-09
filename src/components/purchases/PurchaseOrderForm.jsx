@@ -34,7 +34,7 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
     branchName: '',
     date: new Date().toISOString().split('T')[0],
     expectedDeliveryDate: '',
-    status: 'Draft',
+    status: initialData?.status || 'Draft', // Use initialData status if available
     items: [],
     notes: '',
   });
@@ -122,17 +122,21 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
     fetchInventory();
   }, []);
 
-  // Set default expected delivery date (14 days from today)
+  // Set default expected delivery date (14 days from today) if not already set
   useEffect(() => {
-    const today = new Date();
-    const expectedDelivery = new Date();
-    expectedDelivery.setDate(today.getDate() + 14);
-    
-    setFormData(prev => ({
-      ...prev,
-      expectedDeliveryDate: expectedDelivery.toISOString().split('T')[0],
-    }));
-  }, []);
+    // Only set default expected delivery date if it's not already set
+    // This prevents overwriting the date when editing an existing purchase order
+    if (!formData.expectedDeliveryDate) {
+      const today = new Date();
+      const expectedDelivery = new Date();
+      expectedDelivery.setDate(today.getDate() + 14);
+      
+      setFormData(prev => ({
+        ...prev,
+        expectedDeliveryDate: expectedDelivery.toISOString().split('T')[0],
+      }));
+    }
+  }, [formData.expectedDeliveryDate]);
 
   // Initialize form with data if editing
   useEffect(() => {
@@ -165,10 +169,38 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
         return mappedItem;
       }) : [];
       
+      // Handle supplier field which could be an object (from MongoDB populate) or a string
+      let supplierName = '';
+      if (initialData.supplier) {
+        // If supplier is an object with a name property (from MongoDB populate)
+        if (typeof initialData.supplier === 'object' && initialData.supplier.name) {
+          supplierName = initialData.supplier.name;
+        } 
+        // If supplier is already a string
+        else if (typeof initialData.supplier === 'string') {
+          supplierName = initialData.supplier;
+        }
+      }
+      
+      // Handle expectedDeliveryDate - ensure it's properly formatted
+      let expectedDeliveryDate = '';
+      if (initialData.expectedDeliveryDate) {
+        // Convert to YYYY-MM-DD format for input[type="date"]
+        const date = new Date(initialData.expectedDeliveryDate);
+        if (!isNaN(date.getTime())) {
+          expectedDeliveryDate = date.toISOString().split('T')[0];
+        }
+      }
+      
+      console.log('Initial data expectedDeliveryDate:', initialData.expectedDeliveryDate);
+      console.log('Formatted expectedDeliveryDate:', expectedDeliveryDate);
+      
       setFormData({
         ...initialData,
         date: initialData.date || new Date().toISOString().split('T')[0],
-        items: mappedItems
+        expectedDeliveryDate: expectedDeliveryDate || initialData.expectedDeliveryDate,
+        items: mappedItems,
+        supplier: supplierName // Set supplier to the extracted name
       });
     }
   }, [initialData]);

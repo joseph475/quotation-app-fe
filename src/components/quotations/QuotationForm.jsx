@@ -14,104 +14,227 @@ import useAuth from '../../hooks/useAuth';
  * @param {Function} props.onSave - Save handler
  */
 const QuotationForm = ({ initialData, onCancel, onSave }) => {
-  // Get current user from auth context
-  const { user } = useAuth();
-  
-  // State for customers and inventory items
-  const [customers, setCustomers] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState({
-    customers: false,
-    products: false
-  });
-  const [error, setError] = useState({
-    customers: null,
-    products: null
-  });
-  
-  // Fetch customers and inventory items
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      setLoading(prev => ({ ...prev, customers: true }));
-      try {
-        const response = await api.customers.getAll();
-        setCustomers(response.data || []);
-        setError(prev => ({ ...prev, customers: null }));
-      } catch (err) {
-        console.error('Error fetching customers:', err);
-        setError(prev => ({ ...prev, customers: 'Failed to load customers' }));
-      } finally {
-        setLoading(prev => ({ ...prev, customers: false }));
-      }
-    };
-    
-    const fetchInventory = async () => {
-      setLoading(prev => ({ ...prev, products: true }));
-      try {
-        // If user is not admin, filter inventory by branch
-        let response;
-        if (user && user.role === 'admin') {
-          response = await api.inventory.getAll();
-        } else if (user && user.branch && user.branch._id) {
-          // For regular users, only show items from their branch
-          response = await api.inventory.getByBranch(user.branch._id);
-        } else {
-          // Fallback to get all inventory if branch is not available
-          response = await api.inventory.getAll();
-        }
-        
-        // Map inventory items to product format
-        const mappedProducts = (response.data || []).map(item => ({
-          id: item._id,
-          name: item.name,
-          price: item.sellingPrice || 0,
-          itemCode: item.itemCode
-        }));
-        setProducts(mappedProducts);
-        setError(prev => ({ ...prev, products: null }));
-      } catch (err) {
-        console.error('Error fetching inventory:', err);
-        setError(prev => ({ ...prev, products: 'Failed to load inventory items' }));
-      } finally {
-        setLoading(prev => ({ ...prev, products: false }));
-      }
-    };
-    
-    fetchCustomers();
-    fetchInventory();
-  }, [user]);
-
   // Form state
   const [formData, setFormData] = useState({
-    id: '',
+    quotationNumber: '',
     customer: '',
+    branch: '',
     date: new Date().toISOString().split('T')[0], // Today's date
     validUntil: '', // Will be set to 14 days from today by default
-    status: 'Pending',
+    status: 'draft', // Default status is 'draft' (Pending)
     items: [],
+    notes: '',
+    terms: '', // Terms and conditions for the quotation
+    customerName: '', // Store customer name for display
   });
 
   // Item being edited
   const [currentItem, setCurrentItem] = useState({
-    product: '',
-    name: '',
+    inventory: '',
+    description: '',
     quantity: 1,
-    price: 0,
+    unitPrice: 0,
+    discount: 0,
+    tax: 0,
     total: 0,
   });
+
+  // Data for dropdowns
+  const [customers, setCustomers] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [loading, setLoading] = useState({
+    customers: false,
+    branches: false,
+    inventory: false,
+    form: false
+  });
+  
+  // Search state
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [filteredInventory, setFilteredInventory] = useState([]);
+  const [showInventoryResults, setShowInventoryResults] = useState(false);
+  
+  // Customer search state
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [filteredCustomers, setFilteredCustomers] = useState([]);
+  const [showCustomerResults, setShowCustomerResults] = useState(false);
+  
+  // Handle inventory search
+  const handleInventorySearch = (e) => {
+    const value = e.target.value;
+    setInventorySearch(value);
+  };
+  
+  // Handle customer search
+  const handleCustomerSearch = (e) => {
+    const value = e.target.value;
+    setCustomerSearch(value);
+  };
+  
+  // Filter inventory items based on search term and user's branch
+  useEffect(() => {
+    // First filter by branch if user is not admin
+    let branchFilteredItems = inventoryItems;
+    
+    // Then filter by search term
+    if (!inventorySearch) {
+      setFilteredInventory(branchFilteredItems);
+    } else {
+      const filtered = branchFilteredItems.filter(item => 
+        item.name?.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+        item.itemCode?.toLowerCase().includes(inventorySearch.toLowerCase())
+      );
+      setFilteredInventory(filtered);
+    }
+    
+    // Always show results when typing
+    if (inventorySearch) {
+      setShowInventoryResults(true);
+    }
+  }, [inventorySearch, inventoryItems]);
+  
+  // Filter customers based on search term
+  useEffect(() => {
+    if (!customerSearch) {
+      setFilteredCustomers(customers);
+    } else {
+      const filtered = customers.filter(customer => 
+        customer.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+        customer.email?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+        customer.phone?.toLowerCase().includes(customerSearch.toLowerCase())
+      );
+      setFilteredCustomers(filtered);
+    }
+    
+    // Always show results when typing
+    if (customerSearch) {
+      setShowCustomerResults(true);
+    }
+  }, [customerSearch, customers]);
+  
+  // Handle click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Close inventory search results if clicked outside
+      if (showInventoryResults && !event.target.closest('#inventorySearchContainer')) {
+        setShowInventoryResults(false);
+      }
+      
+      // Close customer search results if clicked outside
+      if (showCustomerResults && !event.target.closest('#customerSearchContainer')) {
+        setShowCustomerResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showInventoryResults, showCustomerResults]);
 
   // Form validation
   const [errors, setErrors] = useState({});
   const [itemErrors, setItemErrors] = useState({});
 
-  // Search state
-  const [productSearch, setProductSearch] = useState('');
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [showProductResults, setShowProductResults] = useState(false);
+  // Get current user from auth context
+  const { user } = useAuth();
   
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [filteredCustomers, setFilteredCustomers] = useState([]);
-  const [showCustomerResults, setShowCustomerResults] = useState(false);
+  // Fetch customers, branches, and inventory data
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      setLoading(prev => ({ ...prev, customers: true }));
+      try {
+        const response = await api.customers.getAll();
+        if (response && response.success) {
+          setCustomers(response.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+      } finally {
+        setLoading(prev => ({ ...prev, customers: false }));
+      }
+    };
+    
+  const fetchBranches = async () => {
+    setLoading(prev => ({ ...prev, branches: true }));
+    try {
+      const response = await api.branches.getAll();
+      console.log('Branches API response:', response);
+      
+      // More detailed logging to debug the issue
+      if (!response) {
+        console.error('Response is undefined or null');
+      } else {
+        console.log('Response structure:', Object.keys(response));
+        if (response.data) {
+          console.log('Data exists, length:', response.data.length);
+          console.log('First branch (if any):', response.data[0]);
+        } else {
+          console.error('No data property in response');
+        }
+      }
+      
+      if (response && response.success) {
+        setBranches(response.data || []);
+        console.log('Branches set:', response.data);
+      } else {
+        console.error('Failed to fetch branches:', response);
+      }
+    } catch (error) {
+      console.error('Error fetching branches:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, branches: false }));
+    }
+  };
+
+    const fetchInventory = async () => {
+      console.log('aaaa', user);
+      setLoading(prev => ({ ...prev, inventory: true }));
+      try {
+        // If user is not admin, filter inventory by branch
+        let response;
+        if (user && user.role === 'admin') {
+          response = await api.inventory.getAll();
+        } else if (user && user.branch) {
+          // For regular users, only show items from their branch
+          response = await api.inventory.getByBranch(user.branch);
+        } else {
+          // Fallback to get all inventory if branch is not available
+          response = await api.inventory.getAll();
+        }
+        
+        if (response && response.success) {
+          setInventoryItems(response.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching inventory:', error);
+      } finally {
+        setLoading(prev => ({ ...prev, inventory: false }));
+      }
+    };
+
+    fetchCustomers();
+    fetchBranches();
+    fetchInventory();
+  }, [user]);
+  
+  // Set default branch based on user's branch
+  useEffect(() => {
+    if (user && user.branch && !formData.branch) {
+      // Check if branch is an object with _id or a string ID directly
+      const branchId = typeof user.branch === 'object' ? user.branch._id : user.branch;
+      const branchName = user.branchName || (typeof user.branch === 'object' ? user.branch.name : '');
+      
+      if (branchId) {
+        setFormData(prev => ({
+          ...prev,
+          branch: branchId,
+          branchName: branchName // Store branch name for display
+        }));
+      }
+    }
+  }, [user, branches]);
 
   // Set default valid until date (14 days from today)
   useEffect(() => {
@@ -128,109 +251,31 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
   // Initialize form with data if editing
   useEffect(() => {
     if (initialData) {
+      // Handle branch which might be an object or string ID
+      const branchId = typeof initialData.branch === 'object' && initialData.branch?._id 
+        ? initialData.branch._id 
+        : initialData.branch;
+      
+      const branchName = typeof initialData.branch === 'object' && initialData.branch?.name
+        ? initialData.branch.name
+        : '';
+      
       setFormData({
         ...initialData,
+        branch: branchId, // Ensure branch is set as ID string
+        branchName: branchName, // Store branch name for display
         date: initialData.date || new Date().toISOString().split('T')[0],
       });
+      
+      console.log('Initializing form with branch:', branchId, 'Branch name:', branchName);
+    } else {
+      // Generate a new quotation number for new quotations
+      setFormData(prev => ({
+        ...prev,
+        quotationNumber: `Q-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
+      }));
     }
   }, [initialData]);
-
-  // Filter products based on search term
-  useEffect(() => {
-    if (productSearch) {
-      const filtered = products.filter(product => 
-        product.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        product.itemCode?.toLowerCase().includes(productSearch.toLowerCase())
-      );
-      setFilteredProducts(filtered);
-    } else {
-      setFilteredProducts([]);
-      setShowProductResults(false);
-    }
-  }, [productSearch]);
-  
-  // Handle product search enter key
-  const handleProductSearchEnter = async (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const searchTerm = e.target.value;
-      if (!searchTerm) return;
-      
-      setLoading(prev => ({ ...prev, products: true }));
-      
-      try {
-        // Use the backend search endpoint that respects branch filtering
-        const response = await api.inventory.search(searchTerm);
-        
-        if (response && response.success) {
-          // Map inventory items to product format
-          const mappedProducts = (response.data || []).map(item => ({
-            id: item._id,
-            name: item.name,
-            price: item.sellingPrice || 0,
-            itemCode: item.itemCode
-          }));
-          setFilteredProducts(mappedProducts);
-        } else {
-          setFilteredProducts([]);
-        }
-        
-        // Always show results when Enter is pressed
-        setShowProductResults(true);
-        
-        // Only auto-select the first result if there's only one match
-        if (response && response.success && response.data && response.data.length === 1) {
-          const mappedProduct = {
-            id: response.data[0]._id,
-            name: response.data[0].name,
-            price: response.data[0].sellingPrice || 0,
-            itemCode: response.data[0].itemCode
-          };
-          handleProductSelect(mappedProduct);
-        }
-      } catch (error) {
-        console.error('Error searching inventory:', error);
-        setFilteredProducts([]);
-      } finally {
-        setLoading(prev => ({ ...prev, products: false }));
-      }
-    }
-  };
-  
-  // Filter customers based on search term
-  useEffect(() => {
-    if (customerSearch) {
-      const filtered = customers.filter(customer => 
-        customer.name.toLowerCase().includes(customerSearch.toLowerCase())
-      );
-      setFilteredCustomers(filtered);
-    } else {
-      setFilteredCustomers([]);
-      setShowCustomerResults(false);
-    }
-  }, [customerSearch]);
-
-  // Handle click outside to close dropdowns
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      // Close customer search results if clicked outside
-      if (showCustomerResults && !event.target.closest('#customerSearchContainer')) {
-        setShowCustomerResults(false);
-      }
-      
-      // Close product search results if clicked outside
-      if (showProductResults && !event.target.closest('#productSearchContainer')) {
-        setShowProductResults(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showCustomerResults, showProductResults]);
 
   // Handle form field changes
   const handleChange = (e) => {
@@ -259,10 +304,17 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     };
     
     // Calculate total
-    if (name === 'quantity' || name === 'price') {
+    if (name === 'quantity' || name === 'unitPrice' || name === 'discount' || name === 'tax') {
       const quantity = name === 'quantity' ? parseFloat(value) || 0 : parseFloat(currentItem.quantity) || 0;
-      const price = name === 'price' ? parseFloat(value) || 0 : parseFloat(currentItem.price) || 0;
-      updatedItem.total = quantity * price;
+      const unitPrice = name === 'unitPrice' ? parseFloat(value) || 0 : parseFloat(currentItem.unitPrice) || 0;
+      const discount = name === 'discount' ? parseFloat(value) || 0 : parseFloat(currentItem.discount) || 0;
+      const tax = name === 'tax' ? parseFloat(value) || 0 : parseFloat(currentItem.tax) || 0;
+      
+      const subtotal = quantity * unitPrice;
+      const discountAmount = subtotal * (discount / 100);
+      const taxAmount = (subtotal - discountAmount) * (tax / 100);
+      
+      updatedItem.total = subtotal - discountAmount + taxAmount;
     }
     
     setCurrentItem(updatedItem);
@@ -276,25 +328,15 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     }
   };
 
-  // Handle product selection from search results
-  const handleProductSelect = (product) => {
-    setCurrentItem({
-      ...currentItem,
-      product: product.id,
-      name: product.name,
-      price: product.price,
-      total: product.price * (parseFloat(currentItem.quantity) || 1)
-    });
-    setProductSearch('');
-    setShowProductResults(false);
-  };
-  
-  // Handle customer selection from search results
+  // Handle customer selection
   const handleCustomerSelect = (customer) => {
     setFormData(prev => ({
       ...prev,
-      customer: customer.name
+      customer: customer._id,
+      customerName: customer.name
     }));
+    
+    // Clear search term and hide results after selection
     setCustomerSearch('');
     setShowCustomerResults(false);
     
@@ -306,14 +348,30 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
       }));
     }
   };
+  
+  // Handle inventory selection
+  const handleInventorySelect = (item) => {
+    setCurrentItem({
+      ...currentItem,
+      inventory: item._id,
+      description: item.name,
+      unitPrice: item.sellingPrice || 0,
+      total: (item.sellingPrice || 0) * (parseFloat(currentItem.quantity) || 1)
+    });
+    
+    // Clear search term and hide results after selection
+    setInventorySearch('');
+    setShowInventoryResults(false);
+  };
 
-  // Add item to quotation
+  // Add item to sale
   const addItem = () => {
     // Validate item
     const newItemErrors = {};
-    if (!currentItem.name) newItemErrors.name = 'Product name is required';
+    if (!currentItem.inventory) newItemErrors.inventory = 'Inventory item is required';
+    if (!currentItem.description) newItemErrors.description = 'Description is required';
     if (!currentItem.quantity || currentItem.quantity <= 0) newItemErrors.quantity = 'Quantity must be greater than 0';
-    if (!currentItem.price || currentItem.price <= 0) newItemErrors.price = 'Price must be greater than 0';
+    if (!currentItem.unitPrice || currentItem.unitPrice <= 0) newItemErrors.unitPrice = 'Unit price must be greater than 0';
     
     if (Object.keys(newItemErrors).length > 0) {
       setItemErrors(newItemErrors);
@@ -333,17 +391,19 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     
     // Reset current item
     setCurrentItem({
-      product: '',
-      name: '',
+      inventory: '',
+      description: '',
       quantity: 1,
-      price: 0,
+      unitPrice: 0,
+      discount: 0,
+      tax: 0,
       total: 0,
     });
     
     setItemErrors({});
   };
 
-  // Remove item from quotation
+  // Remove item from sale
   const removeItem = (itemId) => {
     setFormData(prev => ({
       ...prev,
@@ -351,7 +411,17 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     }));
   };
 
-  // Calculate total amount
+  // Calculate totals
+  const subtotal = formData.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+  const discountAmount = formData.items.reduce((sum, item) => {
+    const itemSubtotal = item.quantity * item.unitPrice;
+    return sum + (itemSubtotal * (item.discount / 100));
+  }, 0);
+  const taxAmount = formData.items.reduce((sum, item) => {
+    const itemSubtotal = item.quantity * item.unitPrice;
+    const itemDiscountAmount = itemSubtotal * (item.discount / 100);
+    return sum + ((itemSubtotal - itemDiscountAmount) * (item.tax / 100));
+  }, 0);
   const totalAmount = formData.items.reduce((sum, item) => sum + item.total, 0);
 
   // Handle form submission
@@ -361,8 +431,8 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     // Validate form
     const newErrors = {};
     if (!formData.customer) newErrors.customer = 'Customer is required';
+    if (!formData.branch) newErrors.branch = 'Branch is required';
     if (!formData.date) newErrors.date = 'Date is required';
-    if (!formData.validUntil) newErrors.validUntil = 'Valid until date is required';
     if (formData.items.length === 0) newErrors.items = 'At least one item is required';
     
     if (Object.keys(newErrors).length > 0) {
@@ -370,11 +440,40 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
       return;
     }
     
-    // Generate a quotation ID if it's a new quotation
+    // Prepare quotation data for submission
+    // Map items to remove the frontend-only 'id' field and ensure proper structure
+    const mappedItems = formData.items.map(item => ({
+      inventory: item.inventory, // This is the MongoDB ObjectId reference
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount,
+      tax: item.tax,
+      total: item.total
+      // Explicitly omit the 'id' field which is only used for frontend tracking
+    }));
+    
+    // Validate validUntil date
+    if (!formData.validUntil) {
+      newErrors.validUntil = 'Valid until date is required';
+      setErrors(newErrors);
+      return;
+    }
+    
     const quotationData = {
-      ...formData,
-      id: formData.id || `Q-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
-      amount: totalAmount,
+      quotationNumber: formData.quotationNumber,
+      customer: formData.customer,
+      branch: formData.branch,
+      date: formData.date,
+      validUntil: formData.validUntil,
+      status: formData.status,
+      items: mappedItems,
+      notes: formData.notes,
+      terms: formData.terms,
+      subtotal,
+      discountAmount,
+      taxAmount,
+      total: totalAmount
     };
     
     // Call the save handler
@@ -386,92 +485,26 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
   const labelClasses = "block text-sm font-medium text-gray-700 mb-1";
   const errorClasses = "mt-2 text-sm text-red-600";
 
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Basic Information */}
       <Card title="Quotation Information">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          {/* Customer Search */}
-          <div id="customerSearchContainer" className="relative">
-            <label htmlFor="customerSearch" className={labelClasses}>
-              Customer <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <input
-                type="text"
-                id="customerSearch"
-                placeholder="Search for customer..."
-                value={customerSearch}
-                onChange={(e) => setCustomerSearch(e.target.value)}
-                onFocus={() => setShowCustomerResults(true)}
-                onClick={() => setShowCustomerResults(true)}
-                className={`${inputClasses} ${errors.customer ? 'border-red-300' : ''} pl-10`}
-              />
-              {formData.customer && (
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  <span className="text-sm text-primary-600 bg-primary-50 px-2 py-1 rounded-full">
-                    {formData.customer}
-                  </span>
-                </div>
-              )}
-            </div>
-            
-            {/* Search Results */}
-            {showCustomerResults && (
-              <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
-                {filteredCustomers.length > 0 ? (
-                  <ul className="py-1">
-                    {filteredCustomers.map(customer => (
-                      <li 
-                        key={customer._id}
-                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => handleCustomerSelect(customer)}
-                      >
-                        {customer.name} {customer.email && `(${customer.email})`}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="px-4 py-3 text-sm text-gray-500">
-                    {customerSearch ? 'No customers found.' : 'Type to search customers'}
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {errors.customer && (
-              <p className={errorClasses}>{errors.customer}</p>
-            )}
-          </div>
-
-          {/* Status */}
+          {/* Quotation Number */}
           <div>
-            <label htmlFor="status" className={labelClasses}>
-              Status
+            <label htmlFor="quotationNumber" className={labelClasses}>
+              Quotation Number
             </label>
-            <div className="relative">
-              <select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className={`${inputClasses} appearance-none pr-10`}
-              >
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </div>
-            </div>
+            <input
+              type="text"
+              id="quotationNumber"
+              name="quotationNumber"
+              value={formData.quotationNumber}
+              onChange={handleChange}
+              className={inputClasses}
+              disabled
+            />
           </div>
 
           {/* Date */}
@@ -493,6 +526,127 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
             )}
           </div>
 
+          {/* Customer Search */}
+          <div id="customerSearchContainer" className="relative">
+            <label htmlFor="customerSearch" className={labelClasses}>
+              Customer <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                id="customerSearch"
+                placeholder="Search for customers..."
+                value={customerSearch}
+                onChange={handleCustomerSearch}
+                className={`${inputClasses} ${errors.customer ? 'border-red-300' : ''} pl-10`}
+                onFocus={() => {
+                  // Show results if there's any search term
+                  if (customerSearch) {
+                    setShowCustomerResults(true);
+                  }
+                }}
+                onClick={() => {
+                  // Show results if there's any search term
+                  if (customerSearch) {
+                    setShowCustomerResults(true);
+                  } else {
+                    // If no search term, show all results
+                    setShowCustomerResults(true);
+                  }
+                }}
+              />
+              {formData.customerName && (
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <span className="text-sm text-primary-600 bg-primary-50 px-2 py-1 rounded-full">
+                    {formData.customerName}
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            {/* Search Results */}
+            {showCustomerResults && (
+              <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
+                {loading.customers ? (
+                  <div className="px-4 py-3 text-sm text-gray-500">
+                    Loading customers...
+                  </div>
+                ) : filteredCustomers.length > 0 ? (
+                  <ul className="py-1">
+                    {filteredCustomers.map(customer => (
+                      <li 
+                        key={customer._id}
+                        className="px-3 py-1 hover:bg-gray-100 cursor-pointer flex justify-between items-center text-xs"
+                        onClick={() => handleCustomerSelect(customer)}
+                      >
+                        <span>
+                          {customer.name}
+                          {customer.email && (
+                            <span className="ml-1 text-xs text-gray-500">
+                              - {customer.email}
+                            </span>
+                          )}
+                        </span>
+                        {customer.phone && (
+                          <span className="text-gray-600">{customer.phone}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="px-4 py-3 text-sm text-gray-500">
+                    {customerSearch ? 'No customers found.' : 'Type to search customers'}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {errors.customer && (
+              <p className={errorClasses}>{errors.customer}</p>
+            )}
+          </div>
+
+          {/* Branch Selection */}
+          <div>
+            <label htmlFor="branch" className={labelClasses}>
+              Branch <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <select
+                id="branch"
+                name="branch"
+                value={formData.branch}
+                onChange={handleChange}
+                className={`${inputClasses} appearance-none pr-10 ${errors.branch ? 'border-red-300' : ''}`}
+                disabled={user && user.role !== 'admin'} // Only admin can change branch
+              >
+                <option value="">Select Branch</option>
+                {branches.length === 0 ? (
+                  <option value="" disabled>No branches available</option>
+                ) : (
+                  branches.map(branch => (
+                    <option key={branch._id} value={branch._id}>
+                      {branch.name}
+                    </option>
+                  ))
+                )}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+            {errors.branch && (
+              <p className={errorClasses}>{errors.branch}</p>
+            )}
+          </div>
+
           {/* Valid Until */}
           <div>
             <label htmlFor="validUntil" className={labelClasses}>
@@ -511,6 +665,65 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
               <p className={errorClasses}>{errors.validUntil}</p>
             )}
           </div>
+
+          {/* Status */}
+          <div>
+            <label htmlFor="status" className={labelClasses}>
+              Status
+            </label>
+            <div className="relative">
+              <select
+                id="status"
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className={`${inputClasses} appearance-none pr-10`}
+              >
+                <option value="draft">Pending</option>
+                <option value="sent">Sent</option>
+                <option value="accepted">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="expired">Expired</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="sm:col-span-2">
+            <label htmlFor="notes" className={labelClasses}>
+              Notes
+            </label>
+            <textarea
+              id="notes"
+              name="notes"
+              rows="3"
+              value={formData.notes}
+              onChange={handleChange}
+              className={inputClasses}
+              placeholder="Add any notes or special instructions here"
+            ></textarea>
+          </div>
+
+          {/* Terms & Conditions */}
+          <div className="sm:col-span-2">
+            <label htmlFor="terms" className={labelClasses}>
+              Terms & Conditions
+            </label>
+            <textarea
+              id="terms"
+              name="terms"
+              rows="3"
+              value={formData.terms}
+              onChange={handleChange}
+              className={inputClasses}
+              placeholder="Terms and conditions for this quotation"
+            ></textarea>
+          </div>
         </div>
       </Card>
 
@@ -520,10 +733,10 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
         <div className="mb-6 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
           <h4 className="text-lg font-medium text-gray-800 mb-4">Add Item to Quotation</h4>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-12">
-            {/* Product Search */}
-            <div id="productSearchContainer" className="sm:col-span-5 relative">
-              <label htmlFor="productSearch" className={labelClasses}>
-                Search Product
+            {/* Inventory Search */}
+            <div id="inventorySearchContainer" className="sm:col-span-5 relative">
+              <label htmlFor="inventorySearch" className={labelClasses}>
+                Search Inventory
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -533,68 +746,92 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
                 </div>
                 <input
                   type="text"
-                  id="productSearch"
-                  placeholder="Search for products... (Press Enter)"
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
+                  id="inventorySearch"
+                  placeholder="Search for inventory items..."
+                  value={inventorySearch}
+                  onChange={handleInventorySearch}
+                  className={`${inputClasses} ${itemErrors.inventory ? 'border-red-300' : ''} pl-10`}
                   onFocus={() => {
-                    // Only show results if there's a search term
-                    if (productSearch) {
-                      setShowProductResults(true);
+                    // Show results if there's any search term
+                    if (inventorySearch) {
+                      setShowInventoryResults(true);
                     }
                   }}
                   onClick={() => {
-                    // Only show results if there's a search term
-                    if (productSearch) {
-                      setShowProductResults(true);
+                    // Show results if there's any search term
+                    if (inventorySearch) {
+                      setShowInventoryResults(true);
+                    } else {
+                      // If no search term, show all results
+                      setShowInventoryResults(true);
                     }
                   }}
-                  onKeyDown={handleProductSearchEnter}
-                  className={`${inputClasses} pl-10`}
                 />
+                {currentItem.description && (
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <span className="text-sm text-primary-600 bg-primary-50 px-2 py-1 rounded-full">
+                      {currentItem.description}
+                    </span>
+                  </div>
+                )}
               </div>
               
               {/* Search Results */}
-              {showProductResults && (
+              {showInventoryResults && (
                 <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
-                  {filteredProducts.length > 0 ? (
+                  {loading.inventory ? (
+                    <div className="px-4 py-3 text-sm text-gray-500">
+                      Loading inventory...
+                    </div>
+                  ) : filteredInventory.length > 0 ? (
                     <ul className="py-1">
-                      {filteredProducts.map(product => (
+                      {filteredInventory.map(item => (
                         <li 
-                          key={product.id}
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
-                          onClick={() => handleProductSelect(product)}
+                          key={item._id}
+                          className="px-3 py-1 hover:bg-gray-100 cursor-pointer flex justify-between items-center text-xs"
+                          onClick={() => handleInventorySelect(item)}
                         >
-                          <span>{product.name}</span>
-                          <span className="text-primary-600 font-medium">${product.price.toFixed(2)}</span>
+                          <span>
+                            {item.name} {item.itemCode && `(${item.itemCode})`}
+                            {user && user.role === 'admin' && item.branch && (
+                              <span className="ml-1 text-xs text-gray-500">
+                                - {item.branch.name}
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-primary-600 font-medium">${(item.sellingPrice || 0).toFixed(2)}</span>
                         </li>
                       ))}
                     </ul>
                   ) : (
                     <div className="px-4 py-3 text-sm text-gray-500">
-                      {productSearch ? 'No products found. You can enter a custom name.' : 'Type to search products'}
+                      {inventorySearch ? 'No inventory items found.' : 'Type to search inventory'}
                     </div>
                   )}
                 </div>
               )}
+              
+              {itemErrors.inventory && (
+                <p className={errorClasses}>{itemErrors.inventory}</p>
+              )}
             </div>
 
-            {/* Custom Product Name */}
+            {/* Description */}
             <div className="sm:col-span-3">
-              <label htmlFor="name" className={labelClasses}>
-                Product Name
+              <label htmlFor="description" className={labelClasses}>
+                Description
               </label>
               <input
                 type="text"
-                id="name"
-                name="name"
-                placeholder="Product name"
-                value={currentItem.name}
+                id="description"
+                name="description"
+                placeholder="Item description"
+                value={currentItem.description}
                 onChange={handleItemChange}
-                className={`${inputClasses} ${itemErrors.name ? 'border-red-300' : ''}`}
+                className={`${inputClasses} ${itemErrors.description ? 'border-red-300' : ''}`}
               />
-              {itemErrors.name && (
-                <p className={errorClasses}>{itemErrors.name}</p>
+              {itemErrors.description && (
+                <p className={errorClasses}>{itemErrors.description}</p>
               )}
             </div>
 
@@ -618,9 +855,9 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
               )}
             </div>
 
-            {/* Price */}
+            {/* Unit Price */}
             <div className="sm:col-span-2">
-              <label htmlFor="price" className={labelClasses}>
+              <label htmlFor="unitPrice" className={labelClasses}>
                 Unit Price
               </label>
               <div className="relative">
@@ -629,27 +866,63 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
                 </div>
                 <input
                   type="number"
-                  id="price"
-                  name="price"
+                  id="unitPrice"
+                  name="unitPrice"
                   min="0"
                   step="0.01"
-                  value={currentItem.price}
+                  value={currentItem.unitPrice}
                   onChange={handleItemChange}
-                  className={`${inputClasses} ${itemErrors.price ? 'border-red-300' : ''} pl-7`}
+                  className={`${inputClasses} ${itemErrors.unitPrice ? 'border-red-300' : ''} pl-7`}
                 />
               </div>
-              {itemErrors.price && (
-                <p className={errorClasses}>{itemErrors.price}</p>
+              {itemErrors.unitPrice && (
+                <p className={errorClasses}>{itemErrors.unitPrice}</p>
               )}
+            </div>
+
+            {/* Discount */}
+            <div className="sm:col-span-2">
+              <label htmlFor="discount" className={labelClasses}>
+                Discount %
+              </label>
+              <input
+                type="number"
+                id="discount"
+                name="discount"
+                min="0"
+                max="100"
+                step="0.01"
+                value={currentItem.discount}
+                onChange={handleItemChange}
+                className={inputClasses}
+              />
+            </div>
+
+            {/* Tax */}
+            <div className="sm:col-span-2">
+              <label htmlFor="tax" className={labelClasses}>
+                Tax %
+              </label>
+              <input
+                type="number"
+                id="tax"
+                name="tax"
+                min="0"
+                max="100"
+                step="0.01"
+                value={currentItem.tax}
+                onChange={handleItemChange}
+                className={inputClasses}
+              />
             </div>
           </div>
 
           {/* Add Button */}
           <div className="mt-6 flex items-center justify-between">
             <div>
-              {currentItem.name && currentItem.price > 0 && (
+              {currentItem.description && currentItem.unitPrice > 0 && (
                 <p className="text-sm text-gray-600">
-                  Total: <span className="font-medium">${(currentItem.price * currentItem.quantity).toFixed(2)}</span>
+                  Total: <span className="font-medium">${currentItem.total.toFixed(2)}</span>
                 </p>
               )}
             </div>
@@ -673,13 +946,19 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
               <thead className="bg-gray-50">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Product
+                    Description
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Quantity
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Unit Price
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Discount
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tax
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Total
@@ -692,13 +971,13 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {formData.items.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-6 py-8 text-center text-sm text-gray-500">
+                    <td colSpan="7" className="px-6 py-8 text-center text-sm text-gray-500">
                       <div className="flex flex-col items-center">
                         <svg className="h-12 w-12 text-gray-300 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                         </svg>
                         <p>No items added to this quotation yet</p>
-                        <p className="text-xs mt-1">Search for products or add custom items above</p>
+                        <p className="text-xs mt-1">Search for inventory items above</p>
                       </div>
                     </td>
                   </tr>
@@ -706,13 +985,19 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
                   formData.items.map((item) => (
                     <tr key={item.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {item.name}
+                        {item.description}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {item.quantity}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${parseFloat(item.price).toFixed(2)}
+                        ${parseFloat(item.unitPrice).toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.discount}%
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.tax}%
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         ${parseFloat(item.total).toFixed(2)}
@@ -733,43 +1018,68 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
               {formData.items.length > 0 && (
                 <tfoot className="bg-gray-50">
                   <tr>
-                    <td colSpan="3" className="px-6 py-4 text-right text-sm font-medium text-gray-900">
-                      Total Amount:
+                    <td colSpan="3" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
+                      Subtotal:
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                    <td colSpan="2" className="px-6 py-2 text-sm text-gray-500">
+                      ${subtotal.toFixed(2)}
+                    </td>
+                    <td colSpan="2" className="px-6 py-2 text-sm text-gray-500"></td>
+                  </tr>
+                  <tr>
+                    <td colSpan="3" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
+                      Discount:
+                    </td>
+                    <td colSpan="2" className="px-6 py-2 text-sm text-gray-500">
+                      ${discountAmount.toFixed(2)}
+                    </td>
+                    <td colSpan="2" className="px-6 py-2 text-sm text-gray-500"></td>
+                  </tr>
+                  <tr>
+                    <td colSpan="3" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
+                      Tax:
+                    </td>
+                    <td colSpan="2" className="px-6 py-2 text-sm text-gray-500">
+                      ${taxAmount.toFixed(2)}
+                    </td>
+                    <td colSpan="2" className="px-6 py-2 text-sm text-gray-500"></td>
+                  </tr>
+                  <tr className="border-t border-gray-200">
+                    <td colSpan="3" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
+                      Total:
+                    </td>
+                    <td colSpan="2" className="px-6 py-2 text-sm font-bold text-gray-900">
                       ${totalAmount.toFixed(2)}
                     </td>
-                    <td></td>
+                    <td colSpan="2" className="px-6 py-2 text-sm text-gray-500"></td>
                   </tr>
                 </tfoot>
               )}
             </table>
           </div>
-          {errors.items && (
-            <p className={errorClasses}>{errors.items}</p>
-          )}
         </div>
+        
+        {/* Error message for items */}
+        {errors.items && (
+          <p className={errorClasses}>{errors.items}</p>
+        )}
       </Card>
-
+      
       {/* Form Actions */}
-      <div className="flex justify-end space-x-4 mt-8">
+      <div className="flex justify-end space-x-3">
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           onClick={onCancel}
-          size="lg"
         >
           Cancel
         </Button>
         <Button
           type="submit"
           variant="primary"
-          size="lg"
+          disabled={loading.form}
         >
-          <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-          Save Quotation
+          {loading.form ? 'Saving...' : initialData ? 'Update Quotation' : 'Create Quotation'}
         </Button>
       </div>
     </form>

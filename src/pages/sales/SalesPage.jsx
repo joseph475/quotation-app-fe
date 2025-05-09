@@ -4,6 +4,7 @@ import Modal from '../../components/common/Modal';
 import SaleForm from '../../components/sales/SaleForm';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
+import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 
 const SalesPage = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -13,7 +14,6 @@ const SalesPage = () => {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
 
   const [sales, setSales] = useState([]);
@@ -74,28 +74,53 @@ const SalesPage = () => {
     fetchSales();
   }, [branchFilter]);
 
+  // Get modal contexts
+  const { showConfirm, showDeleteConfirm } = useConfirmModal();
+  const { showError } = useErrorModal();
+  
   // Handle delete sale
   const handleDeleteSale = async () => {
     if (!selectedSale) return;
     
-    setLoading(true);
-    try {
-      const response = await api.sales.delete(selectedSale._id);
-      
-      if (response && response.success) {
-        // Refresh sales list
-        await fetchSales();
-        setError(null);
-        setIsDeleteModalOpen(false);
-      } else {
-        throw new Error(response.message || 'Failed to delete sale');
+    showDeleteConfirm({
+      itemName: 'sale',
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          const response = await api.sales.delete(selectedSale._id);
+          
+          if (response && response.success) {
+            // Refresh sales list
+            await fetchSales();
+            setError(null);
+            // Show success message
+            showConfirm({
+              title: 'Success',
+              message: 'Sale has been successfully deleted.',
+              confirmText: 'OK',
+              cancelText: null,
+              confirmButtonClass: 'bg-green-600 hover:bg-green-700',
+              onConfirm: () => {},
+            });
+          } else {
+            // Check if it's an authentication error (401)
+            if (response.status === 401) {
+              showError(
+                'You do not have permission to delete this sale.',
+                'Permission Error'
+              );
+            } else {
+              throw new Error(response.message || 'Failed to delete sale');
+            }
+          }
+        } catch (err) {
+          console.error('Error deleting sale:', err);
+          showError(err.message || 'Failed to delete sale. Please try again.');
+        } finally {
+          setLoading(false);
+        }
       }
-    } catch (err) {
-      console.error('Error deleting sale:', err);
-      setError(err.message || 'Failed to delete sale. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   // Filter sales data based on active tab, search term, and date filter
@@ -166,7 +191,7 @@ const SalesPage = () => {
       )}
       
       {/* Loading state */}
-      {loading && !isFormModalOpen && !isViewModalOpen && !isEditModalOpen && !isDeleteModalOpen && (
+      {loading && !isFormModalOpen && !isViewModalOpen && !isEditModalOpen && (
         <div class="text-center py-12 bg-white rounded-lg shadow mb-6">
           <svg class="mx-auto h-12 w-12 text-gray-400 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -375,15 +400,18 @@ const SalesPage = () => {
                         >
                           Edit
                         </button>
-                        <button 
-                          class="text-red-600 hover:text-red-900"
-                          onClick={() => {
-                            setSelectedSale(sale);
-                            setIsDeleteModalOpen(true);
-                          }}
-                        >
-                          Delete
-                        </button>
+                        {/* Only show delete button for admin users */}
+                        {user && user.role !== 'user' && (
+                          <button 
+                            class="text-red-600 hover:text-red-900"
+                            onClick={() => {
+                              setSelectedSale(sale);
+                              handleDeleteSale();
+                            }}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -413,12 +441,30 @@ const SalesPage = () => {
                 await fetchSales();
                 setError(null);
                 setIsFormModalOpen(false);
+                
+                // Show success message
+                showConfirm({
+                  title: 'Success',
+                  message: 'Sale has been successfully created.',
+                  confirmText: 'OK',
+                  cancelText: null,
+                  confirmButtonClass: 'bg-green-600 hover:bg-green-700',
+                  onConfirm: () => {},
+                });
               } else {
-                throw new Error(response.message || 'Failed to create sale');
+                // Check if it's an authentication error (401)
+                if (response.status === 401) {
+                  showError(
+                    'You do not have permission to create a sale.',
+                    'Permission Error'
+                  );
+                } else {
+                  throw new Error(response.message || 'Failed to create sale');
+                }
               }
             } catch (err) {
               console.error('Error creating sale:', err);
-              setError(err.message || 'Failed to create sale. Please try again.');
+              showError(err.message || 'Failed to create sale. Please try again.');
             } finally {
               setLoading(false);
             }
@@ -447,12 +493,30 @@ const SalesPage = () => {
                   await fetchSales();
                   setError(null);
                   setIsEditModalOpen(false);
+                  
+                  // Show success message
+                  showConfirm({
+                    title: 'Success',
+                    message: 'Sale has been successfully updated.',
+                    confirmText: 'OK',
+                    cancelText: null,
+                    confirmButtonClass: 'bg-green-600 hover:bg-green-700',
+                    onConfirm: () => {},
+                  });
                 } else {
-                  throw new Error(response.message || 'Failed to update sale');
+                  // Check if it's an authentication error (401)
+                  if (response.status === 401) {
+                    showError(
+                      'You do not have permission to update this sale.',
+                      'Permission Error'
+                    );
+                  } else {
+                    throw new Error(response.message || 'Failed to update sale');
+                  }
                 }
               } catch (err) {
                 console.error('Error updating sale:', err);
-                setError(err.message || 'Failed to update sale. Please try again.');
+                showError(err.message || 'Failed to update sale. Please try again.');
               } finally {
                 setLoading(false);
               }
@@ -461,55 +525,49 @@ const SalesPage = () => {
         )}
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        title="Delete Sale"
-        size="md"
-      >
-        <div class="p-6">
-          <p class="mb-4 text-gray-700">
-            Are you sure you want to delete this sale? This action cannot be undone.
-          </p>
-          <div class="flex justify-end space-x-4">
-            <button
-              class="btn btn-outline"
-              onClick={() => setIsDeleteModalOpen(false)}
-            >
-              Cancel
-            </button>
-            <button
-              class="btn btn-danger"
-              onClick={handleDeleteSale}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </Modal>
+      {/* Delete button now uses the showDeleteConfirm from ModalContext directly */}
 
       {/* View Sale Modal */}
       <Modal
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
         title={`Sale Details: ${selectedSale?.saleNumber || ''}`}
-        size="4xl"
+        size="5xl"
       >
         {selectedSale && (
           <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">Sale Information</h3>
                 <div class="bg-gray-50 p-4 rounded-lg">
                   <p class="mb-2"><span class="font-medium">Sale Number:</span> {selectedSale.saleNumber}</p>
                   <p class="mb-2"><span class="font-medium">Date:</span> {formatDate(selectedSale.createdAt)}</p>
-                  <p class="mb-2"><span class="font-medium">Status:</span> {selectedSale.status}</p>
+                  <p class="mb-2"><span class="font-medium">Status:</span> 
+                    <span class={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      selectedSale.status === 'paid' ? 'bg-green-100 text-green-800' : 
+                      selectedSale.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {selectedSale.status === 'paid' ? 'Paid' : 
+                       selectedSale.status === 'partially_paid' ? 'Partially Paid' :
+                       selectedSale.status === 'pending' ? 'Pending' :
+                       selectedSale.status === 'cancelled' ? 'Cancelled' :
+                       selectedSale.status === 'refunded' ? 'Refunded' : 
+                       selectedSale.status}
+                    </span>
+                  </p>
                   <p class="mb-2"><span class="font-medium">Branch:</span> {
                     typeof selectedSale.branch === 'string'
                       ? selectedSale.branch
                       : (selectedSale.branch?.name || 'Unknown Branch')
                   }</p>
+                  <p class="mb-2"><span class="font-medium">Created By:</span> {
+                    typeof selectedSale.createdBy === 'string'
+                      ? selectedSale.createdBy
+                      : (selectedSale.createdBy?.name || 'Unknown User')
+                  }</p>
+                  <p class="mb-2"><span class="font-medium">Created At:</span> {formatDate(selectedSale.createdAt)}</p>
+                  <p class="mb-2"><span class="font-medium">Updated At:</span> {formatDate(selectedSale.updatedAt)}</p>
                 </div>
               </div>
               <div>
@@ -520,9 +578,150 @@ const SalesPage = () => {
                       ? selectedSale.customer 
                       : (selectedSale.customer?.name || 'Unknown Customer')
                   }</p>
+                  {selectedSale.customer?.phone && (
+                    <p class="mb-2"><span class="font-medium">Phone:</span> {selectedSale.customer.phone}</p>
+                  )}
+                </div>
+
+                <h3 class="text-lg font-medium text-gray-900 mt-4 mb-2">Payment Information</h3>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <p class="mb-2"><span class="font-medium">Payment Method:</span> {
+                    selectedSale.paymentMethod === 'cash' ? 'Cash' :
+                    selectedSale.paymentMethod === 'check' ? 'Check' :
+                    selectedSale.paymentMethod === 'credit_card' ? 'Credit Card' :
+                    selectedSale.paymentMethod === 'bank_transfer' ? 'Bank Transfer' :
+                    selectedSale.paymentMethod === 'online_payment' ? 'Online Payment' :
+                    selectedSale.paymentMethod
+                  }</p>
+                  <p class="mb-2"><span class="font-medium">Total Amount:</span> ${(selectedSale.total || 0).toFixed(2)}</p>
+                  <p class="mb-2"><span class="font-medium">Amount Paid:</span> ${(selectedSale.amountPaid || 0).toFixed(2)}</p>
+                  <p class="mb-2"><span class="font-medium">Balance:</span> ${(selectedSale.balance || 0).toFixed(2)}</p>
+                  {selectedSale.dueDate && (
+                    <p class="mb-2"><span class="font-medium">Due Date:</span> {formatDate(selectedSale.dueDate)}</p>
+                  )}
+                  {selectedSale.paymentDetails && (
+                    <p class="mb-2"><span class="font-medium">Payment Details:</span> {selectedSale.paymentDetails}</p>
+                  )}
                 </div>
               </div>
             </div>
+
+            {/* Sale Items */}
+            <div class="mb-6">
+              <h3 class="text-lg font-medium text-gray-900 mb-2">Sale Items</h3>
+              <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Item
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Description
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Quantity
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Unit Price
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Discount
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tax
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Total
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      {selectedSale.items && selectedSale.items.length > 0 ? (
+                        selectedSale.items.map((item, index) => (
+                          <tr key={index}>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {typeof item.inventory === 'string' 
+                                ? item.inventory 
+                                : (item.inventory?.name || 'Unknown Item')}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {item.description}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {item.quantity}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              ${(item.unitPrice || 0).toFixed(2)}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {(item.discount || 0)}%
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {(item.tax || 0)}%
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              ${(item.total || 0).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="7" class="px-6 py-4 text-center text-sm text-gray-500">
+                            No items found for this sale.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                    <tfoot class="bg-gray-50">
+                      <tr>
+                        <td colSpan="4" class="px-6 py-2 text-right text-sm font-medium text-gray-900">
+                          Subtotal:
+                        </td>
+                        <td colSpan="3" class="px-6 py-2 text-sm text-gray-500">
+                          ${(selectedSale.subtotal || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colSpan="4" class="px-6 py-2 text-right text-sm font-medium text-gray-900">
+                          Discount:
+                        </td>
+                        <td colSpan="3" class="px-6 py-2 text-sm text-gray-500">
+                          ${(selectedSale.discountAmount || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colSpan="4" class="px-6 py-2 text-right text-sm font-medium text-gray-900">
+                          Tax:
+                        </td>
+                        <td colSpan="3" class="px-6 py-2 text-sm text-gray-500">
+                          ${(selectedSale.taxAmount || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                      <tr class="border-t border-gray-200">
+                        <td colSpan="4" class="px-6 py-2 text-right text-sm font-medium text-gray-900">
+                          Total:
+                        </td>
+                        <td colSpan="3" class="px-6 py-2 text-sm font-bold text-gray-900">
+                          ${(selectedSale.total || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            {selectedSale.notes && (
+              <div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Notes</h3>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <p class="text-sm text-gray-700">{selectedSale.notes}</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Modal>

@@ -4,25 +4,36 @@
  * This is a simple implementation that can be expanded with actual API endpoints
  * when connecting to a backend service.
  */
+import { useErrorModal } from '../contexts/ModalContext';
 
 // Base API URL - connects to our MongoDB backend
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? 'https://api.example.com/api/v1' 
   : 'http://localhost:8000/api/v1';
 
+// Store error modal context reference
+let errorModalContext = null;
+
+// Function to set error modal context
+export const setErrorModalContext = (context) => {
+  errorModalContext = context;
+};
+
 /**
  * Make a request to the API
  * 
  * @param {string} endpoint - API endpoint
  * @param {Object} options - Request options
+ * @param {boolean} [options.showErrorModal=true] - Whether to show error modal on error
  * @returns {Promise<any>} - Response data
  */
 async function request(endpoint, options = {}) {
+  const { showErrorModal = true, ...fetchOptions } = options;
   const url = `${API_BASE_URL}${endpoint}`;
   
   const headers = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...fetchOptions.headers,
   };
 
   // Add auth token if available
@@ -32,7 +43,7 @@ async function request(endpoint, options = {}) {
   }
 
   const config = {
-    ...options,
+    ...fetchOptions,
     headers,
   };
 
@@ -41,16 +52,36 @@ async function request(endpoint, options = {}) {
     
     // Handle 401 Unauthorized
     if (response.status === 401) {
-      // Clear token and redirect to login
+      // Clear token but don't redirect automatically
       localStorage.removeItem('authToken');
-      window.location.href = '/login';
-      return null;
+      
+      // Return a structured error response
+      return {
+        success: false,
+        status: 401,
+        message: 'Authentication failed. Please log in again.'
+      };
     }
     
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.message || 'API request failed');
+      const errorMessage = data.message || 'API request failed';
+      
+      // Show error modal if enabled and context is available
+      if (showErrorModal && errorModalContext) {
+        const errorTitle = getErrorTitle(response.status);
+        const errorDetails = {
+          status: response.status,
+          statusText: response.statusText,
+          endpoint,
+          data
+        };
+        
+        errorModalContext.showError(errorMessage, errorTitle, errorDetails);
+      }
+      
+      throw new Error(errorMessage);
     }
     
     // Ensure the response has a success property
@@ -61,9 +92,57 @@ async function request(endpoint, options = {}) {
     return data;
   } catch (error) {
     console.error('API request error:', error);
+    
+    // Show error modal for network errors if enabled and context is available
+    if (showErrorModal && errorModalContext && error.name === 'TypeError') {
+      errorModalContext.showError(
+        'Network error. Please check your connection and try again.',
+        'Connection Error',
+        error.message
+      );
+    }
+    
     throw error;
   }
 }
+
+/**
+ * Get a user-friendly error title based on HTTP status code
+ * 
+ * @param {number} status - HTTP status code
+ * @returns {string} - Error title
+ */
+function getErrorTitle(status) {
+  switch (true) {
+    case status >= 500:
+      return 'Server Error';
+    case status === 404:
+      return 'Not Found';
+    case status === 403:
+      return 'Access Denied';
+    case status === 401:
+      return 'Authentication Error';
+    case status === 400:
+      return 'Bad Request';
+    default:
+      return 'API Error';
+  }
+}
+
+/**
+ * ErrorModalProvider component for API service
+ * This component should be used at the top level of your application
+ */
+export const ApiErrorHandler = () => {
+  const errorModal = useErrorModal();
+  
+  // Set error modal context on mount
+  if (errorModal && !errorModalContext) {
+    setErrorModalContext(errorModal);
+  }
+  
+  return null;
+};
 
 /**
  * API methods

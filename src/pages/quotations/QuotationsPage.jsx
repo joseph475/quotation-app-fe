@@ -3,16 +3,28 @@ import { useState, useEffect } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import QuotationForm from '../../components/quotations/QuotationForm';
 import api from '../../services/api';
+import useAuth from '../../hooks/useAuth';
+import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 
 const QuotationsPage = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [selectedQuotation, setSelectedQuotation] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Get current user from auth context
+  const { user } = useAuth();
+  
+  // Get modal contexts
+  const { showConfirm, showDeleteConfirm } = useConfirmModal();
+  const { showError } = useErrorModal();
   
   // Fetch quotations from API
   useEffect(() => {
@@ -40,31 +52,36 @@ const QuotationsPage = () => {
 
   // Filter quotations based on active tab, search term, and date filter
   const filteredQuotations = quotations.filter(quotation => {
-    const matchesTab = activeTab === 'all' || quotation.status.toLowerCase() === activeTab.toLowerCase();
+    const matchesTab = activeTab === 'all' || 
+                      (activeTab === 'pending' && quotation.status === 'draft') ||
+                      (activeTab === 'approved' && quotation.status === 'accepted') ||
+                      (activeTab === 'rejected' && quotation.status === 'rejected');
     
     // Handle customer which might be an object or string
     const customerName = typeof quotation.customer === 'string' 
       ? quotation.customer 
       : (quotation.customer?.name || '');
       
+    const quotationNumber = quotation.quotationNumber || '';
+    
     const matchesSearch = customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         (quotation.id?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+                         quotationNumber.toLowerCase().includes(searchTerm.toLowerCase());
     
     // Simple date filtering logic
     let matchesDate = true;
     if (dateFilter === 'today') {
-      matchesDate = new Date(quotation.date).toDateString() === new Date().toDateString();
+      matchesDate = new Date(quotation.createdAt).toDateString() === new Date().toDateString();
     } else if (dateFilter === 'week') {
       const today = new Date();
       const weekAgo = new Date();
       weekAgo.setDate(today.getDate() - 7);
-      const quotationDate = new Date(quotation.date);
+      const quotationDate = new Date(quotation.createdAt);
       matchesDate = quotationDate >= weekAgo && quotationDate <= today;
     } else if (dateFilter === 'month') {
       const today = new Date();
       const monthAgo = new Date();
       monthAgo.setMonth(today.getMonth() - 1);
-      const quotationDate = new Date(quotation.date);
+      const quotationDate = new Date(quotation.createdAt);
       matchesDate = quotationDate >= monthAgo && quotationDate <= today;
     }
     
@@ -72,7 +89,7 @@ const QuotationsPage = () => {
   });
 
   // Calculate total quotation amount
-  const totalQuotationAmount = filteredQuotations.reduce((total, quotation) => total + (quotation.amount || 0), 0);
+  const totalQuotationAmount = filteredQuotations.reduce((total, quotation) => total + (quotation.total || 0), 0);
 
   return (
     <div>
@@ -160,7 +177,7 @@ const QuotationsPage = () => {
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Approved</dt>
                   <dd class="text-lg font-medium text-gray-900">
-                    {quotations.filter(quotation => quotation.status === 'Approved').length}
+                    {quotations.filter(quotation => quotation.status === 'accepted').length}
                   </dd>
                 </dl>
               </div>
@@ -180,7 +197,7 @@ const QuotationsPage = () => {
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Pending</dt>
                   <dd class="text-lg font-medium text-gray-900">
-                    {quotations.filter(quotation => quotation.status === 'Pending').length}
+                    {quotations.filter(quotation => quotation.status === 'draft').length}
                   </dd>
                 </dl>
               </div>
@@ -322,9 +339,9 @@ const QuotationsPage = () => {
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               {filteredQuotations.map((quotation) => (
-                <tr key={quotation.id}>
+                <tr key={quotation._id}>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">
-                    {quotation.id}
+                    {quotation.quotationNumber}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {typeof quotation.customer === 'string' 
@@ -332,28 +349,51 @@ const QuotationsPage = () => {
                       : (quotation.customer?.name || 'Unknown Customer')}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ${(quotation.amount || 0).toFixed(2)}
+                    ${(quotation.total || 0).toFixed(2)}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {quotation.date}
+                    {new Date(quotation.createdAt).toLocaleDateString()}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {quotation.validUntil}
+                    {new Date(quotation.validUntil).toLocaleDateString()}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      quotation.status === 'Approved' ? 'bg-green-100 text-green-800' : 
-                      quotation.status === 'Rejected' ? 'bg-red-100 text-red-800' : 
+                      quotation.status === 'accepted' ? 'bg-green-100 text-green-800' : 
+                      quotation.status === 'rejected' ? 'bg-red-100 text-red-800' : 
+                      quotation.status === 'converted' ? 'bg-blue-100 text-blue-800' :
+                      quotation.status === 'expired' ? 'bg-gray-100 text-gray-800' :
                       'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {quotation.status}
+                      {quotation.status === 'draft' ? 'Pending' : 
+                       quotation.status === 'accepted' ? 'Approved' : 
+                       quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1)}
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div class="flex justify-end space-x-2">
-                      <button class="text-primary-600 hover:text-primary-900">View</button>
-                      <button class="text-primary-600 hover:text-primary-900">Edit</button>
-                      <button class="text-primary-600 hover:text-primary-900">Convert to Sale</button>
+                      <button 
+                        class="text-primary-600 hover:text-primary-900"
+                        onClick={() => {
+                          setSelectedQuotation(quotation);
+                          setIsViewModalOpen(true);
+                        }}
+                      >
+                        View
+                      </button>
+                      <button 
+                        class="text-primary-600 hover:text-primary-900"
+                        onClick={() => {
+                          setSelectedQuotation(quotation);
+                          setIsEditModalOpen(true);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      {/* Only show delete/convert buttons for non-user roles */}
+                      {user && user.role !== 'user' && (
+                        <button class="text-primary-600 hover:text-primary-900">Convert to Sale</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -431,6 +471,221 @@ const QuotationsPage = () => {
             }
           }}
         />
+      </Modal>
+
+      {/* View Quotation Modal */}
+      <Modal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        title={`Quotation Details: ${selectedQuotation?.quotationNumber || ''}`}
+        size="4xl"
+      >
+        {selectedQuotation && (
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+              <div className="px-4 py-5 sm:px-6 bg-gray-50">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Quotation Information</h3>
+              </div>
+              <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
+                <dl className="sm:divide-y sm:divide-gray-200">
+                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-500">Quotation Number</dt>
+                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{selectedQuotation.quotationNumber}</dd>
+                  </div>
+                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-500">Customer</dt>
+                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                      {typeof selectedQuotation.customer === 'string' 
+                        ? selectedQuotation.customer 
+                        : (selectedQuotation.customer?.name || 'Unknown Customer')}
+                    </dd>
+                  </div>
+                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-500">Date</dt>
+                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                      {new Date(selectedQuotation.createdAt).toLocaleDateString()}
+                    </dd>
+                  </div>
+                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-500">Valid Until</dt>
+                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                      {new Date(selectedQuotation.validUntil).toLocaleDateString()}
+                    </dd>
+                  </div>
+                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-500">Status</dt>
+                    <dd className="mt-1 text-sm sm:mt-0 sm:col-span-2">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        selectedQuotation.status === 'accepted' ? 'bg-green-100 text-green-800' : 
+                        selectedQuotation.status === 'rejected' ? 'bg-red-100 text-red-800' : 
+                        selectedQuotation.status === 'converted' ? 'bg-blue-100 text-blue-800' :
+                        selectedQuotation.status === 'expired' ? 'bg-gray-100 text-gray-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {selectedQuotation.status === 'draft' ? 'Pending' : 
+                         selectedQuotation.status === 'accepted' ? 'Approved' : 
+                         selectedQuotation.status.charAt(0).toUpperCase() + selectedQuotation.status.slice(1)}
+                      </span>
+                    </dd>
+                  </div>
+                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-500">Total Amount</dt>
+                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                      ${(selectedQuotation.total || 0).toFixed(2)}
+                    </dd>
+                  </div>
+                  {selectedQuotation.notes && (
+                    <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm font-medium text-gray-500">Notes</dt>
+                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{selectedQuotation.notes}</dd>
+                    </div>
+                  )}
+                  {selectedQuotation.terms && (
+                    <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm font-medium text-gray-500">Terms & Conditions</dt>
+                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{selectedQuotation.terms}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            </div>
+
+            {/* Items Table */}
+            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+              <div className="px-4 py-5 sm:px-6 bg-gray-50">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Quotation Items</h3>
+              </div>
+              <div className="border-t border-gray-200">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Description
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Quantity
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Unit Price
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Discount
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tax
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Total
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {selectedQuotation.items && selectedQuotation.items.length > 0 ? (
+                        selectedQuotation.items.map((item, index) => (
+                          <tr key={index}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {item.description}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {item.quantity}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              ${parseFloat(item.unitPrice).toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {item.discount}%
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {item.tax}%
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              ${parseFloat(item.total).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
+                            No items in this quotation
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                    <tfoot className="bg-gray-50">
+                      <tr>
+                        <td colSpan="5" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
+                          Total:
+                        </td>
+                        <td className="px-6 py-2 text-sm font-bold text-gray-900">
+                          ${(selectedQuotation.total || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsViewModalOpen(false)}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setIsEditModalOpen(true);
+                }}
+              >
+                Edit
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Edit Quotation Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={`Edit Quotation: ${selectedQuotation?.quotationNumber || ''}`}
+        size="5xl"
+      >
+        {selectedQuotation && (
+          <QuotationForm
+            initialData={selectedQuotation}
+            onCancel={() => setIsEditModalOpen(false)}
+            onSave={async (quotationData) => {
+              try {
+                setLoading(true);
+                const response = await api.quotations.update(selectedQuotation._id, quotationData);
+                
+                if (response && response.success) {
+                  // Refresh quotations list
+                  const updatedQuotations = await api.quotations.getAll();
+                  setQuotations(updatedQuotations.data || []);
+                  setError(null);
+                  setIsEditModalOpen(false);
+                } else {
+                  throw new Error(response.message || 'Failed to update quotation');
+                }
+              } catch (err) {
+                console.error('Error updating quotation:', err);
+                setError(err.message || 'Failed to update quotation. Please try again.');
+              } finally {
+                setLoading(false);
+              }
+            }}
+          />
+        )}
       </Modal>
     </div>
   );

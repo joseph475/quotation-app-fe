@@ -1,10 +1,20 @@
 import { h } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import PurchaseReceivingForm from '../../components/purchases/PurchaseReceivingForm';
 import api from '../../services/api';
+import { useConfirmModal } from '../../contexts/ModalContext';
+import useAuth from '../../hooks/useAuth';
 
 const PurchaseReceivingPage = () => {
+  const confirmModal = useConfirmModal();
+  const { user } = useAuth();
+  // Force isAdmin to false unless explicitly set to 'admin'
+  const isAdmin = user && user.role === 'admin';
+  
+  console.log('User object:', user);
+  console.log('Is admin:', isAdmin);
+  console.log('User role:', user?.role);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -41,9 +51,16 @@ const PurchaseReceivingPage = () => {
       ? receipt.supplier 
       : (receipt.supplier?.name || '');
       
-    const matchesSearch = supplierName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         (receipt.id?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                         (receipt.purchaseOrderId?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+    // Handle purchase order which might be an object or string
+    const poNumber = typeof receipt.purchaseOrder === 'string'
+      ? receipt.purchaseOrder
+      : (receipt.purchaseOrder?.orderNumber || '');
+      
+    const matchesSearch = 
+      supplierName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (receipt._id?.toString() || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (receipt.receivingNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      poNumber.toLowerCase().includes(searchTerm.toLowerCase());
     
     // Simple date filtering logic
     let matchesDate = true;
@@ -66,65 +83,122 @@ const PurchaseReceivingPage = () => {
     return matchesSearch && matchesDate;
   });
 
-  // Handle save purchase receipt
-  const handleSaveReceipt = async (receiptData) => {
+  // Track submission state to prevent duplicate submissions
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Use a ref to track if a submission is in progress
+  const submissionInProgressRef = useRef(false);
+
+  // Handle save purchase receipt - this is the ONLY place where API calls to save data should happen
+  const handleSaveReceipt = async (formData) => {
+    console.log('handleSaveReceipt called with form data:', formData);
+    
+    // Multiple checks to prevent duplicate submissions
+    if (isSubmitting || submissionInProgressRef.current) {
+      console.log('Submission already in progress, ignoring duplicate request');
+      return;
+    }
+    
+    // Set flags to prevent duplicate submissions
+    setIsSubmitting(true);
+    submissionInProgressRef.current = true;
+    
     try {
       setLoading(true);
+      setError(null);
+      console.log('Processing submission in page component...');
+      
+      // This is now the ONLY place where the API call happens
       let response;
       
       if (currentReceipt) {
         // Update existing purchase receipt
-        response = await api.purchaseReceiving.update(currentReceipt._id, receiptData);
+        console.log('Updating existing receipt:', currentReceipt._id);
+        response = await api.purchaseReceiving.update(currentReceipt._id, formData);
       } else {
-        // Create new purchase receipt
-        response = await api.purchaseReceiving.create(receiptData);
+        // Create new receiving
+        console.log('Creating new receipt');
+        response = await api.purchaseReceiving.create(formData);
       }
+      
+      console.log('API response:', response);
       
       if (response && response.success) {
         // Refresh purchase receipts list
+        console.log('Refreshing receipt list');
         const updatedReceipts = await api.purchaseReceiving.getAll();
         setPurchaseReceipts(updatedReceipts.data || []);
         setError(null);
+        setIsFormModalOpen(false);
+        setCurrentReceipt(null);
       } else {
         throw new Error('Failed to save purchase receipt');
       }
-      
-      setIsFormModalOpen(false);
-      setCurrentReceipt(null);
     } catch (err) {
       console.error('Error saving purchase receipt:', err);
-      setError('Failed to save purchase receipt');
+      // Extract error message from API response if available
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to save purchase receipt';
+      setError(errorMessage);
+      
+      // Don't close the modal if there's an error
+      if (errorMessage.includes('duplicate key') || errorMessage.includes('already exists')) {
+        // If it's a duplicate record error, show a more helpful message
+        setError('A receiving record with this number already exists. This may be due to a duplicate submission. Please check the existing records or try again.');
+      } else {
+        setError(`Failed to save purchase receipt: ${errorMessage}`);
+      }
     } finally {
       setLoading(false);
+      // Reset submission state after a delay to prevent immediate resubmission
+      setTimeout(() => {
+        setIsSubmitting(false);
+        submissionInProgressRef.current = false;
+      }, 1000);
     }
   };
 
   // Handle delete purchase receipt
   const handleDeleteReceipt = async (receiptId) => {
-    if (confirm('Are you sure you want to delete this receipt?')) {
-      try {
-        setLoading(true);
-        const response = await api.purchaseReceiving.delete(receiptId);
-        
-        if (response && response.success) {
-          // Remove from local state
-          setPurchaseReceipts(prev => prev.filter(receipt => receipt._id !== receiptId));
-          setError(null);
-        } else {
-          throw new Error('Failed to delete purchase receipt');
+    // Use confirmation modal if available
+    if (confirmModal) {
+      confirmModal.showDeleteConfirm({
+        itemName: 'purchase receipt',
+        onConfirm: async () => {
+          await performDeleteReceipt(receiptId);
         }
-      } catch (err) {
-        console.error('Error deleting purchase receipt:', err);
-        setError('Failed to delete purchase receipt');
-      } finally {
-        setLoading(false);
+      });
+    } else {
+      // Fallback to browser's native confirm
+      if (confirm('Are you sure you want to delete this receipt?')) {
+        await performDeleteReceipt(receiptId);
       }
+    }
+  };
+  
+  // Perform the actual delete operation
+  const performDeleteReceipt = async (receiptId) => {
+    try {
+      setLoading(true);
+      const response = await api.purchaseReceiving.delete(receiptId);
+      
+      if (response && response.success) {
+        // Remove from local state
+        setPurchaseReceipts(prev => prev.filter(receipt => receipt._id !== receiptId));
+        setError(null);
+      } else {
+        throw new Error('Failed to delete purchase receipt');
+      }
+    } catch (err) {
+      console.error('Error deleting purchase receipt:', err);
+      setError('Failed to delete purchase receipt');
+    } finally {
+      setLoading(false);
     }
   };
 
   // Calculate total received items
   const totalReceivedItems = purchaseReceipts.reduce((total, receipt) => {
-    return total + receipt.items.reduce((itemTotal, item) => itemTotal + item.receivedQuantity, 0);
+    if (!Array.isArray(receipt.items)) return total;
+    return total + receipt.items.reduce((itemTotal, item) => itemTotal + (item.quantityReceived || 0), 0);
   }, 0);
 
   return (
@@ -239,12 +313,14 @@ const PurchaseReceivingPage = () => {
 
           {/* Actions */}
           <div class="flex space-x-3">
-            <button class="btn btn-outline flex items-center">
-              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-              </svg>
-              Export
-            </button>
+            {isAdmin && (
+              <button class="btn btn-outline flex items-center">
+                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                Export
+              </button>
+            )}
             <button 
               class="btn btn-primary flex items-center"
               onClick={() => {
@@ -290,17 +366,24 @@ const PurchaseReceivingPage = () => {
                 </tr>
               ) : (
                 filteredReceipts.map((receipt) => (
-                  <tr key={receipt.id}>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">{receipt.id}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{receipt.purchaseOrderId}</td>
+                  <tr key={receipt._id}>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">{receipt.receivingNumber || receipt._id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {receipt.purchaseOrder?.orderNumber || 
+                       (typeof receipt.purchaseOrder === 'string' ? receipt.purchaseOrder : 'N/A')}
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {typeof receipt.supplier === 'string' 
                         ? receipt.supplier 
                         : (receipt.supplier?.name || 'Unknown Supplier')}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{receipt.receivingDate}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {receipt.items.reduce((total, item) => total + item.receivedQuantity, 0)}
+                      {receipt.receivingDate ? new Date(receipt.receivingDate).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {Array.isArray(receipt.items) 
+                        ? receipt.items.reduce((total, item) => total + (item.quantityReceived || 0), 0)
+                        : 0}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div class="flex justify-end space-x-2">
@@ -311,14 +394,16 @@ const PurchaseReceivingPage = () => {
                             setIsFormModalOpen(true);
                           }}
                         >
-                          View
+                          {isAdmin ? "View" : "Edit"}
                         </button>
-                        <button 
-                          class="text-red-600 hover:text-red-900"
-                          onClick={() => handleDeleteReceipt(receipt.id)}
-                        >
-                          Delete
-                        </button>
+                        {isAdmin && (
+                          <button 
+                            class="text-red-600 hover:text-red-900"
+                            onClick={() => handleDeleteReceipt(receipt._id)}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

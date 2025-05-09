@@ -1,8 +1,9 @@
 import { h } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import api from '../../services/api';
+import useAuth from '../../hooks/useAuth';
 
 /**
  * PurchaseReceivingForm component for receiving items from purchase orders
@@ -13,6 +14,13 @@ import api from '../../services/api';
  * @param {Function} props.onSave - Save handler
  */
 const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
+  const { user } = useAuth();
+  // Force isAdmin to false unless explicitly set to 'admin'
+  const isAdmin = user && user.role === 'admin';
+  
+  console.log('Form - User object:', user);
+  console.log('Form - Is admin:', isAdmin);
+  console.log('Form - User role:', user?.role);
   // State for purchase orders
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -60,57 +68,95 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
   // Search state
   const [poSearch, setPoSearch] = useState('');
   const [filteredPOs, setFilteredPOs] = useState([]);
-  const [showPOResults, setShowPOResults] = useState(false);
+  const [showAvailablePOs, setShowAvailablePOs] = useState(true);
 
   // Initialize form with data if editing
   useEffect(() => {
     if (initialData) {
+      console.log("Initial data received:", initialData);
+      
+      // Format the receiving date if it exists
+      const formattedDate = initialData.receivingDate 
+        ? new Date(initialData.receivingDate).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+      
+      // Handle supplier which might be an object or string
+      const supplierName = typeof initialData.supplier === 'string' 
+        ? initialData.supplier 
+        : (initialData.supplier?.name || 'Unknown Supplier');
+      
       setFormData({
         ...initialData,
-        receivingDate: initialData.receivingDate || new Date().toISOString().split('T')[0],
+        purchaseOrderId: initialData.purchaseOrder?._id || initialData.purchaseOrder,
+        receivingDate: formattedDate,
+        supplier: supplierName,
       });
       
-      // Find the corresponding purchase order
-      const po = purchaseOrders.find(po => po.id === initialData.purchaseOrderId);
-      if (po) {
-        setSelectedPO(po);
+      // Set the selected PO directly from initialData if it contains the full PO object
+      if (initialData.purchaseOrder && typeof initialData.purchaseOrder === 'object') {
+        setSelectedPO(initialData.purchaseOrder);
+        setShowAvailablePOs(false);
+      } else if (initialData.purchaseOrder) {
+        // If we only have the PO ID, fetch the full PO data
+        const fetchPODetails = async () => {
+          try {
+            setLoading(true);
+            const response = await api.purchaseOrders.getById(initialData.purchaseOrder);
+            if (response && response.data) {
+              setSelectedPO(response.data);
+              setShowAvailablePOs(false);
+            }
+          } catch (err) {
+            console.error('Error fetching purchase order details:', err);
+            setError('Failed to load purchase order details');
+          } finally {
+            setLoading(false);
+          }
+        };
+        
+        fetchPODetails();
+      }
+      
+      // If we have items in the initialData, make sure to map them correctly
+      if (initialData.items && Array.isArray(initialData.items)) {
+        // Map the items to include the correct receivedQuantity field
+        const mappedItems = initialData.items.map(item => ({
+          ...item,
+          // Use quantityReceived from the item as the receivedQuantity in our form
+          receivedQuantity: item.quantityReceived || 0,
+          // Make sure we have the _id field for each item
+          _id: item.purchaseOrderItem || item._id
+        }));
+        
+        setFormData(prev => ({
+          ...prev,
+          items: mappedItems
+        }));
       }
     }
   }, [initialData]);
 
-  // Filter purchase orders based on search term
+  // Set filtered POs when purchase orders are loaded or search term changes
   useEffect(() => {
-    if (poSearch) {
-      const filtered = purchaseOrders.filter(po => {
-        // Handle supplier which might be an object or string
-        const supplierName = typeof po.supplier === 'string' 
-          ? po.supplier 
-          : (po.supplier?.name || '');
-          
-        return (po.id?.toLowerCase() || '').includes(poSearch.toLowerCase()) ||
-               supplierName.toLowerCase().includes(poSearch.toLowerCase());
-      });
-      setFilteredPOs(filtered);
-    } else {
-      setFilteredPOs([]);
-      setShowPOResults(false);
-    }
-  }, [poSearch]);
-
-  // Handle click outside to close dropdowns
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      // Close PO search results if clicked outside
-      if (showPOResults && !event.target.closest('#poSearchContainer')) {
-        setShowPOResults(false);
+    if (purchaseOrders.length > 0) {
+      if (poSearch) {
+        const filtered = purchaseOrders.filter(po => {
+          // Handle supplier which might be an object or string
+          const supplierName = typeof po.supplier === 'string' 
+            ? po.supplier 
+            : (po.supplier?.name || '');
+            
+          return (po.id?.toLowerCase() || '').includes(poSearch.toLowerCase()) ||
+                 (po.orderNumber?.toLowerCase() || '').includes(poSearch.toLowerCase()) ||
+                 supplierName.toLowerCase().includes(poSearch.toLowerCase());
+        });
+        setFilteredPOs(filtered);
+      } else {
+        // Show all approved POs by default
+        setFilteredPOs(purchaseOrders);
       }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showPOResults]);
+    }
+  }, [purchaseOrders, poSearch]);
 
   // Handle form field changes
   const handleChange = (e) => {
@@ -129,7 +175,7 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
     }
   };
 
-  // Handle purchase order selection from search results
+  // Handle purchase order selection
   const handlePOSelect = async (po) => {
     try {
       setLoading(true);
@@ -153,8 +199,8 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
         }))
       }));
       
-      setPoSearch('');
-      setShowPOResults(false);
+      // Hide the available POs section after selection
+      setShowAvailablePOs(false);
       
       // Clear PO error if it exists
       if (errors.purchaseOrderId) {
@@ -170,6 +216,18 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
       setLoading(false);
     }
   };
+  
+  // Clear selected purchase order
+  const clearSelectedPO = () => {
+    setSelectedPO(null);
+    setFormData(prev => ({
+      ...prev,
+      purchaseOrderId: '',
+      supplier: '',
+      items: []
+    }));
+    setShowAvailablePOs(true);
+  };
 
   // Handle received quantity change
   const handleQuantityChange = (itemId, value) => {
@@ -178,7 +236,7 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
     setFormData(prev => ({
       ...prev,
       items: prev.items.map(item => 
-        item.id === itemId 
+        item._id === itemId 
           ? { ...item, receivedQuantity: quantity } 
           : item
       )
@@ -190,7 +248,7 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
     setFormData(prev => ({
       ...prev,
       items: prev.items.map(item => 
-        item.id === itemId 
+        item._id === itemId 
           ? { ...item, notes: value } 
           : item
       )
@@ -200,9 +258,23 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
   // Calculate total received items
   const totalReceivedItems = formData.items.reduce((sum, item) => sum + (item.receivedQuantity || 0), 0);
 
+  // Track submission state to prevent double submissions
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Use a ref to track if the form has been submitted
+  const hasSubmittedRef = useRef(false);
+
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    console.log('Form submission attempt - Loading:', loading, 'IsSubmitting:', isSubmitting, 'HasSubmitted:', hasSubmittedRef.current);
+    
+    // Prevent double submission using multiple checks
+    if (loading || isSubmitting || hasSubmittedRef.current) {
+      console.log('Preventing duplicate submission');
+      return;
+    }
     
     // Validate form
     const newErrors = {};
@@ -217,9 +289,15 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
     }
     
     try {
+      // Set flags to prevent double submission
       setLoading(true);
+      setIsSubmitting(true);
+      hasSubmittedRef.current = true;
+      setError(null);
       
-      // Prepare data for API
+      console.log('Form submission proceeding - preparing data');
+      
+      // Prepare data for parent component
       const receivingData = {
         purchaseOrder: formData.purchaseOrderId,
         receivingDate: formData.receivingDate,
@@ -236,27 +314,27 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
             notes: item.notes
           }))
       };
-      
-      let response;
-      if (initialData && initialData.id) {
-        // Update existing receiving
-        response = await api.purchaseReceiving.update(initialData.id, receivingData);
-      } else {
-        // Create new receiving
-        response = await api.purchaseReceiving.create(receivingData);
+
+      // If we're editing an existing record, include the _id to ensure we update rather than create
+      if (initialData && initialData._id) {
+        receivingData._id = initialData._id;
       }
       
-      if (response && response.success) {
-        // Call the save handler with the response data
-        onSave(response.data);
-      } else {
-        throw new Error('Failed to save purchase receiving');
-      }
+      console.log('Form validation passed, calling parent onSave with data');
+      
+      // Pass the data to the parent component to handle the API call
+      // This prevents duplicate API calls
+      onSave(receivingData);
     } catch (err) {
       console.error('Error saving purchase receiving:', err);
-      setError('Failed to save purchase receiving');
+      setError('Failed to save purchase receiving: ' + (err.message || 'Unknown error'));
+      // Reset submission flags on error to allow retry
+      setIsSubmitting(false);
+      hasSubmittedRef.current = false;
     } finally {
       setLoading(false);
+      // Note: We don't reset isSubmitting here to prevent further submissions
+      // It will be reset when the component unmounts or when a new form is opened
     }
   };
 
@@ -268,116 +346,217 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Basic Information */}
-      <Card title="Receiving Information">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          {/* Purchase Order Search */}
-          <div id="poSearchContainer" className="relative">
-            <label htmlFor="poSearch" className={labelClasses}>
-              Purchase Order <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                </svg>
+      {/* Purchase Order Selection */}
+      <Card title="Select Purchase Order">
+        {selectedPO ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Selected Purchase Order</h3>
+                <p className="text-sm text-gray-500">Review the details below</p>
               </div>
-              <input
-                type="text"
-                id="poSearch"
-                placeholder="Search for purchase order..."
-                value={poSearch}
-                onChange={(e) => setPoSearch(e.target.value)}
-                onFocus={() => setShowPOResults(true)}
-                onClick={() => setShowPOResults(true)}
-                className={`${inputClasses} ${errors.purchaseOrderId ? 'border-red-300' : ''} pl-10`}
-                disabled={!!initialData} // Disable if editing an existing receiving
-              />
-              {formData.purchaseOrderId && (
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  <span className="text-sm text-primary-600 bg-primary-50 px-2 py-1 rounded-full">
-                    {formData.purchaseOrderId}
-                  </span>
-                </div>
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={clearSelectedPO}
+                size="sm"
+              >
+                Change Selection
+              </Button>
             </div>
             
-            {/* Search Results */}
-            {showPOResults && (
-              <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
-                {filteredPOs.length > 0 ? (
-                  <ul className="py-1">
-                    {filteredPOs.map(po => (
-                      <li 
-                        key={po.id}
-                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => handlePOSelect(po)}
-                      >
-                        <div className="flex justify-between">
-                          <span className="font-medium">{po.id}</span>
-                          <span className="text-gray-500">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <p className="text-sm font-medium text-gray-500">PO Number</p>
+                <p className="mt-1 text-sm text-gray-900">{selectedPO.orderNumber || selectedPO._id}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Supplier</p>
+                <p className="mt-1 text-sm text-gray-900">
+                  {typeof selectedPO.supplier === 'string' 
+                    ? selectedPO.supplier 
+                    : (selectedPO.supplier?.name || 'Unknown Supplier')}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Expected Delivery</p>
+                <p className="mt-1 text-sm text-gray-900">{selectedPO.expectedDeliveryDate}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Status</p>
+                <p className="mt-1 text-sm text-gray-900">{selectedPO.status}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Items</p>
+                <p className="mt-1 text-sm text-gray-900">{selectedPO.items?.length || 0} items</p>
+              </div>
+            </div>
+          </div>
+        ) : showAvailablePOs ? (
+          <div>
+            {/* Search Bar */}
+            <div className="mb-4">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search by PO number or supplier..."
+                  value={poSearch}
+                  onChange={(e) => setPoSearch(e.target.value)}
+                  className={`${inputClasses} pl-10`}
+                  disabled={!!initialData} // Disable if editing an existing receiving
+                />
+              </div>
+            </div>
+            
+            {/* Available Purchase Orders Table */}
+            {loading ? (
+              <div className="text-center py-4">
+                <p className="text-gray-500">Loading purchase orders...</p>
+              </div>
+            ) : filteredPOs.length > 0 ? (
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          PO Number
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Supplier
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Expected Delivery
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Items
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredPOs.map(po => (
+                        <tr key={po._id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">
+                            {po.orderNumber || po._id}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {typeof po.supplier === 'string' 
                               ? po.supplier 
                               : (po.supplier?.name || 'Unknown Supplier')}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Expected: {po.expectedDeliveryDate} | Status: {po.status}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="px-4 py-3 text-sm text-gray-500">
-                    {poSearch ? 'No purchase orders found.' : 'Type to search purchase orders'}
-                  </div>
-                )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {po.expectedDeliveryDate}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                              ${po.status === 'Approved' ? 'bg-green-100 text-green-800' : 
+                                po.status === 'Partial' ? 'bg-yellow-100 text-yellow-800' : 
+                                'bg-gray-100 text-gray-800'}`}>
+                              {po.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {po.items?.length || 0} items
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              type="button"
+                              onClick={() => handlePOSelect(po)}
+                              className="text-primary-600 hover:text-primary-900"
+                            >
+                              Select
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 p-6 text-center rounded-lg border border-gray-200">
+                <svg className="h-12 w-12 text-gray-300 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <p className="text-gray-500">No approved purchase orders found</p>
+                <p className="text-sm text-gray-400 mt-1">Purchase orders must be approved before they can be received</p>
               </div>
             )}
             
             {errors.purchaseOrderId && (
-              <p className={errorClasses}>{errors.purchaseOrderId}</p>
+              <p className={errorClasses + " mt-2"}>{errors.purchaseOrderId}</p>
             )}
           </div>
-
-          {/* Supplier (read-only) */}
-          <div>
-            <label htmlFor="supplier" className={labelClasses}>
-              Supplier
-            </label>
-            <input
-              type="text"
-              id="supplier"
-              name="supplier"
-              value={formData.supplier}
-              className={`${inputClasses} bg-gray-50`}
-              disabled
-            />
+        ) : (
+          <div className="bg-gray-50 p-6 text-center rounded-lg border border-gray-200">
+            <p className="text-gray-500">Please select a purchase order to continue</p>
+            <button
+              type="button"
+              onClick={() => setShowAvailablePOs(true)}
+              className="mt-2 text-primary-600 hover:text-primary-900 text-sm font-medium"
+            >
+              Show available purchase orders
+            </button>
           </div>
-
-          {/* Receiving Date */}
-          <div>
-            <label htmlFor="receivingDate" className={labelClasses}>
-              Receiving Date <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              id="receivingDate"
-              name="receivingDate"
-              value={formData.receivingDate}
-              onChange={handleChange}
-              className={`${inputClasses} ${errors.receivingDate ? 'border-red-300' : ''}`}
-              required
-            />
-            {errors.receivingDate && (
-              <p className={errorClasses}>{errors.receivingDate}</p>
-            )}
-          </div>
-        </div>
+        )}
       </Card>
 
+      {/* Receiving Information */}
+      {selectedPO && (
+        <Card title="Receiving Information">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+
+            {/* Supplier (read-only) */}
+            <div>
+              <label htmlFor="supplier" className={labelClasses}>
+                Supplier
+              </label>
+              <input
+                type="text"
+                id="supplier"
+                name="supplier"
+                value={formData.supplier}
+                className={`${inputClasses} bg-gray-50`}
+                disabled
+              />
+            </div>
+
+            {/* Receiving Date */}
+            <div>
+              <label htmlFor="receivingDate" className={labelClasses}>
+                Receiving Date <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                id="receivingDate"
+                name="receivingDate"
+                value={formData.receivingDate}
+                onChange={handleChange}
+                className={`${inputClasses} ${errors.receivingDate ? 'border-red-300' : ''}`}
+                required
+              />
+              {errors.receivingDate && (
+                <p className={errorClasses}>{errors.receivingDate}</p>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Items */}
-      <Card title="Receive Items">
-        {selectedPO ? (
+      {selectedPO && (
+        <Card title="Receive Items">
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -402,9 +581,13 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {formData.items.map((item) => {
-                    const remaining = item.quantity - item.received;
+                    // Calculate remaining quantity, ensuring we have valid numbers
+                    const received = typeof item.receivedQuantity === 'number' ? item.receivedQuantity : 0;
+                    const previouslyReceived = typeof item.received === 'number' ? item.received : 0;
+                    const ordered = typeof item.quantity === 'number' ? item.quantity : 0;
+                    const remaining = ordered - previouslyReceived;
                     return (
-                      <tr key={item.id}>
+                      <tr key={item._id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {item.name}
                         </td>
@@ -418,20 +601,19 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
                           <input
                             type="number"
                             min="0"
-                            max={remaining}
                             value={item.receivedQuantity || 0}
-                            onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                            onChange={(e) => handleQuantityChange(item._id, e.target.value)}
                             className="w-20 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-1 px-2 sm:text-sm"
                           />
                           <span className="ml-2 text-xs text-gray-500">
-                            (Max: {remaining})
+                            (Remaining: {remaining})
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <input
                             type="text"
                             value={item.notes || ''}
-                            onChange={(e) => handleItemNotesChange(item.id, e.target.value)}
+                            onChange={(e) => handleItemNotesChange(item._id, e.target.value)}
                             placeholder="Optional notes"
                             className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-1 px-2 sm:text-sm"
                           />
@@ -446,15 +628,19 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
               <p className="p-4 text-sm text-red-600">{errors.items}</p>
             )}
           </div>
-        ) : (
+        </Card>
+      )}
+      
+      {!selectedPO && (
+        <Card title="Receive Items">
           <div className="bg-gray-50 p-6 text-center rounded-lg border border-gray-200">
             <svg className="h-12 w-12 text-gray-300 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             <p className="text-gray-500">Select a purchase order to receive items</p>
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Notes */}
       <Card title="Additional Information">
@@ -488,12 +674,12 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
           type="submit"
           variant="primary"
           size="lg"
-          disabled={!selectedPO || totalReceivedItems === 0}
+          disabled={!selectedPO || totalReceivedItems === 0 || isSubmitting}
         >
           <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
           </svg>
-          Confirm Receipt
+          {initialData ? "Save Changes" : "Confirm Receipt"}
         </Button>
       </div>
     </form>
