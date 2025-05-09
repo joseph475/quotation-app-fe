@@ -7,6 +7,149 @@ import useAuth from '../../hooks/useAuth';
 import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 
 const QuotationsPage = () => {
+  // Export all filtered quotations to CSV
+  const exportAllQuotationsToCSV = (quotations) => {
+    if (!quotations || quotations.length === 0) {
+      alert('No quotations to export');
+      return;
+    }
+    
+    // Define CSV headers
+    const headers = [
+      'Quotation Number',
+      'Customer',
+      'Date',
+      'Valid Until',
+      'Status',
+      'Total Amount',
+      'Notes'
+    ];
+    
+    // Convert quotations to CSV rows
+    const rows = quotations.map(quotation => {
+      // Format customer name
+      const customerName = typeof quotation.customer === 'string' 
+        ? quotation.customer 
+        : (quotation.customer?.name || 'Unknown Customer');
+      
+      // Format status
+      let status = quotation.status;
+      if (status === 'draft') status = 'Pending';
+      else if (status === 'accepted') status = 'Approved';
+      else status = status.charAt(0).toUpperCase() + status.slice(1);
+      
+      return [
+        quotation.quotationNumber || '',
+        customerName,
+        new Date(quotation.createdAt).toLocaleDateString(),
+        new Date(quotation.validUntil).toLocaleDateString(),
+        status,
+        `$${(quotation.total || 0).toFixed(2)}`,
+        quotation.notes || ''
+      ];
+    });
+    
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `quotations_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
+  // Export single quotation details to CSV
+  const exportQuotationToCSV = (quotation) => {
+    if (!quotation) return;
+    
+    // Define CSV headers
+    const headers = [
+      'Quotation Number',
+      'Customer',
+      'Date',
+      'Valid Until',
+      'Status',
+      'Total Amount',
+      'Notes',
+      'Terms & Conditions'
+    ];
+    
+    // Format customer name
+    const customerName = typeof quotation.customer === 'string' 
+      ? quotation.customer 
+      : (quotation.customer?.name || 'Unknown Customer');
+    
+    // Format status
+    let status = quotation.status;
+    if (status === 'draft') status = 'Pending';
+    else if (status === 'accepted') status = 'Approved';
+    else status = status.charAt(0).toUpperCase() + status.slice(1);
+    
+    // Basic quotation information
+    const quotationInfo = [
+      quotation.quotationNumber || '',
+      customerName,
+      new Date(quotation.createdAt).toLocaleDateString(),
+      new Date(quotation.validUntil).toLocaleDateString(),
+      status,
+      `$${(quotation.total || 0).toFixed(2)}`,
+      quotation.notes || '',
+      quotation.terms || ''
+    ];
+    
+    // Items headers
+    const itemsHeaders = [
+      '',
+      'Item Description',
+      'Quantity',
+      'Unit Price',
+      'Discount',
+      'Tax',
+      'Total'
+    ];
+    
+    // Convert items to CSV rows
+    const itemRows = quotation.items && quotation.items.length > 0
+      ? quotation.items.map((item, index) => [
+          `Item ${index + 1}`,
+          item.description || '',
+          item.quantity || '',
+          `$${parseFloat(item.unitPrice).toFixed(2)}`,
+          `${item.discount}%`,
+          `${item.tax}%`,
+          `$${parseFloat(item.total).toFixed(2)}`
+        ])
+      : [['No items', '', '', '', '', '', '']];
+    
+    // Combine all rows
+    const csvContent = [
+      headers.join(','),
+      quotationInfo.join(','),
+      '', // Empty row for spacing
+      itemsHeaders.join(','),
+      ...itemRows.map(row => row.join(','))
+    ].join('\n');
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `quotation_${quotation.quotationNumber}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
@@ -243,11 +386,14 @@ const QuotationsPage = () => {
 
           {/* Actions */}
           <div class="flex space-x-3">
-            <button class="btn btn-outline flex items-center">
+            <button 
+              class="btn btn-outline flex items-center"
+              onClick={() => exportAllQuotationsToCSV(filteredQuotations)}
+            >
               <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
               </svg>
-              Export
+              Export CSV
             </button>
             <button 
               class="btn btn-primary flex items-center"
@@ -630,6 +776,16 @@ const QuotationsPage = () => {
 
             {/* Actions */}
             <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                className="btn btn-outline flex items-center"
+                onClick={() => exportQuotationToCSV(selectedQuotation)}
+              >
+                <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+                Export CSV
+              </button>
               <button
                 type="button"
                 className="btn btn-secondary"

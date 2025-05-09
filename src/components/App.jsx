@@ -54,9 +54,6 @@ const AppContent = () => {
         {!isAuthRoute && <Sidebar />}
         <main class={`flex-1 overflow-auto ${isAuthRoute ? '' : 'p-4 bg-gray-50'}`}>
           <Router onChange={handleRouteChange}>
-            {/* In development mode, allow direct access to development pages for testing */}
-            {DEV_MODE && <DevDashboardPage path="/dev-dashboard" />}
-            {DEV_MODE && <InputComponentsExamplePage path="/examples/input-components" />}
             <RoleProtectedRoute component={DashboardPage} path="/" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={InventoryPage} path="/inventory" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={StockTransferPage} path="/stock-transfers" allowedRoles={['admin', 'user']} />

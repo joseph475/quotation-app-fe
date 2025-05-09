@@ -48,6 +48,15 @@ const Sidebar = () => {
       path: '/',
     },
     {
+      name: 'Quotations',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+      path: '/quotations',
+    },
+    {
       name: 'Inventory',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -100,15 +109,6 @@ const Sidebar = () => {
         </svg>
       ),
       path: '/customers',
-    },
-    {
-      name: 'Quotations',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
-      path: '/quotations',
     },
     {
       name: 'Reports',
@@ -245,37 +245,6 @@ const Sidebar = () => {
             ))}
           </ul>
         </nav>
-        
-        {/* Development Links - only visible in DEV_MODE */}
-        {DEV_MODE && (
-          <div class="px-4 py-2">
-            <div class="mb-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Development</div>
-            <ul class="space-y-1">
-              <li>
-                <a
-                  href="/examples/input-components"
-                  class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  <span>Input Components</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/dev-dashboard"
-                  class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  <span>Dev Dashboard</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-        )}
         
         <div class="p-4 border-t border-gray-200">
           <a

@@ -42,7 +42,7 @@ const FilterSelect = ({
         placeholder={placeholder}
         disabled={disabled}
         variant="borderless"
-        className={`py-2 ${className}`}
+        className={`py-2 pl-3 hover:bg-gray-50 transition-all duration-200 focus:bg-white ${className}`}
         {...rest}
       />
     </div>
