@@ -1,4 +1,4 @@
-import { h } from 'preact';
+import { h, Fragment } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import SaleForm from '../../components/sales/SaleForm';
@@ -6,6 +6,7 @@ import SaleReceipt from '../../components/sales/SaleReceipt';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
+import { hasPermission } from '../../utils/pageHelpers';
 
 const SalesPage = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -17,6 +18,7 @@ const SalesPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
+  const [createdByUser, setCreatedByUser] = useState(null);
 
   const [sales, setSales] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -258,15 +260,18 @@ const SalesPage = () => {
 
           {/* Actions */}
           <div class="flex space-x-3">
-            <button 
-              class="btn btn-primary flex items-center"
-              onClick={() => setIsFormModalOpen(true)}
-            >
-              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-              </svg>
-              New Sale
-            </button>
+            {/* Only show New Sale button for non-admin users */}
+            {hasPermission('sales-create', user) && (
+              <button 
+                class="btn btn-primary flex items-center"
+                onClick={() => setIsFormModalOpen(true)}
+              >
+                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                New Sale
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -385,32 +390,58 @@ const SalesPage = () => {
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div class="flex justify-end space-x-2">
                         <button 
-                          class="text-primary-600 hover:text-primary-900"
-                          onClick={() => {
+                          class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                          onClick={async () => {
                             setSelectedSale(sale);
+                            
+                            // If createdBy is a string (ObjectId), fetch the user data
+                            if (typeof sale.createdBy === 'string') {
+                              try {
+                                const response = await api.users.getById(sale.createdBy);
+                                if (response && response.success) {
+                                  setCreatedByUser(response.data);
+                                }
+                              } catch (err) {
+                                console.error('Error fetching user data:', err);
+                                setCreatedByUser(null);
+                              }
+                            } else {
+                              setCreatedByUser(null);
+                            }
+                            
                             setIsViewModalOpen(true);
                           }}
                         >
+                          <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                          </svg>
                           View
                         </button>
                         <button 
-                          class="text-primary-600 hover:text-primary-900"
+                          class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                           onClick={() => {
                             setSelectedSale(sale);
                             setIsEditModalOpen(true);
                           }}
                         >
+                          <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                          </svg>
                           Edit
                         </button>
                         {/* Only show delete button for admin users */}
                         {user && user.role !== 'user' && (
                           <button 
-                            class="text-red-600 hover:text-red-900"
+                            class="inline-flex items-center px-2.5 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                             onClick={() => {
                               setSelectedSale(sale);
                               handleDeleteSale();
                             }}
                           >
+                            <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
                             Delete
                           </button>
                         )}
@@ -455,7 +486,253 @@ const SalesPage = () => {
                   cancelText: 'No, Thanks',
                   confirmButtonClass: 'bg-primary-600 hover:bg-primary-700',
                   onConfirm: () => {
-                    setIsReceiptModalOpen(true);
+                    // Instead of showing the modal, directly open print preview
+                    const printWindow = window.open('', '_blank', 'width=800,height=600');
+                    
+                    if (!printWindow) {
+                      alert("Please allow pop-ups to print the receipt.");
+                      return;
+                    }
+                    
+                    // Set the document title
+                    printWindow.document.title = `Sale Receipt - ${response.data?.saleNumber || 'Receipt'}`;
+                    
+                    // Get customer and branch names
+                    const customerName = response.data?.customerName || 'Customer';
+                    const branchName = response.data?.branchName || 'Branch';
+                    
+                    // Format date for display
+                    const formatDate = (dateString) => {
+                      if (!dateString) return '';
+                      return new Date(dateString).toLocaleDateString();
+                    };
+                    
+                    // Format time for display
+                    const formatTime = (dateString) => {
+                      if (!dateString) return '';
+                      return new Date(dateString).toLocaleTimeString();
+                    };
+                    
+                    // Add styles and content to the new window
+                    printWindow.document.write(`
+                      <html>
+                        <head>
+                          <title>Sale Receipt - ${response.data?.saleNumber || 'Receipt'}</title>
+                          <style>
+                            body {
+                              font-family: Arial, sans-serif;
+                              font-size: 12pt;
+                              margin: 0;
+                              padding: 1cm;
+                              background-color: white;
+                              color: black;
+                            }
+                            .receipt-container {
+                              max-width: 800px;
+                              margin: 0 auto;
+                            }
+                            h1 {
+                              font-size: 16pt;
+                              margin-bottom: 5px;
+                            }
+                            .text-center {
+                              text-align: center;
+                            }
+                            .text-right {
+                              text-align: right;
+                            }
+                            .flex {
+                              display: flex;
+                              justify-content: space-between;
+                            }
+                            .mb-3 {
+                              margin-bottom: 15px;
+                            }
+                            .text-sm {
+                              font-size: 10pt;
+                            }
+                            .text-xs {
+                              font-size: 8pt;
+                            }
+                            .font-medium {
+                              font-weight: 500;
+                            }
+                            .font-bold {
+                              font-weight: 700;
+                            }
+                            table {
+                              width: 100%;
+                              border-collapse: collapse;
+                            }
+                            th {
+                              text-align: left;
+                              border-bottom: 1px solid #ddd;
+                              padding: 5px;
+                            }
+                            td {
+                              padding: 5px;
+                              border-bottom: 1px solid #eee;
+                            }
+                            .border-t {
+                              border-top: 1px solid #ddd;
+                              padding-top: 10px;
+                              margin-top: 10px;
+                            }
+                            .text-gray-600 {
+                              color: #666;
+                            }
+                            .text-gray-500 {
+                              color: #888;
+                            }
+                            .text-gray-400 {
+                              color: #aaa;
+                            }
+                            @media print {
+                              .no-print {
+                                display: none !important;
+                              }
+                            }
+                            .print-button {
+                              text-align: center;
+                              margin-top: 20px;
+                            }
+                            .print-button button {
+                              padding: 10px 20px;
+                              background-color: #4F46E5;
+                              color: white;
+                              border: none;
+                              border-radius: 4px;
+                              font-size: 14px;
+                              cursor: pointer;
+                              box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+                            }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="receipt-container">
+                            <!-- Header -->
+                            <div class="text-center mb-3">
+                              <h1>SALES RECEIPT</h1>
+                              <p class="text-gray-600 text-sm">Thank you for your purchase!</p>
+                            </div>
+
+                            <!-- Sale Info -->
+                            <div class="flex mb-3">
+                              <div>
+                                <p class="text-sm"><span class="font-medium">Sale #:</span> ${response.data.saleNumber}</p>
+                                <p class="text-sm"><span class="font-medium">Branch:</span> ${branchName}</p>
+                              </div>
+                              <div class="text-right">
+                                <p class="text-sm"><span class="font-medium">Date:</span> ${formatDate(response.data.createdAt)}</p>
+                                <p class="text-sm"><span class="font-medium">Time:</span> ${formatTime(response.data.createdAt)}</p>
+                              </div>
+                            </div>
+
+                            <!-- Customer Info -->
+                            <div class="mb-3">
+                              <p class="text-sm font-medium">Customer:</p>
+                              <p class="text-sm">${customerName}</p>
+                              ${response.data.customer?.phone ? `<p class="text-sm">Phone: ${response.data.customer.phone}</p>` : ''}
+                              ${response.data.customer?.email ? `<p class="text-sm">Email: ${response.data.customer.email}</p>` : ''}
+                            </div>
+
+                            <!-- Items Table -->
+                            <div class="mb-3">
+                              <p class="text-sm font-medium mb-1">Items Purchased:</p>
+                              <table class="w-full text-sm">
+                                <thead>
+                                  <tr>
+                                    <th>Item</th>
+                                    <th class="text-center">Qty</th>
+                                    <th class="text-right">Price</th>
+                                    <th class="text-right">Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  ${response.data.items && response.data.items.length > 0 ? 
+                                    response.data.items.map(item => `
+                                      <tr>
+                                        <td>${item.description}</td>
+                                        <td class="text-center">${item.quantity}</td>
+                                        <td class="text-right">$${(item.unitPrice || 0).toFixed(2)}</td>
+                                        <td class="text-right">$${(item.total || 0).toFixed(2)}</td>
+                                      </tr>
+                                    `).join('') : 
+                                    `<tr><td colspan="4" class="text-center text-gray-500">No items in this sale</td></tr>`
+                                  }
+                                </tbody>
+                              </table>
+                            </div>
+
+                            <!-- Totals -->
+                            <div class="mb-3 border-t">
+                              <div class="flex">
+                                <span>Payment Method:</span>
+                                <span>
+                                  ${response.data.paymentMethod === 'cash' ? 'Cash' :
+                                   response.data.paymentMethod === 'check' ? 'Check' :
+                                   response.data.paymentMethod === 'credit_card' ? 'Credit Card' :
+                                   response.data.paymentMethod === 'bank_transfer' ? 'Bank Transfer' :
+                                   response.data.paymentMethod === 'online_payment' ? 'Online Payment' :
+                                   response.data.paymentMethod}
+                                </span>
+                              </div>
+                              
+                              ${response.data.paymentReference ? `
+                                <div class="flex">
+                                  <span>Reference:</span>
+                                  <span>${response.data.paymentReference}</span>
+                                </div>
+                              ` : ''}
+                              
+                              <div class="flex">
+                                <span>Subtotal:</span>
+                                <span>$${(response.data.subtotal || 0).toFixed(2)}</span>
+                              </div>
+                              
+                              <div class="flex">
+                                <span>Discount:</span>
+                                <span>$${(response.data.discountAmount || 0).toFixed(2)}</span>
+                              </div>
+                              
+                              <div class="flex">
+                                <span>Tax:</span>
+                                <span>$${(response.data.taxAmount || 0).toFixed(2)}</span>
+                              </div>
+                              
+                              <div class="flex font-bold border-t">
+                                <span>Total:</span>
+                                <span>$${(response.data.total || 0).toFixed(2)}</span>
+                              </div>
+                            </div>
+
+                            <!-- Footer -->
+                            <div class="text-center text-gray-600 text-xs mt-4 border-t">
+                              <p class="font-medium">Thank you for your business!</p>
+                              <p>For inquiries: support@example.com</p>
+                              <p>${branchName} • ${formatDate(response.data.createdAt)}</p>
+                              <div class="text-right text-xs text-gray-400">1/1</div>
+                            </div>
+                          </div>
+                          
+                          <!-- Print Button - will be hidden when printing -->
+                          <div class="print-button no-print">
+                            <button onclick="window.print(); return false;">
+                              Print Receipt
+                            </button>
+                          </div>
+                        </body>
+                      </html>
+                    `);
+                    
+                    // Close the document for writing
+                    printWindow.document.close();
+                    
+                    // Wait for the document to load before printing
+                    printWindow.onload = function() {
+                      // Print the document automatically
+                      printWindow.print();
+                    };
                   },
                   onCancel: () => {
                     // Just close the form modal
@@ -560,85 +837,199 @@ const SalesPage = () => {
       <Modal
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
-        title={`Sale Details: ${selectedSale?.saleNumber || ''}`}
+        title={
+          <div class="flex items-center">
+            <span class="text-xl font-bold text-gray-900 mr-3">{selectedSale?.saleNumber || ''}</span>
+            {selectedSale && (
+              <span class={`px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${
+                selectedSale.status === 'paid' ? 'bg-green-100 text-green-800' : 
+                selectedSale.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
+                selectedSale.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-800' :
+                selectedSale.status === 'pending' ? 'bg-blue-100 text-blue-800' :
+                selectedSale.status === 'refunded' ? 'bg-purple-100 text-purple-800' : 
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {selectedSale.status === 'paid' ? 'Paid' : 
+                 selectedSale.status === 'partially_paid' ? 'Partially Paid' :
+                 selectedSale.status === 'pending' ? 'Pending' :
+                 selectedSale.status === 'cancelled' ? 'Cancelled' :
+                 selectedSale.status === 'refunded' ? 'Refunded' : 
+                 selectedSale.status}
+              </span>
+            )}
+          </div>
+        }
         size="5xl"
       >
         {selectedSale && (
           <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">Sale Information</h3>
-                <div class="bg-gray-50 p-4 rounded-lg">
-                  <p class="mb-2"><span class="font-medium">Sale Number:</span> {selectedSale.saleNumber}</p>
-                  <p class="mb-2"><span class="font-medium">Date:</span> {formatDate(selectedSale.createdAt)}</p>
-                  <p class="mb-2"><span class="font-medium">Status:</span> 
-                    <span class={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      selectedSale.status === 'paid' ? 'bg-green-100 text-green-800' : 
-                      selectedSale.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {selectedSale.status === 'paid' ? 'Paid' : 
-                       selectedSale.status === 'partially_paid' ? 'Partially Paid' :
-                       selectedSale.status === 'pending' ? 'Pending' :
-                       selectedSale.status === 'cancelled' ? 'Cancelled' :
-                       selectedSale.status === 'refunded' ? 'Refunded' : 
-                       selectedSale.status}
-                    </span>
+            {/* Summary Bar */}
+            <div class="bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-lg shadow-sm p-4 mb-6">
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <p class="text-xs text-gray-500 uppercase tracking-wider">Total Amount</p>
+                  <p class="text-xl font-bold text-primary-600">${(selectedSale.total || 0).toFixed(2)}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500 uppercase tracking-wider">Date</p>
+                  <p class="text-sm font-medium">{formatDate(selectedSale.createdAt)}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500 uppercase tracking-wider">Payment Method</p>
+                  <p class="text-sm font-medium capitalize">
+                    {selectedSale.paymentMethod?.replace('_', ' ') || 'N/A'}
                   </p>
-                  <p class="mb-2"><span class="font-medium">Branch:</span> {
-                    typeof selectedSale.branch === 'string'
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500 uppercase tracking-wider">Branch</p>
+                  <p class="text-sm font-medium">
+                    {typeof selectedSale.branch === 'string'
                       ? selectedSale.branch
-                      : (selectedSale.branch?.name || 'Unknown Branch')
-                  }</p>
-                  <p class="mb-2"><span class="font-medium">Created By:</span> {
-                    typeof selectedSale.createdBy === 'string'
-                      ? selectedSale.createdBy
-                      : (selectedSale.createdBy?.name || 'Unknown User')
-                  }</p>
-                  <p class="mb-2"><span class="font-medium">Created At:</span> {formatDate(selectedSale.createdAt)}</p>
-                  <p class="mb-2"><span class="font-medium">Updated At:</span> {formatDate(selectedSale.updatedAt)}</p>
+                      : (selectedSale.branch?.name || 'Unknown Branch')}
+                  </p>
                 </div>
               </div>
-              <div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">Customer Information</h3>
-                <div class="bg-gray-50 p-4 rounded-lg">
-                  <p class="mb-2"><span class="font-medium">Customer:</span> {
-                    typeof selectedSale.customer === 'string' 
-                      ? selectedSale.customer 
-                      : (selectedSale.customer?.name || 'Unknown Customer')
-                  }</p>
-                  {selectedSale.customer?.phone && (
-                    <p class="mb-2"><span class="font-medium">Phone:</span> {selectedSale.customer.phone}</p>
-                  )}
-                </div>
+            </div>
 
-                <h3 class="text-lg font-medium text-gray-900 mt-4 mb-2">Payment Information</h3>
-                <div class="bg-gray-50 p-4 rounded-lg">
-                  <p class="mb-2"><span class="font-medium">Payment Method:</span> {
-                    selectedSale.paymentMethod === 'cash' ? 'Cash' :
-                    selectedSale.paymentMethod === 'check' ? 'Check' :
-                    selectedSale.paymentMethod === 'credit_card' ? 'Credit Card' :
-                    selectedSale.paymentMethod === 'bank_transfer' ? 'Bank Transfer' :
-                    selectedSale.paymentMethod === 'online_payment' ? 'Online Payment' :
-                    selectedSale.paymentMethod
-                  }</p>
-                  <p class="mb-2"><span class="font-medium">Total Amount:</span> ${(selectedSale.total || 0).toFixed(2)}</p>
-                  <p class="mb-2"><span class="font-medium">Amount Paid:</span> ${(selectedSale.amountPaid || 0).toFixed(2)}</p>
-                  <p class="mb-2"><span class="font-medium">Balance:</span> ${(selectedSale.balance || 0).toFixed(2)}</p>
-                  {selectedSale.dueDate && (
-                    <p class="mb-2"><span class="font-medium">Due Date:</span> {formatDate(selectedSale.dueDate)}</p>
-                  )}
-                  {selectedSale.paymentDetails && (
-                    <p class="mb-2"><span class="font-medium">Payment Details:</span> {selectedSale.paymentDetails}</p>
-                  )}
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              {/* Sale Information */}
+              <div class="md:col-span-1">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                  <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <h3 class="text-sm font-medium text-gray-900 flex items-center">
+                      <svg class="h-4 w-4 text-gray-500 mr-1.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                      </svg>
+                      Sale Information
+                    </h3>
+                  </div>
+                  <div class="px-4 py-3 divide-y divide-gray-200">
+                    <div class="py-2 flex justify-between">
+                      <span class="text-sm text-gray-500">Sale Number</span>
+                      <span class="text-sm font-medium text-gray-900">{selectedSale.saleNumber}</span>
+                    </div>
+                    <div class="py-2 flex justify-between">
+                      <span class="text-sm text-gray-500">Created By</span>
+                      <span class="text-sm font-medium text-gray-900">
+                        {createdByUser 
+                          ? (createdByUser.name || createdByUser.username || createdByUser.email || 'Unknown User')
+                          : (typeof selectedSale.createdBy === 'object' && selectedSale.createdBy !== null
+                              ? (selectedSale.createdBy.name || selectedSale.createdBy.username || selectedSale.createdBy.email || 'Unknown User')
+                              : (selectedSale.createdByName || 'Unknown User'))}
+                      </span>
+                    </div>
+                    <div class="py-2 flex justify-between">
+                      <span class="text-sm text-gray-500">Created At</span>
+                      <span class="text-sm font-medium text-gray-900">{formatDate(selectedSale.createdAt)}</span>
+                    </div>
+                    <div class="py-2 flex justify-between">
+                      <span class="text-sm text-gray-500">Updated At</span>
+                      <span class="text-sm font-medium text-gray-900">{formatDate(selectedSale.updatedAt)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Customer Information */}
+              <div class="md:col-span-1">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden h-full">
+                  <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <h3 class="text-sm font-medium text-gray-900 flex items-center">
+                      <svg class="h-4 w-4 text-gray-500 mr-1.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                      </svg>
+                      Customer Information
+                    </h3>
+                  </div>
+                  <div class="px-4 py-3">
+                    <div class="flex items-center mb-3">
+                      <div class="h-10 w-10 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center mr-3 text-sm font-medium">
+                        {typeof selectedSale.customer === 'string' 
+                          ? selectedSale.customer.charAt(0).toUpperCase()
+                          : (selectedSale.customer?.name?.charAt(0).toUpperCase() || 'C')}
+                      </div>
+                      <div>
+                        <p class="text-sm font-medium text-gray-900">
+                          {typeof selectedSale.customer === 'string' 
+                            ? selectedSale.customer 
+                            : (selectedSale.customer?.name || 'Unknown Customer')}
+                        </p>
+                        {selectedSale.customer?.email && (
+                          <p class="text-xs text-gray-500">{selectedSale.customer.email}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {selectedSale.customer?.phone && (
+                      <div class="flex items-center text-sm text-gray-500 mt-2">
+                        <svg class="h-4 w-4 text-gray-400 mr-1.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                        </svg>
+                        {selectedSale.customer.phone}
+                      </div>
+                    )}
+                    
+                    {selectedSale.customer?.address && (
+                      <div class="flex items-start text-sm text-gray-500 mt-2">
+                        <svg class="h-4 w-4 text-gray-400 mr-1.5 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                        </svg>
+                        <span>{selectedSale.customer.address}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Information */}
+              <div class="md:col-span-1">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden h-full">
+                  <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <h3 class="text-sm font-medium text-gray-900 flex items-center">
+                      <svg class="h-4 w-4 text-gray-500 mr-1.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                        <path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd" />
+                      </svg>
+                      Payment Details
+                    </h3>
+                  </div>
+                  <div class="px-4 py-3 divide-y divide-gray-200">
+                    <div class="py-2 flex justify-between">
+                      <span class="text-sm text-gray-500">Amount Paid</span>
+                      <span class="text-sm font-medium text-green-600">${(selectedSale.amountPaid || 0).toFixed(2)}</span>
+                    </div>
+                    <div class="py-2 flex justify-between">
+                      <span class="text-sm text-gray-500">Balance</span>
+                      <span class="text-sm font-medium text-red-600">${(selectedSale.balance || 0).toFixed(2)}</span>
+                    </div>
+                    {selectedSale.dueDate && (
+                      <div class="py-2 flex justify-between">
+                        <span class="text-sm text-gray-500">Due Date</span>
+                        <span class="text-sm font-medium text-gray-900">{formatDate(selectedSale.dueDate)}</span>
+                      </div>
+                    )}
+                    {selectedSale.paymentDetails && (
+                      <div class="py-2">
+                        <span class="text-sm text-gray-500 block mb-1">Payment Details</span>
+                        <span class="text-sm font-medium text-gray-900">{selectedSale.paymentDetails}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Sale Items */}
             <div class="mb-6">
-              <h3 class="text-lg font-medium text-gray-900 mb-2">Sale Items</h3>
-              <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+              <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                  <h3 class="text-sm font-medium text-gray-900 flex items-center">
+                    <svg class="h-4 w-4 text-gray-500 mr-1.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
+                    </svg>
+                    Sale Items
+                  </h3>
+                  <span class="text-xs text-gray-500">{selectedSale.items?.length || 0} items</span>
+                </div>
                 <div class="overflow-x-auto">
                   <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -669,7 +1060,7 @@ const SalesPage = () => {
                     <tbody class="bg-white divide-y divide-gray-200">
                       {selectedSale.items && selectedSale.items.length > 0 ? (
                         selectedSale.items.map((item, index) => (
-                          <tr key={index}>
+                          <tr key={index} class={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {typeof item.inventory === 'string' 
                                 ? item.inventory 
@@ -678,19 +1069,31 @@ const SalesPage = () => {
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {item.description}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                               {item.quantity}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
                               ${(item.unitPrice || 0).toFixed(2)}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {(item.discount || 0)}%
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                              {item.discount > 0 ? (
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                  {(item.discount || 0)}%
+                                </span>
+                              ) : (
+                                <span>-</span>
+                              )}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {(item.tax || 0)}%
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                              {item.tax > 0 ? (
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                  {(item.tax || 0)}%
+                                </span>
+                              ) : (
+                                <span>-</span>
+                              )}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
                               ${(item.total || 0).toFixed(2)}
                             </td>
                           </tr>
@@ -756,8 +1159,237 @@ const SalesPage = () => {
             <div class="mt-6 flex justify-end space-x-3">
               <button
                 onClick={() => {
-                  setIsViewModalOpen(false);
-                  setIsReceiptModalOpen(true);
+                  // Create a new window for printing
+                  const printWindow = window.open('', '_blank', 'width=800,height=600');
+                  
+                  if (!printWindow) {
+                    alert("Please allow pop-ups to print the receipt.");
+                    return;
+                  }
+                  
+                  // Set the document title
+                  printWindow.document.title = `Sale Receipt - ${selectedSale?.saleNumber || 'Receipt'}`;
+                  
+                  // Add styles and content to the new window
+                  printWindow.document.write(`
+                    <html>
+                      <head>
+                        <title>Sale Receipt - ${selectedSale?.saleNumber || 'Receipt'}</title>
+                        <style>
+                          body {
+                            font-family: Arial, sans-serif;
+                            font-size: 12pt;
+                            margin: 0;
+                            padding: 1cm;
+                            background-color: white;
+                            color: black;
+                          }
+                          .receipt-container {
+                            max-width: 800px;
+                            margin: 0 auto;
+                          }
+                          h1 {
+                            font-size: 16pt;
+                            margin-bottom: 5px;
+                          }
+                          .text-center {
+                            text-align: center;
+                          }
+                          .text-right {
+                            text-align: right;
+                          }
+                          .flex {
+                            display: flex;
+                            justify-content: space-between;
+                          }
+                          .mb-3 {
+                            margin-bottom: 15px;
+                          }
+                          .text-sm {
+                            font-size: 10pt;
+                          }
+                          .text-xs {
+                            font-size: 8pt;
+                          }
+                          .font-medium {
+                            font-weight: 500;
+                          }
+                          .font-bold {
+                            font-weight: 700;
+                          }
+                          table {
+                            width: 100%;
+                            border-collapse: collapse;
+                          }
+                          th {
+                            text-align: left;
+                            border-bottom: 1px solid #ddd;
+                            padding: 5px;
+                          }
+                          td {
+                            padding: 5px;
+                            border-bottom: 1px solid #eee;
+                          }
+                          .border-t {
+                            border-top: 1px solid #ddd;
+                            padding-top: 10px;
+                            margin-top: 10px;
+                          }
+                          .text-gray-600 {
+                            color: #666;
+                          }
+                          .text-gray-500 {
+                            color: #888;
+                          }
+                          .text-gray-400 {
+                            color: #aaa;
+                          }
+                          @media print {
+                            .no-print {
+                              display: none !important;
+                            }
+                          }
+                          .print-button {
+                            text-align: center;
+                            margin-top: 20px;
+                          }
+                          .print-button button {
+                            padding: 10px 20px;
+                            background-color: #4F46E5;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            font-size: 14px;
+                            cursor: pointer;
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+                          }
+                        </style>
+                      </head>
+                      <body>
+                        <div class="receipt-container">
+                          <!-- Header -->
+                          <div class="text-center mb-3">
+                            <h1>SALES RECEIPT</h1>
+                            <p class="text-gray-600 text-sm">Thank you for your purchase!</p>
+                          </div>
+
+                          <!-- Sale Info -->
+                          <div class="flex mb-3">
+                            <div>
+                              <p class="text-sm"><span class="font-medium">Sale #:</span> ${selectedSale.saleNumber}</p>
+                              <p class="text-sm"><span class="font-medium">Branch:</span> ${typeof selectedSale.branch === 'string' ? selectedSale.branch : (selectedSale.branch?.name || 'Main Branch')}</p>
+                            </div>
+                            <div class="text-right">
+                              <p class="text-sm"><span class="font-medium">Date:</span> ${new Date(selectedSale.createdAt).toLocaleDateString()}</p>
+                              <p class="text-sm"><span class="font-medium">Time:</span> ${new Date(selectedSale.createdAt).toLocaleTimeString()}</p>
+                            </div>
+                          </div>
+
+                          <!-- Customer Info -->
+                          <div class="mb-3">
+                            <p class="text-sm font-medium">Customer:</p>
+                            <p class="text-sm">${typeof selectedSale.customer === 'string' ? selectedSale.customer : (selectedSale.customer?.name || 'Customer')}</p>
+                            ${selectedSale.customer?.phone ? `<p class="text-sm">Phone: ${selectedSale.customer.phone}</p>` : ''}
+                            ${selectedSale.customer?.email ? `<p class="text-sm">Email: ${selectedSale.customer.email}</p>` : ''}
+                          </div>
+
+                          <!-- Items Table -->
+                          <div class="mb-3">
+                            <p class="text-sm font-medium mb-1">Items Purchased:</p>
+                            <table class="w-full text-sm">
+                              <thead>
+                                <tr>
+                                  <th>Item</th>
+                                  <th class="text-center">Qty</th>
+                                  <th class="text-right">Price</th>
+                                  <th class="text-right">Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                ${selectedSale.items && selectedSale.items.length > 0 ? 
+                                  selectedSale.items.map(item => `
+                                    <tr>
+                                      <td>${item.description}</td>
+                                      <td class="text-center">${item.quantity}</td>
+                                      <td class="text-right">$${(item.unitPrice || 0).toFixed(2)}</td>
+                                      <td class="text-right">$${(item.total || 0).toFixed(2)}</td>
+                                    </tr>
+                                  `).join('') : 
+                                  `<tr><td colspan="4" class="text-center text-gray-500">No items in this sale</td></tr>`
+                                }
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <!-- Totals -->
+                          <div class="mb-3 border-t">
+                            <div class="flex">
+                              <span>Payment Method:</span>
+                              <span>
+                                ${selectedSale.paymentMethod === 'cash' ? 'Cash' :
+                                 selectedSale.paymentMethod === 'check' ? 'Check' :
+                                 selectedSale.paymentMethod === 'credit_card' ? 'Credit Card' :
+                                 selectedSale.paymentMethod === 'bank_transfer' ? 'Bank Transfer' :
+                                 selectedSale.paymentMethod === 'online_payment' ? 'Online Payment' :
+                                 selectedSale.paymentMethod}
+                              </span>
+                            </div>
+                            
+                            ${selectedSale.paymentReference ? `
+                              <div class="flex">
+                                <span>Reference:</span>
+                                <span>${selectedSale.paymentReference}</span>
+                              </div>
+                            ` : ''}
+                            
+                            <div class="flex">
+                              <span>Subtotal:</span>
+                              <span>$${(selectedSale.subtotal || 0).toFixed(2)}</span>
+                            </div>
+                            
+                            <div class="flex">
+                              <span>Discount:</span>
+                              <span>$${(selectedSale.discountAmount || 0).toFixed(2)}</span>
+                            </div>
+                            
+                            <div class="flex">
+                              <span>Tax:</span>
+                              <span>$${(selectedSale.taxAmount || 0).toFixed(2)}</span>
+                            </div>
+                            
+                            <div class="flex font-bold border-t">
+                              <span>Total:</span>
+                              <span>$${(selectedSale.total || 0).toFixed(2)}</span>
+                            </div>
+                          </div>
+
+                          <!-- Footer -->
+                          <div class="text-center text-gray-600 text-xs mt-4 border-t">
+                            <p class="font-medium">Thank you for your business!</p>
+                            <p>For inquiries: support@example.com</p>
+                            <p>${typeof selectedSale.branch === 'string' ? selectedSale.branch : (selectedSale.branch?.name || 'Main Branch')} • ${new Date(selectedSale.createdAt).toLocaleDateString()}</p>
+                            <div class="text-right text-xs text-gray-400">1/1</div>
+                          </div>
+                        </div>
+                        
+                        <!-- Print Button - will be hidden when printing -->
+                        <div class="print-button no-print">
+                          <button onclick="window.print(); return false;">
+                            Print Receipt
+                          </button>
+                        </div>
+                      </body>
+                    </html>
+                  `);
+                  
+                  // Close the document for writing
+                  printWindow.document.close();
+                  
+                  // Wait for the document to load before printing
+                  printWindow.onload = function() {
+                    // Print the document automatically
+                    printWindow.print();
+                  };
                 }}
                 class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
               >

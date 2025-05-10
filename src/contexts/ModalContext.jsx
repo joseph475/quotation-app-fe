@@ -199,16 +199,18 @@ export const ConfirmModalProvider = ({ children }) => {
         closeOnOverlayClick={!isProcessing}
         footer={
           <div class="flex justify-end space-x-3 w-full">
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={isProcessing}
-              class={`inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
-                isProcessing ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {cancelText}
-            </button>
+            {cancelText && (
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={isProcessing}
+                class={`inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
+                  isProcessing ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                {cancelText}
+              </button>
+            )}
             <button
               type="button"
               onClick={onConfirm}

@@ -4,8 +4,12 @@ import Modal from '../../components/common/Modal';
 import { FilterSelect } from '../../components/common';
 import StockTransferForm from '../../components/inventory/StockTransferForm';
 import api from '../../services/api';
+import useAuth from '../../hooks/useAuth';
+import { hasPermission } from '../../utils/pageHelpers';
 
 const StockTransferPage = () => {
+  const { user } = useAuth();
+  const isAdmin = user && user.role === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [branchFilter, setBranchFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date');
@@ -121,6 +125,30 @@ const StockTransferPage = () => {
         <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
       </svg>
     );
+  };
+
+  // Handle status change for stock transfers
+  const handleStatusChange = async (transferId, newStatus) => {
+    setLoading(true);
+    try {
+      // Update the status in the API
+      const response = await api.stockTransfers.updateStatus(transferId, newStatus);
+      
+      if (response && response.success) {
+        // Update in local state
+        setTransferHistory(prev => 
+          prev.map(transfer => transfer._id === transferId ? { ...transfer, status: newStatus } : transfer)
+        );
+        setError(null);
+      } else {
+        throw new Error('Failed to update stock transfer status');
+      }
+    } catch (err) {
+      console.error('Error updating stock transfer status:', err);
+      setError('Failed to update status: ' + (err.message || 'Please try again.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Handle stock transfer
@@ -271,15 +299,18 @@ const StockTransferPage = () => {
               </svg>
               Export
             </button>
-            <button 
-              class="btn btn-primary flex items-center"
-              onClick={() => setIsFormOpen(true)}
-            >
-              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-              </svg>
-              New Transfer
-            </button>
+            {/* Only show New Transfer button for non-admin users */}
+            {!isAdmin && hasPermission('stock-transfers-create', user) && (
+              <button 
+                class="btn btn-primary flex items-center"
+                onClick={() => setIsFormOpen(true)}
+              >
+                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                New Transfer
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -355,9 +386,34 @@ const StockTransferPage = () => {
                       {transfer.quantity}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        {transfer.status}
-                      </span>
+                      <div class="flex items-center space-x-2">
+                        <span class={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          transfer.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                          transfer.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                          transfer.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {transfer.status}
+                        </span>
+                        
+                        {/* Approval buttons for admin users */}
+                        {isAdmin && transfer.status === 'Pending' && hasPermission('stock-transfers-approve', user) && (
+                          <div class="flex space-x-1">
+                            <button 
+                              onClick={() => handleStatusChange(transfer._id, 'Approved')}
+                              class="text-xs bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded"
+                            >
+                              Approve
+                            </button>
+                            <button 
+                              onClick={() => handleStatusChange(transfer._id, 'Rejected')}
+                              class="text-xs bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                       {transfer.notes || '-'}
