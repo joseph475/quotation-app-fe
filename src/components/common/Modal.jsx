@@ -75,7 +75,7 @@ const Modal = ({
   
   return (
     <div
-      class="fixed inset-0 z-50 overflow-y-auto"
+      class={`fixed inset-0 z-50 overflow-y-auto modal-container ${className}`}
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"
@@ -83,7 +83,7 @@ const Modal = ({
     >
       {/* Overlay */}
       <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity modal-overlay" aria-hidden="true"></div>
         
         {/* Modal positioning */}
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
@@ -91,12 +91,12 @@ const Modal = ({
         {/* Modal content */}
         <div
           ref={modalRef}
-          class={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:w-full ${sizeClasses[size] || sizeClasses.md} ${className}`}
+          class={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:w-full ${sizeClasses[size] || sizeClasses.md}`}
           {...rest}
         >
           {/* Modal header */}
           {title && (
-            <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 sm:px-6">
+            <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 sm:px-6 modal-header">
               <div class="flex items-center justify-between">
                 <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
                   {title}
@@ -122,7 +122,7 @@ const Modal = ({
           
           {/* Modal footer */}
           {footer && (
-            <div class="bg-gray-50 px-4 py-3 border-t border-gray-200 sm:px-6 sm:flex sm:flex-row-reverse">
+            <div class="bg-gray-50 px-4 py-3 border-t border-gray-200 sm:px-6 sm:flex sm:flex-row-reverse modal-footer">
               {footer}
             </div>
           )}

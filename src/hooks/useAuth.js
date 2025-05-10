@@ -141,22 +141,23 @@ const useAuth = () => {
   /**
    * Logout user
    */
-  const logout = async () => {
-    try {
-      // Make API call to logout endpoint
-      await api.auth.logout();
-    } catch (err) {
-      console.error('Logout error:', err);
-    } finally {
-      // Always clear local state regardless of API call success
-      localStorage.removeItem('authToken');
-      setUser(null);
-      setIsAuthenticated(false);
-      
-      // Redirect to login page
-      // Use route instead of window.location.href to prevent hard navigation
-      route('/login', true);
-    }
+  const logout = () => {
+    // Clear auth token from localStorage
+    localStorage.removeItem('authToken');
+    
+    // Reset user state
+    setUser(null);
+    setIsAuthenticated(false);
+    
+    // Make API call to logout endpoint - but don't wait for it
+    // This ensures we logout even if the API call fails
+    api.auth.logout().catch(err => {
+      console.error('Logout API error:', err);
+      // We don't need to handle this error as we've already cleared local state
+    });
+    
+    // Redirect to login page
+    route('/login', true);
   };
 
   /**

@@ -230,7 +230,7 @@ const MultiSelect = ({
           
           {/* Input element */}
           <div
-            class={`${inputClasses} py-2 px-3 min-h-[38px] flex flex-wrap items-center cursor-pointer ${isOpen ? 'ring-2 ring-primary-500' : ''}`}
+            class={`${inputClasses} py-2 px-4 min-h-[38px] flex flex-wrap items-center cursor-pointer transition-all duration-200 ${isOpen ? 'ring-2 ring-primary-500 ring-opacity-70' : 'hover:bg-gray-50'}`}
             onClick={handleInputClick}
             role="button"
             tabIndex="0"

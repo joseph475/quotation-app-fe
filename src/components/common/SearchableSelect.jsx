@@ -228,7 +228,7 @@ const SearchableSelect = ({
           
           {/* Input element */}
           <div
-            class={`${inputClasses} py-2 px-3 flex items-center justify-between cursor-pointer ${isOpen ? 'ring-2 ring-primary-500' : ''}`}
+            class={`${inputClasses} py-2 px-4 flex items-center justify-between cursor-pointer transition-all duration-200 ${isOpen ? 'ring-2 ring-primary-500 ring-opacity-70' : 'hover:bg-gray-50'}`}
             onClick={handleInputClick}
             role="button"
             tabIndex="0"

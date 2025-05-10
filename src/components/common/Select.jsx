@@ -44,7 +44,7 @@ const Select = ({
   const selectId = id || `select-${name || Math.random().toString(36).substring(2, 9)}`;
   
   // Base classes
-  const baseSelectClasses = 'block w-full rounded-md focus:border-primary-500 focus:ring-primary-500 sm:text-sm appearance-none pr-10';
+  const baseSelectClasses = 'block w-full rounded-md focus:border-primary-500 focus:ring-2 focus:ring-primary-500 sm:text-sm appearance-none pr-10';
   
   // Variant classes
   const variantClasses = variant === 'outlined' ? 'shadow-sm border-gray-300' : 'border-transparent';

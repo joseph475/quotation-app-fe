@@ -30,6 +30,7 @@ import ProfilePage from '../pages/profile/ProfilePage';
 import UserManagementPage from '../pages/users/UserManagementPage';
 import SuppliersPage from '../pages/suppliers/SuppliersPage';
 import BranchesPage from '../pages/branches/BranchesPage';
+import ReportsPage from '../pages/reports/ReportsPage';
 import LoginPage from '../pages/auth/LoginPage';
 
 
@@ -54,9 +55,6 @@ const AppContent = () => {
         {!isAuthRoute && <Sidebar />}
         <main class={`flex-1 overflow-auto ${isAuthRoute ? '' : 'p-4 bg-gray-50'}`}>
           <Router onChange={handleRouteChange}>
-            {/* In development mode, allow direct access to development pages for testing */}
-            {DEV_MODE && <DevDashboardPage path="/dev-dashboard" />}
-            {DEV_MODE && <InputComponentsExamplePage path="/examples/input-components" />}
             <RoleProtectedRoute component={DashboardPage} path="/" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={InventoryPage} path="/inventory" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={StockTransferPage} path="/stock-transfers" allowedRoles={['admin', 'user']} />
@@ -69,6 +67,7 @@ const AppContent = () => {
             <RoleProtectedRoute component={UserManagementPage} path="/user-management" allowedRoles={['admin']} />
             <RoleProtectedRoute component={SuppliersPage} path="/suppliers" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={BranchesPage} path="/branches" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={ReportsPage} path="/reports" allowedRoles={['admin']} />
             <LoginPage path="/login" />
             {/* Redirect to dashboard if no route matches */}
             <RoleProtectedRoute component={DashboardPage} default allowedRoles={['admin', 'user']} />

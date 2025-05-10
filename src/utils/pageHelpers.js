@@ -66,8 +66,8 @@ export const hasPermission = (feature, user) => {
     'branches-delete': ['admin', 'user'],
     
     // Reports
-    'reports-view': ['admin', 'user'],
-    'reports-generate': ['admin', 'user'],
+    'reports-view': ['admin'],
+    'reports-generate': ['admin'],
   };
   
   // Check if the feature exists in the permissions map

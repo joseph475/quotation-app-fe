@@ -20,7 +20,7 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
     customer: '',
     branch: '',
     date: new Date().toISOString().split('T')[0], // Today's date
-    status: 'pending',
+    status: 'paid',
     paymentMethod: 'cash',
     items: [],
     notes: '',

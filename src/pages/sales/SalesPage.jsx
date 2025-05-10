@@ -2,6 +2,7 @@ import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import SaleForm from '../../components/sales/SaleForm';
+import SaleReceipt from '../../components/sales/SaleReceipt';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
@@ -14,6 +15,7 @@ const SalesPage = () => {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
 
   const [sales, setSales] = useState([]);
@@ -442,14 +444,22 @@ const SalesPage = () => {
                 setError(null);
                 setIsFormModalOpen(false);
                 
-                // Show success message
+                // Store the created sale data
+                setSelectedSale(response.data);
+                
+                // Show print receipt confirmation
                 showConfirm({
-                  title: 'Success',
-                  message: 'Sale has been successfully created.',
-                  confirmText: 'OK',
-                  cancelText: null,
-                  confirmButtonClass: 'bg-green-600 hover:bg-green-700',
-                  onConfirm: () => {},
+                  title: 'Sale Created Successfully',
+                  message: 'Would you like to print a receipt?',
+                  confirmText: 'Yes, Print Receipt',
+                  cancelText: 'No, Thanks',
+                  confirmButtonClass: 'bg-primary-600 hover:bg-primary-700',
+                  onConfirm: () => {
+                    setIsReceiptModalOpen(true);
+                  },
+                  onCancel: () => {
+                    // Just close the form modal
+                  }
                 });
               } else {
                 // Check if it's an authentication error (401)
@@ -526,6 +536,25 @@ const SalesPage = () => {
       </Modal>
 
       {/* Delete button now uses the showDeleteConfirm from ModalContext directly */}
+
+      {/* Receipt Modal - This modal will be hidden when printing */}
+      <Modal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        title="Sale Receipt"
+        size="3xl"
+        className="print-receipt-modal no-print-modal"
+      >
+        {selectedSale && (
+          <SaleReceipt
+            sale={selectedSale}
+            onClose={() => setIsReceiptModalOpen(false)}
+            onPrint={() => {
+              console.log('Printing receipt for sale:', selectedSale.saleNumber);
+            }}
+          />
+        )}
+      </Modal>
 
       {/* View Sale Modal */}
       <Modal
@@ -722,6 +751,22 @@ const SalesPage = () => {
                 </div>
               </div>
             )}
+            
+            {/* Action Buttons */}
+            <div class="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setIsReceiptModalOpen(true);
+                }}
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              >
+                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Print Receipt
+              </button>
+            </div>
           </div>
         )}
       </Modal>
