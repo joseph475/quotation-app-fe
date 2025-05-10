@@ -519,64 +519,62 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
             <span>Sale Information</span>
           </div>
         }
-        className="border-l-4 border-l-primary-500 shadow-md"
+        className="shadow-md"
         headerClassName={cardHeaderClasses}
       >
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 p-6">
-          <div className="flex flex-col sm:flex-row gap-6">
-            {/* Sale Number */}
-            <div className="flex-1">
-              <label htmlFor="saleNumber" className={labelClasses}>
-                Sale Number
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  id="saleNumber"
-                  name="saleNumber"
-                  value={formData.saleNumber}
-                  onChange={handleChange}
-                  className={`${inputClasses} pl-10 bg-gray-50`}
-                  disabled
-                />
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-4 p-6">
+          {/* Sale Number */}
+          <div className="sm:col-span-1">
+            <label htmlFor="saleNumber" className={labelClasses}>
+              Sale Number
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                </svg>
               </div>
-            </div>
-
-            {/* Date */}
-            <div className="flex-1">
-              <label htmlFor="date" className={labelClasses}>
-                Sale Date <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <input
-                  type="date"
-                  id="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  className={`${inputClasses} ${errors.date ? 'border-red-300 ring-1 ring-red-300' : ''} pl-10`}
-                  required
-                />
-              </div>
-              {errors.date && (
-                <p className={errorClasses}>{errors.date}</p>
-              )}
+              <input
+                type="text"
+                id="saleNumber"
+                name="saleNumber"
+                value={formData.saleNumber}
+                onChange={handleChange}
+                className={`${inputClasses} pl-10 bg-gray-50`}
+                disabled
+              />
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-6">
-            {/* Customer Search */}
-            <div id="customerSearchContainer" className="relative flex-1">
+          {/* Date */}
+          <div className="sm:col-span-1">
+            <label htmlFor="date" className={labelClasses}>
+              Sale Date <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <input
+                type="date"
+                id="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                className={`${inputClasses} ${errors.date ? 'border-red-300 ring-1 ring-red-300' : ''} pl-10`}
+                required
+              />
+            </div>
+            {errors.date && (
+              <p className={errorClasses}>{errors.date}</p>
+            )}
+          </div>
+
+          {/* Customer Search - 2 column span */}
+          <div className="sm:col-span-2">
+            <div id="customerSearchContainer" className="relative">
               <label htmlFor="customerSearch" className={labelClasses}>
                 Customer <span className="text-red-500">*</span>
               </label>
@@ -661,161 +659,143 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
                 <p className={errorClasses}>{errors.customer}</p>
               )}
             </div>
-
-            {/* Branch Selection */}
-            <div className="flex-1">
-              <label htmlFor="branch" className={labelClasses}>
-                Branch <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <select
-                  id="branch"
-                  name="branch"
-                  value={formData.branch}
-                  onChange={handleChange}
-                  className={`${inputClasses} appearance-none pl-10 pr-10 ${errors.branch ? 'border-red-300 ring-1 ring-red-300' : ''} ${user && user.role !== 'admin' ? 'bg-gray-50' : ''}`}
-                  disabled={user && user.role !== 'admin'} // Only admin can change branch
-                >
-                  <option value="">Select Branch</option>
-                  {branches.length === 0 ? (
-                    <option value="" disabled>No branches available</option>
-                  ) : (
-                    branches.map(branch => (
-                      <option key={branch._id} value={branch._id}>
-                        {branch.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              </div>
-              {errors.branch && (
-                <p className={errorClasses}>{errors.branch}</p>
-              )}
-            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-6">
-            {/* Status */}
-            <div className="flex-1">
-              <label htmlFor="status" className={labelClasses}>
-                Status
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <select
-                  id="status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  className={`${inputClasses} appearance-none pl-10 pr-10`}
-                >
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                  <option value="partially_paid">Partially Paid</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="refunded">Refunded</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                
-                {/* Status indicator */}
-                <div className="absolute inset-y-0 right-10 flex items-center">
-                  <span className={`w-3 h-3 rounded-full ${
-                    formData.status === 'paid' ? 'bg-green-500' : 
-                    formData.status === 'partially_paid' ? 'bg-yellow-500' : 
-                    formData.status === 'pending' ? 'bg-blue-500' :
-                    formData.status === 'cancelled' ? 'bg-red-500' :
-                    formData.status === 'refunded' ? 'bg-purple-500' : 'bg-gray-500'
-                  }`}></span>
-                </div>
+          {/* Branch Display */}
+          <div className="sm:col-span-1">
+            <label htmlFor="branchName" className={labelClasses}>
+              Branch <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                </svg>
               </div>
+              <input
+                type="text"
+                id="branchName"
+                name="branchName"
+                value={formData.branchName || (user && user.branchName ? user.branchName : '')}
+                className={`${inputClasses} pl-10 bg-gray-50`}
+                disabled
+              />
             </div>
+            {errors.branch && (
+              <p className={errorClasses}>{errors.branch}</p>
+            )}
+          </div>
 
-            {/* Payment Method */}
-            <div className="flex-1">
-              <label htmlFor="paymentMethod" className={labelClasses}>
-                Payment Method
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-                    <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <select
-                  id="paymentMethod"
-                  name="paymentMethod"
-                  value={formData.paymentMethod}
-                  onChange={handleChange}
-                  className={`${inputClasses} appearance-none pl-10 pr-10`}
-                >
-                  <option value="cash">Cash</option>
-                  <option value="check">Check</option>
-                  <option value="credit_card">Credit Card</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="online_payment">Online Payment</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </div>
+          {/* Status */}
+          <div className="sm:col-span-1">
+            <label htmlFor="status" className={labelClasses}>
+              Status
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <select
+                id="status"
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className={`${inputClasses} appearance-none pl-10 pr-10`}
+              >
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="partially_paid">Partially Paid</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="refunded">Refunded</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </div>
+              
+              {/* Status indicator */}
+              <div className="absolute inset-y-0 right-10 flex items-center">
+                <span className={`w-3 h-3 rounded-full ${
+                  formData.status === 'paid' ? 'bg-green-500' : 
+                  formData.status === 'partially_paid' ? 'bg-yellow-500' : 
+                  formData.status === 'pending' ? 'bg-blue-500' :
+                  formData.status === 'cancelled' ? 'bg-red-500' :
+                  formData.status === 'refunded' ? 'bg-purple-500' : 'bg-gray-500'
+                }`}></span>
               </div>
             </div>
           </div>
 
-          {/* Amount Paid - Only shown when status is partially_paid */}
+          {/* Payment Method */}
+          <div className="sm:col-span-1">
+            <label htmlFor="paymentMethod" className={labelClasses}>
+              Payment Method
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                  <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <select
+                id="paymentMethod"
+                name="paymentMethod"
+                value={formData.paymentMethod}
+                onChange={handleChange}
+                className={`${inputClasses} appearance-none pl-10 pr-10`}
+              >
+                <option value="cash">Cash</option>
+                <option value="check">Check</option>
+                <option value="credit_card">Credit Card</option>
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="online_payment">Online Payment</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Amount Paid - Only visible when status is partially_paid */}
           {formData.status === 'partially_paid' && (
-            <div className="sm:col-span-2">
-              <label htmlFor="amountPaid" className={labelClasses}>
-                Amount Paid <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500">$</span>
-                </div>
-                <input
-                  type="number"
-                  id="amountPaid"
-                  name="amountPaid"
-                  min="0"
-                  max={totalAmount}
-                  step="0.01"
-                  value={formData.amountPaid}
-                  onChange={handleChange}
-                  className={`${inputClasses} pl-7`}
-                  required={formData.status === 'partially_paid'}
-                />
+          <div className="sm:col-span-1">
+            <label htmlFor="amountPaid" className={labelClasses}>
+              Amount Paid {formData.status === 'partially_paid' && <span className="text-red-500">*</span>}
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <span className="text-gray-500">$</span>
               </div>
-              <div className="mt-2 flex justify-between text-sm">
-                <span className="text-gray-500">Total Amount: ${totalAmount.toFixed(2)}</span>
-                <span className="text-gray-500">
-                  Balance: ${(totalAmount - parseFloat(formData.amountPaid || 0)).toFixed(2)}
-                </span>
-              </div>
+              <input
+                type="number"
+                id="amountPaid"
+                name="amountPaid"
+                min="0"
+                max={totalAmount}
+                step="0.01"
+                value={formData.amountPaid}
+                onChange={handleChange}
+                className={`${inputClasses} pl-7`}
+                required={formData.status === 'partially_paid'}
+                disabled={formData.status !== 'partially_paid'}
+              />
             </div>
+            {formData.status === 'partially_paid' && (
+              <div className="mt-2 text-xs text-gray-500">
+                Balance: ${(totalAmount - parseFloat(formData.amountPaid || 0)).toFixed(2)}
+              </div>
+            )}
+          </div>
           )}
 
-          {/* Notes */}
-          <div className="sm:col-span-2 mt-2">
+          {/* Notes - Third row (3/4 columns) */}
+          <div className="col-span-4 mt-4">
             <label htmlFor="notes" className={labelClasses}>
               Notes
             </label>
