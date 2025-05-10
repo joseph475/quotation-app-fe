@@ -67,7 +67,7 @@ const AppContent = () => {
             <RoleProtectedRoute component={UserManagementPage} path="/user-management" allowedRoles={['admin']} />
             <RoleProtectedRoute component={SuppliersPage} path="/suppliers" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={BranchesPage} path="/branches" allowedRoles={['admin', 'user']} />
-            <RoleProtectedRoute component={ReportsPage} path="/reports" allowedRoles={['admin']} />
+            <RoleProtectedRoute component={ReportsPage} path="/reports" allowedRoles={['admin', 'user']} />
             <LoginPage path="/login" />
             {/* Redirect to dashboard if no route matches */}
             <RoleProtectedRoute component={DashboardPage} default allowedRoles={['admin', 'user']} />

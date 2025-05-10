@@ -5,6 +5,7 @@ import { FilterSelect } from '../../components/common';
 import InventoryForm from '../../components/inventory/InventoryForm';
 import useAuth from '../../hooks/useAuth';
 import api from '../../services/api';
+import { hasPermission } from '../../utils/pageHelpers';
 
 const InventoryPage = () => {
   // Get user data from auth context
@@ -183,6 +184,8 @@ const InventoryPage = () => {
     const headers = [
       'Item Code',
       'Name',
+      'Brand',
+      'Model',
       'Category',
       'Branch',
       'Quantity',
@@ -209,6 +212,8 @@ const InventoryPage = () => {
       return [
         item.itemCode || '',
         item.name || '',
+        item.brand || '',
+        item.model || '',
         item.category || '',
         branchName,
         item.quantity || 0,
@@ -348,18 +353,20 @@ const InventoryPage = () => {
               </svg>
               Export CSV
             </button>
-            <button 
-              class="btn btn-primary flex items-center"
-              onClick={() => {
-                setCurrentItem(null);
-                setIsFormOpen(true);
-              }}
-            >
-              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-              </svg>
-              Add Item
-            </button>
+            {hasPermission('inventory-create', user) && (
+              <button 
+                class="btn btn-primary flex items-center"
+                onClick={() => {
+                  setCurrentItem(null);
+                  setIsFormOpen(true);
+                }}
+              >
+                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                Add Item
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -410,6 +417,12 @@ const InventoryPage = () => {
                     SKU
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Brand
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Model
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Category
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -458,6 +471,12 @@ const InventoryPage = () => {
                       {item.itemCode}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.brand || '-'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.model || '-'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.category}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -485,41 +504,54 @@ const InventoryPage = () => {
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div class="flex justify-end space-x-2">
-                        <button 
-                          class="text-primary-600 hover:text-primary-900"
-                          onClick={() => {
-                            setCurrentItem(item);
-                            setIsFormOpen(true);
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          class="text-red-600 hover:text-red-900"
-                          onClick={async () => {
-                            if (confirm(`Are you sure you want to delete ${item.name}?`)) {
-                              try {
-                                setLoading(true);
-                                const response = await api.inventory.delete(item._id);
-                                
-                                if (response && response.success) {
-                                  // Remove from local state
-                                  setInventoryItems(prev => prev.filter(i => i._id !== item._id));
-                                  setError(null);
-                                } else {
-                                  throw new Error(response.message || 'Failed to delete inventory item');
+                        {hasPermission('inventory-edit', user) && (
+                          <button 
+                            class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                            onClick={() => {
+                              setCurrentItem(item);
+                              setIsFormOpen(true);
+                            }}
+                          >
+                            <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                            Edit
+                          </button>
+                        )}
+                        {hasPermission('inventory-delete', user) && (
+                          <button 
+                            class="inline-flex items-center px-2.5 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                            onClick={async () => {
+                              if (confirm(`Are you sure you want to delete ${item.name}?`)) {
+                                try {
+                                  setLoading(true);
+                                  const response = await api.inventory.delete(item._id);
+                                  
+                                  if (response && response.success) {
+                                    // Remove from local state
+                                    setInventoryItems(prev => prev.filter(i => i._id !== item._id));
+                                    setError(null);
+                                  } else {
+                                    throw new Error(response.message || 'Failed to delete inventory item');
+                                  }
+                                } catch (err) {
+                                  console.error('Error deleting inventory item:', err);
+                                  setError(err.message || 'Failed to delete inventory item. Please try again.');
+                                } finally {
+                                  setLoading(false);
                                 }
-                              } catch (err) {
-                                console.error('Error deleting inventory item:', err);
-                                setError(err.message || 'Failed to delete inventory item. Please try again.');
-                              } finally {
-                                setLoading(false);
                               }
-                            }
-                          }}
-                        >
-                          Delete
-                        </button>
+                            }}
+                          >
+                            <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                            Delete
+                          </button>
+                        )}
+                        {!hasPermission('inventory-edit', user) && !hasPermission('inventory-delete', user) && (
+                          <span class="text-gray-400">View Only</span>
+                        )}
                       </div>
                     </td>
                   </tr>

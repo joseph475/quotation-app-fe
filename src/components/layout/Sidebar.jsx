@@ -14,6 +14,13 @@ const Sidebar = () => {
   
   // Check user permissions
   const canManageUsers = hasPermission('user-management', user);
+  const canCreateInventory = hasPermission('inventory-create', user);
+  const canCreateStockTransfer = hasPermission('stock-transfers-create', user);
+  const canCreatePurchaseOrder = hasPermission('purchase-orders-create', user);
+  const canCreateReceiving = hasPermission('purchase-receiving-create', user);
+  const canCreateCustomer = hasPermission('customers-create', user);
+  const canViewReports = hasPermission('reports-view', user);
+  const canAccessSettings = user?.role === 'admin';
   
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
@@ -38,6 +45,7 @@ const Sidebar = () => {
   }, []);
 
   const navItems = [
+    // Dashboard is always visible
     {
       name: 'Dashboard',
       icon: (
@@ -47,6 +55,7 @@ const Sidebar = () => {
       ),
       path: '/',
     },
+    // Quotations - visible to all users
     {
       name: 'Quotations',
       icon: (
@@ -56,6 +65,7 @@ const Sidebar = () => {
       ),
       path: '/quotations',
     },
+    // Inventory - visible to all users
     {
       name: 'Inventory',
       icon: (
@@ -65,6 +75,7 @@ const Sidebar = () => {
       ),
       path: '/inventory',
     },
+    // Stock Transfers - visible to all users
     {
       name: 'Stock Transfers',
       icon: (
@@ -74,6 +85,7 @@ const Sidebar = () => {
       ),
       path: '/stock-transfers',
     },
+    // Purchase Orders - visible to all users
     {
       name: 'Purchase Orders',
       icon: (
@@ -83,6 +95,7 @@ const Sidebar = () => {
       ),
       path: '/purchase-orders',
     },
+    // Receiving - visible to all users
     {
       name: 'Receiving',
       icon: (
@@ -92,6 +105,7 @@ const Sidebar = () => {
       ),
       path: '/purchase-receiving',
     },
+    // Sales - visible to all users
     {
       name: 'Sales',
       icon: (
@@ -101,6 +115,7 @@ const Sidebar = () => {
       ),
       path: '/sales',
     },
+    // Customers - visible to all users
     {
       name: 'Customers',
       icon: (
@@ -110,8 +125,8 @@ const Sidebar = () => {
       ),
       path: '/customers',
     },
-    // Reports - only visible to admin users
-    ...(user?.role === 'admin' ? [{
+    // Reports - visible to users with permission
+    ...(canViewReports ? [{
       name: 'Reports',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -120,8 +135,8 @@ const Sidebar = () => {
       ),
       path: '/reports',
     }] : []),
-    // Settings dropdown
-    {
+    // Settings dropdown - only visible to admin users
+    ...(canAccessSettings ? [{
       name: 'Settings',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -160,7 +175,7 @@ const Sidebar = () => {
               path: '/user-management',
             }] : []),
           ],
-    },
+    }] : []),
   ];
 
   return (

@@ -1100,6 +1100,6 @@ const ReportsPage = () => {
 export default () => (
   <RoleProtectedRoute
     component={ReportsPage}
-    allowedRoles={['admin']}
+    allowedRoles={['admin', 'user']}
   />
 );

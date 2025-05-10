@@ -89,4 +89,29 @@ html {
   .btn-lg {
     @apply px-6 py-3 text-base;
   }
+  
+  /* Table action button styles */
+  .table-action-btn {
+    @apply inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded focus:outline-none focus:ring-1 focus:ring-offset-1 transition-colors;
+  }
+  
+  .action-view {
+    @apply bg-primary-100 text-primary-700 hover:bg-primary-200;
+  }
+  
+  .action-edit {
+    @apply bg-secondary-100 text-secondary-700 hover:bg-secondary-200;
+  }
+  
+  .action-delete {
+    @apply bg-danger-100 text-danger-700 hover:bg-danger-200;
+  }
+  
+  .action-approve {
+    @apply bg-success-100 text-success-700 hover:bg-success-200;
+  }
+  
+  .action-reject {
+    @apply bg-warning-100 text-warning-700 hover:bg-warning-200;
+  }
 }

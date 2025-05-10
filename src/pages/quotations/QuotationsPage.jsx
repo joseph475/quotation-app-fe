@@ -2,9 +2,11 @@ import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import QuotationForm from '../../components/quotations/QuotationForm';
+import QuotationReceipt from '../../components/quotations/QuotationReceipt';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
+import { hasPermission } from '../../utils/pageHelpers';
 
 const QuotationsPage = () => {
   // Export all filtered quotations to CSV
@@ -157,10 +159,22 @@ const QuotationsPage = () => {
   const [selectedQuotation, setSelectedQuotation] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  // Show success message with auto-hide
+  const showSuccess = (message) => {
+    setSuccessMessage(message);
+    
+    // Hide success message after 3 seconds
+    setTimeout(() => {
+      setSuccessMessage('');
+    }, 3000);
+  };
   
   // Get current user from auth context
   const { user } = useAuth();
@@ -168,6 +182,96 @@ const QuotationsPage = () => {
   // Get modal contexts
   const { showConfirm, showDeleteConfirm } = useConfirmModal();
   const { showError } = useErrorModal();
+  
+  // Handle converting quotation to sale
+  const handleConvertToSale = async (quotation) => {
+    if (!quotation) return;
+    
+    try {
+      setLoading(true);
+      
+      // Show confirmation dialog
+      showConfirm({
+        title: 'Convert to Sale',
+        message: `Are you sure you want to convert quotation ${quotation.quotationNumber} to a sale?`,
+        confirmText: 'Convert',
+        cancelText: 'Cancel',
+        onConfirm: async () => {
+          try {
+            // Call API to convert quotation to sale
+            const response = await api.quotations.convertToSale(quotation._id);
+            
+            if (response && response.success) {
+              // Refresh quotations list
+              const updatedQuotations = await api.quotations.getAll();
+              setQuotations(updatedQuotations.data || []);
+              setError(null);
+              
+              // Show success message
+              showSuccess('Quotation successfully converted to sale!');
+            } else {
+              throw new Error(response.message || 'Failed to convert quotation to sale');
+            }
+          } catch (err) {
+            console.error('Error converting quotation to sale:', err);
+            setError(err.message || 'Failed to convert quotation to sale. Please try again.');
+            showError('Failed to convert quotation to sale', err.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Error preparing to convert quotation:', err);
+      setError(err.message || 'An error occurred. Please try again.');
+      setLoading(false);
+    }
+  };
+  
+  // Handle rejecting quotation
+  const handleRejectQuotation = async (quotation) => {
+    if (!quotation) return;
+    
+    try {
+      setLoading(true);
+      
+      // Show confirmation dialog
+      showConfirm({
+        title: 'Reject Quotation',
+        message: `Are you sure you want to reject quotation ${quotation.quotationNumber}?`,
+        confirmText: 'Reject',
+        cancelText: 'Cancel',
+        onConfirm: async () => {
+          try {
+            // Call API to reject quotation
+            const response = await api.quotations.reject(quotation._id);
+            
+            if (response && response.success) {
+              // Refresh quotations list
+              const updatedQuotations = await api.quotations.getAll();
+              setQuotations(updatedQuotations.data || []);
+              setError(null);
+              
+              // Show success message
+              showSuccess('Quotation successfully rejected!');
+            } else {
+              throw new Error(response.message || 'Failed to reject quotation');
+            }
+          } catch (err) {
+            console.error('Error rejecting quotation:', err);
+            setError(err.message || 'Failed to reject quotation. Please try again.');
+            showError('Failed to reject quotation', err.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Error preparing to reject quotation:', err);
+      setError(err.message || 'An error occurred. Please try again.');
+      setLoading(false);
+    }
+  };
   
   // Fetch quotations from API
   useEffect(() => {
@@ -233,6 +337,242 @@ const QuotationsPage = () => {
 
   // Calculate total quotation amount
   const totalQuotationAmount = filteredQuotations.reduce((total, quotation) => total + (quotation.total || 0), 0);
+
+  // Auto-print when receipt modal is opened
+  useEffect(() => {
+    if (isReceiptModalOpen && selectedQuotation) {
+      // Small delay to ensure the modal is fully rendered
+      const timer = setTimeout(() => {
+        // Create a new window for printing
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        if (printWindow) {
+          // Set the document title
+          printWindow.document.title = `Quotation - ${selectedQuotation?.quotationNumber || 'Quotation'}`;
+          
+          // Add styles and content to the new window
+          printWindow.document.write(`
+            <html>
+              <head>
+                <title>Quotation - ${selectedQuotation?.quotationNumber || 'Quotation'}</title>
+                <style>
+                  body {
+                    font-family: Arial, sans-serif;
+                    font-size: 12pt;
+                    margin: 0;
+                    padding: 1cm;
+                    background-color: white;
+                    color: black;
+                  }
+                  .receipt-container {
+                    max-width: 800px;
+                    margin: 0 auto;
+                  }
+                  h1 {
+                    font-size: 16pt;
+                    margin-bottom: 5px;
+                  }
+                  .text-center {
+                    text-align: center;
+                  }
+                  .text-right {
+                    text-align: right;
+                  }
+                  .flex {
+                    display: flex;
+                    justify-content: space-between;
+                  }
+                  .mb-3 {
+                    margin-bottom: 15px;
+                  }
+                  .text-sm {
+                    font-size: 10pt;
+                  }
+                  .text-xs {
+                    font-size: 8pt;
+                  }
+                  .font-medium {
+                    font-weight: 500;
+                  }
+                  .font-bold {
+                    font-weight: 700;
+                  }
+                  table {
+                    width: 100%;
+                    border-collapse: collapse;
+                  }
+                  th {
+                    text-align: left;
+                    border-bottom: 1px solid #ddd;
+                    padding: 5px;
+                  }
+                  td {
+                    padding: 5px;
+                    border-bottom: 1px solid #eee;
+                  }
+                  .border-t {
+                    border-top: 1px solid #ddd;
+                    padding-top: 10px;
+                    margin-top: 10px;
+                  }
+                  .text-gray-600 {
+                    color: #666;
+                  }
+                  .text-gray-500 {
+                    color: #888;
+                  }
+                  .text-gray-400 {
+                    color: #aaa;
+                  }
+                  @media print {
+                    .no-print {
+                      display: none !important;
+                    }
+                  }
+                  .print-button {
+                    text-align: center;
+                    margin-top: 20px;
+                  }
+                  .print-button button {
+                    padding: 10px 20px;
+                    background-color: #4F46E5;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    cursor: pointer;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="receipt-container">
+                  <!-- Header -->
+                  <div class="text-center mb-3">
+                    <h1>QUOTATION</h1>
+                    <p class="text-gray-600 text-sm">Thank you for your interest in our products/services!</p>
+                  </div>
+
+                  <!-- Quotation Info -->
+                  <div class="flex mb-3">
+                    <div>
+                      <p class="text-sm"><span class="font-medium">Quotation #:</span> ${selectedQuotation.quotationNumber}</p>
+                      <p class="text-sm"><span class="font-medium">Branch:</span> ${selectedQuotation.branch?.name || 'Main Branch'}</p>
+                    </div>
+                    <div class="text-right">
+                      <p class="text-sm"><span class="font-medium">Date:</span> ${new Date(selectedQuotation.createdAt).toLocaleDateString()}</p>
+                      <p class="text-sm"><span class="font-medium">Valid Until:</span> ${new Date(selectedQuotation.validUntil).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+
+                  <!-- Customer Info -->
+                  <div class="mb-3">
+                    <p class="text-sm font-medium">Customer:</p>
+                    <p class="text-sm">${typeof selectedQuotation.customer === 'string' ? selectedQuotation.customer : (selectedQuotation.customer?.name || 'Customer')}</p>
+                  </div>
+
+                  <!-- Items Table -->
+                  <div class="mb-3">
+                    <p class="text-sm font-medium mb-1">Quoted Items:</p>
+                    <table class="w-full text-sm">
+                      <thead>
+                        <tr>
+                          <th>Description</th>
+                          <th class="text-center">Qty</th>
+                          <th class="text-right">Unit Price</th>
+                          <th class="text-right">Discount</th>
+                          <th class="text-right">Tax</th>
+                          <th class="text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${selectedQuotation.items && selectedQuotation.items.length > 0 ? 
+                          selectedQuotation.items.map(item => `
+                            <tr>
+                              <td>${item.description}</td>
+                              <td class="text-center">${item.quantity}</td>
+                              <td class="text-right">$${(item.unitPrice || 0).toFixed(2)}</td>
+                              <td class="text-right">${item.discount || 0}%</td>
+                              <td class="text-right">${item.tax || 0}%</td>
+                              <td class="text-right">$${(item.total || 0).toFixed(2)}</td>
+                            </tr>
+                          `).join('') : 
+                          `<tr><td colspan="6" class="text-center text-gray-500">No items in this quotation</td></tr>`
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <!-- Totals -->
+                  <div class="mb-3 border-t">
+                    <div class="flex">
+                      <span>Subtotal:</span>
+                      <span>$${(selectedQuotation.subtotal || 0).toFixed(2)}</span>
+                    </div>
+                    
+                    <div class="flex">
+                      <span>Discount:</span>
+                      <span>$${(selectedQuotation.discountAmount || 0).toFixed(2)}</span>
+                    </div>
+                    
+                    <div class="flex">
+                      <span>Tax:</span>
+                      <span>$${(selectedQuotation.taxAmount || 0).toFixed(2)}</span>
+                    </div>
+                    
+                    <div class="flex font-bold border-t">
+                      <span>Total:</span>
+                      <span>$${(selectedQuotation.total || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <!-- Notes & Terms -->
+                  ${selectedQuotation.notes ? `
+                    <div class="mb-3">
+                      <p class="text-sm font-medium">Notes:</p>
+                      <p class="text-sm">${selectedQuotation.notes}</p>
+                    </div>
+                  ` : ''}
+                  
+                  ${selectedQuotation.terms ? `
+                    <div class="mb-3">
+                      <p class="text-sm font-medium">Terms & Conditions:</p>
+                      <p class="text-sm">${selectedQuotation.terms}</p>
+                    </div>
+                  ` : ''}
+
+                  <!-- Footer -->
+                  <div class="text-center text-gray-600 text-xs mt-4 border-t">
+                    <p class="font-medium">Thank you for considering our offer!</p>
+                    <p>For inquiries: support@example.com</p>
+                    <p>${selectedQuotation.branch?.name || 'Main Branch'} • ${new Date(selectedQuotation.createdAt).toLocaleDateString()}</p>
+                    <div class="text-right text-xs text-gray-400">1/1</div>
+                  </div>
+                </div>
+                
+                <!-- Print Button - will be hidden when printing -->
+                <div class="print-button no-print">
+                  <button onclick="window.print(); return false;">
+                    Print Quotation
+                  </button>
+                </div>
+              </body>
+            </html>
+          `);
+          
+          // Close the document for writing
+          printWindow.document.close();
+          
+          // Wait for the document to load before printing
+          printWindow.onload = function() {
+            // Print the document automatically
+            printWindow.print();
+          };
+        }
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isReceiptModalOpen, selectedQuotation]);
 
   return (
     <div>
@@ -395,15 +735,18 @@ const QuotationsPage = () => {
               </svg>
               Export CSV
             </button>
-            <button 
-              class="btn btn-primary flex items-center"
-              onClick={() => setIsFormModalOpen(true)}
-            >
-              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-              </svg>
-              New Quotation
-            </button>
+            {/* Only show New Quotation button for non-admin users */}
+            {hasPermission('quotations-create', user) && (
+              <button 
+                class="btn btn-primary flex items-center"
+                onClick={() => setIsFormModalOpen(true)}
+              >
+                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                New Quotation
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -505,40 +848,69 @@ const QuotationsPage = () => {
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      quotation.status === 'accepted' ? 'bg-green-100 text-green-800' : 
+                      quotation.status === 'completed' ? 'bg-green-100 text-green-800' : 
                       quotation.status === 'rejected' ? 'bg-red-100 text-red-800' : 
-                      quotation.status === 'converted' ? 'bg-blue-100 text-blue-800' :
-                      quotation.status === 'expired' ? 'bg-gray-100 text-gray-800' :
                       'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {quotation.status === 'draft' ? 'Pending' : 
-                       quotation.status === 'accepted' ? 'Approved' : 
-                       quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1)}
+                      {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1)}
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div class="flex justify-end space-x-2">
                       <button 
-                        class="text-primary-600 hover:text-primary-900"
+                        class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                         onClick={() => {
                           setSelectedQuotation(quotation);
                           setIsViewModalOpen(true);
                         }}
                       >
+                        <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                          <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                        </svg>
                         View
                       </button>
-                      <button 
-                        class="text-primary-600 hover:text-primary-900"
-                        onClick={() => {
-                          setSelectedQuotation(quotation);
-                          setIsEditModalOpen(true);
-                        }}
-                      >
-                        Edit
-                      </button>
-                      {/* Only show delete/convert buttons for non-user roles */}
-                      {user && user.role !== 'user' && (
-                        <button class="text-primary-600 hover:text-primary-900">Convert to Sale</button>
+                      
+                      {/* Edit button only for user role */}
+                      {user && user.role === 'user' && (
+                        <button 
+                          class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                          onClick={() => {
+                            setSelectedQuotation(quotation);
+                            setIsEditModalOpen(true);
+                          }}
+                        >
+                          <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                          </svg>
+                          Edit
+                        </button>
+                      )}
+                      
+                      {/* Show Convert to Sale button only for user role and when quotation is active */}
+                      {user && user.role === 'user' && quotation.status === 'active' && (
+                        <button 
+                          class="inline-flex items-center px-2.5 py-1.5 border border-green-300 shadow-sm text-xs font-medium rounded text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                          onClick={() => handleConvertToSale(quotation)}
+                        >
+                          <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                          </svg>
+                          Convert to Sale
+                        </button>
+                      )}
+                      
+                      {/* Show Reject button only for user role and when quotation is active */}
+                      {user && user.role === 'user' && quotation.status === 'active' && (
+                        <button 
+                          class="inline-flex items-center px-2.5 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                          onClick={() => handleRejectQuotation(quotation)}
+                        >
+                          <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                          </svg>
+                          Reject
+                        </button>
                       )}
                     </div>
                   </td>
@@ -561,7 +933,7 @@ const QuotationsPage = () => {
           <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
               <p class="text-sm text-gray-700">
-                Showing <span class="font-medium">1</span> to <span class="font-medium">{filteredQuotations.length}</span> of <span class="font-medium">{filteredQuotations.length}</span> results
+                owing <span class="font-medium">1</span> to <span class="font-medium">{filteredQuotations.length}</span> of <span class="font-medium">{filteredQuotations.length}</span> results
               </p>
             </div>
             <div>
@@ -663,15 +1035,11 @@ const QuotationsPage = () => {
                     <dt className="text-sm font-medium text-gray-500">Status</dt>
                     <dd className="mt-1 text-sm sm:mt-0 sm:col-span-2">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        selectedQuotation.status === 'accepted' ? 'bg-green-100 text-green-800' : 
+                        selectedQuotation.status === 'completed' ? 'bg-green-100 text-green-800' : 
                         selectedQuotation.status === 'rejected' ? 'bg-red-100 text-red-800' : 
-                        selectedQuotation.status === 'converted' ? 'bg-blue-100 text-blue-800' :
-                        selectedQuotation.status === 'expired' ? 'bg-gray-100 text-gray-800' :
                         'bg-yellow-100 text-yellow-800'
                       }`}>
-                        {selectedQuotation.status === 'draft' ? 'Pending' : 
-                         selectedQuotation.status === 'accepted' ? 'Approved' : 
-                         selectedQuotation.status.charAt(0).toUpperCase() + selectedQuotation.status.slice(1)}
+                        {selectedQuotation.status.charAt(0).toUpperCase() + selectedQuotation.status.slice(1)}
                       </span>
                     </dd>
                   </div>
@@ -779,12 +1147,238 @@ const QuotationsPage = () => {
               <button
                 type="button"
                 className="btn btn-outline flex items-center"
-                onClick={() => exportQuotationToCSV(selectedQuotation)}
+                onClick={() => {
+                  // Create a new window for printing
+                  const printWindow = window.open('', '_blank', 'width=800,height=600');
+                  if (printWindow) {
+                    // Set the document title
+                    printWindow.document.title = `Quotation - ${selectedQuotation?.quotationNumber || 'Quotation'}`;
+                    
+                    // Add styles and content to the new window
+                    printWindow.document.write(`
+                      <html>
+                        <head>
+                          <title>Quotation - ${selectedQuotation?.quotationNumber || 'Quotation'}</title>
+                          <style>
+                            body {
+                              font-family: Arial, sans-serif;
+                              font-size: 12pt;
+                              margin: 0;
+                              padding: 1cm;
+                              background-color: white;
+                              color: black;
+                            }
+                            .receipt-container {
+                              max-width: 800px;
+                              margin: 0 auto;
+                            }
+                            h1 {
+                              font-size: 16pt;
+                              margin-bottom: 5px;
+                            }
+                            .text-center {
+                              text-align: center;
+                            }
+                            .text-right {
+                              text-align: right;
+                            }
+                            .flex {
+                              display: flex;
+                              justify-content: space-between;
+                            }
+                            .mb-3 {
+                              margin-bottom: 15px;
+                            }
+                            .text-sm {
+                              font-size: 10pt;
+                            }
+                            .text-xs {
+                              font-size: 8pt;
+                            }
+                            .font-medium {
+                              font-weight: 500;
+                            }
+                            .font-bold {
+                              font-weight: 700;
+                            }
+                            table {
+                              width: 100%;
+                              border-collapse: collapse;
+                            }
+                            th {
+                              text-align: left;
+                              border-bottom: 1px solid #ddd;
+                              padding: 5px;
+                            }
+                            td {
+                              padding: 5px;
+                              border-bottom: 1px solid #eee;
+                            }
+                            .border-t {
+                              border-top: 1px solid #ddd;
+                              padding-top: 10px;
+                              margin-top: 10px;
+                            }
+                            .text-gray-600 {
+                              color: #666;
+                            }
+                            .text-gray-500 {
+                              color: #888;
+                            }
+                            .text-gray-400 {
+                              color: #aaa;
+                            }
+                            @media print {
+                              .no-print {
+                                display: none !important;
+                              }
+                            }
+                            .print-button {
+                              text-align: center;
+                              margin-top: 20px;
+                            }
+                            .print-button button {
+                              padding: 10px 20px;
+                              background-color: #4F46E5;
+                              color: white;
+                              border: none;
+                              border-radius: 4px;
+                              font-size: 14px;
+                              cursor: pointer;
+                              box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+                            }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="receipt-container">
+                            <!-- Header -->
+                            <div class="text-center mb-3">
+                              <h1>QUOTATION</h1>
+                              <p class="text-gray-600 text-sm">Thank you for your interest in our products/services!</p>
+                            </div>
+
+                            <!-- Quotation Info -->
+                            <div class="flex mb-3">
+                              <div>
+                                <p class="text-sm"><span class="font-medium">Quotation #:</span> ${selectedQuotation.quotationNumber}</p>
+                                <p class="text-sm"><span class="font-medium">Branch:</span> ${selectedQuotation.branch?.name || 'Main Branch'}</p>
+                              </div>
+                              <div class="text-right">
+                                <p class="text-sm"><span class="font-medium">Date:</span> ${new Date(selectedQuotation.createdAt).toLocaleDateString()}</p>
+                                <p class="text-sm"><span class="font-medium">Valid Until:</span> ${new Date(selectedQuotation.validUntil).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+
+                            <!-- Customer Info -->
+                            <div class="mb-3">
+                              <p class="text-sm font-medium">Customer:</p>
+                              <p class="text-sm">${typeof selectedQuotation.customer === 'string' ? selectedQuotation.customer : (selectedQuotation.customer?.name || 'Customer')}</p>
+                            </div>
+
+                            <!-- Items Table -->
+                            <div class="mb-3">
+                              <p class="text-sm font-medium mb-1">Quoted Items:</p>
+                              <table class="w-full text-sm">
+                                <thead>
+                                  <tr>
+                                    <th>Description</th>
+                                    <th class="text-center">Qty</th>
+                                    <th class="text-right">Unit Price</th>
+                                    <th class="text-right">Discount</th>
+                                    <th class="text-right">Tax</th>
+                                    <th class="text-right">Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  ${selectedQuotation.items && selectedQuotation.items.length > 0 ? 
+                                    selectedQuotation.items.map(item => `
+                                      <tr>
+                                        <td>${item.description}</td>
+                                        <td class="text-center">${item.quantity}</td>
+                                        <td class="text-right">$${(item.unitPrice || 0).toFixed(2)}</td>
+                                        <td class="text-right">${item.discount || 0}%</td>
+                                        <td class="text-right">${item.tax || 0}%</td>
+                                        <td class="text-right">$${(item.total || 0).toFixed(2)}</td>
+                                      </tr>
+                                    `).join('') : 
+                                    `<tr><td colspan="6" class="text-center text-gray-500">No items in this quotation</td></tr>`
+                                  }
+                                </tbody>
+                              </table>
+                            </div>
+
+                            <!-- Totals -->
+                            <div class="mb-3 border-t">
+                              <div class="flex">
+                                <span>Subtotal:</span>
+                                <span>$${(selectedQuotation.subtotal || 0).toFixed(2)}</span>
+                              </div>
+                              
+                              <div class="flex">
+                                <span>Discount:</span>
+                                <span>$${(selectedQuotation.discountAmount || 0).toFixed(2)}</span>
+                              </div>
+                              
+                              <div class="flex">
+                                <span>Tax:</span>
+                                <span>$${(selectedQuotation.taxAmount || 0).toFixed(2)}</span>
+                              </div>
+                              
+                              <div class="flex font-bold border-t">
+                                <span>Total:</span>
+                                <span>$${(selectedQuotation.total || 0).toFixed(2)}</span>
+                              </div>
+                            </div>
+
+                            <!-- Notes & Terms -->
+                            ${selectedQuotation.notes ? `
+                              <div class="mb-3">
+                                <p class="text-sm font-medium">Notes:</p>
+                                <p class="text-sm">${selectedQuotation.notes}</p>
+                              </div>
+                            ` : ''}
+                            
+                            ${selectedQuotation.terms ? `
+                              <div class="mb-3">
+                                <p class="text-sm font-medium">Terms & Conditions:</p>
+                                <p class="text-sm">${selectedQuotation.terms}</p>
+                              </div>
+                            ` : ''}
+
+                            <!-- Footer -->
+                            <div class="text-center text-gray-600 text-xs mt-4 border-t">
+                              <p class="font-medium">Thank you for considering our offer!</p>
+                              <p>For inquiries: support@example.com</p>
+                              <p>${selectedQuotation.branch?.name || 'Main Branch'} • ${new Date(selectedQuotation.createdAt).toLocaleDateString()}</p>
+                              <div class="text-right text-xs text-gray-400">1/1</div>
+                            </div>
+                          </div>
+                          
+                          <!-- Print Button - will be hidden when printing -->
+                          <div class="print-button no-print">
+                            <button onclick="window.print(); return false;">
+                              Print Quotation
+                            </button>
+                          </div>
+                        </body>
+                      </html>
+                    `);
+                    
+                    // Close the document for writing
+                    printWindow.document.close();
+                    
+                    // Wait for the document to load before printing
+                    printWindow.onload = function() {
+                      // Print the document automatically
+                      printWindow.print();
+                    };
+                  }
+                }}
               >
                 <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                  <path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0v3H7V4h6zm-6 8v4h6v-4H7z" clipRule="evenodd" />
                 </svg>
-                Export CSV
+                Print Preview
               </button>
               <button
                 type="button"
@@ -793,16 +1387,19 @@ const QuotationsPage = () => {
               >
                 Close
               </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  setIsViewModalOpen(false);
-                  setIsEditModalOpen(true);
-                }}
-              >
-                Edit
-              </button>
+              {/* Edit button only for user role */}
+              {user && user.role === 'user' && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    setIsEditModalOpen(true);
+                  }}
+                >
+                  Edit
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -843,6 +1440,8 @@ const QuotationsPage = () => {
           />
         )}
       </Modal>
+
+      {/* No longer needed - Print Preview is now directly embedded in the View modal */}
     </div>
   );
 };

@@ -21,7 +21,7 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     branch: '',
     date: new Date().toISOString().split('T')[0], // Today's date
     validUntil: '', // Will be set to 14 days from today by default
-    status: 'draft', // Default status is 'draft' (Pending)
+    status: 'active', // Default status is 'active'
     items: [],
     notes: '',
     terms: '', // Terms and conditions for the quotation
@@ -351,12 +351,24 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
   
   // Handle inventory selection
   const handleInventorySelect = (item) => {
+    // Get the discount from the inventory item
+    const discount = item.discount !== undefined ? item.discount : 0;
+    const quantity = parseFloat(currentItem.quantity) || 1;
+    const unitPrice = item.sellingPrice || 0;
+    
+    // Calculate total with discount
+    const subtotal = quantity * unitPrice;
+    const discountAmount = subtotal * (discount / 100);
+    const taxAmount = (subtotal - discountAmount) * (parseFloat(currentItem.tax) || 0 / 100);
+    const total = subtotal - discountAmount + taxAmount;
+    
     setCurrentItem({
       ...currentItem,
       inventory: item._id,
       description: item.name,
-      unitPrice: item.sellingPrice || 0,
-      total: (item.sellingPrice || 0) * (parseFloat(currentItem.quantity) || 1)
+      unitPrice: unitPrice,
+      discount: discount,
+      total: total
     });
     
     // Clear search term and hide results after selection
@@ -666,32 +678,32 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
             )}
           </div>
 
-          {/* Status */}
-          <div>
-            <label htmlFor="status" className={labelClasses}>
-              Status
-            </label>
-            <div className="relative">
-              <select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className={`${inputClasses} appearance-none pr-10`}
-              >
-                <option value="draft">Pending</option>
-                <option value="sent">Sent</option>
-                <option value="accepted">Approved</option>
-                <option value="rejected">Rejected</option>
-                <option value="expired">Expired</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+          {/* Status - Only show when editing an existing quotation */}
+          {initialData && (
+            <div>
+              <label htmlFor="status" className={labelClasses}>
+                Status
+              </label>
+              <div className="relative">
+                <select
+                  id="status"
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  className={`${inputClasses} appearance-none pr-10`}
+                >
+                  <option value="active">Active</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="completed">Completed</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Notes */}
           <div className="sm:col-span-2">

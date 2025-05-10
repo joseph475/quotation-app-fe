@@ -17,57 +17,72 @@ import useAuth from '../hooks/useAuth';
 export const hasPermission = (feature, user) => {
   if (!user) return false;
   
-  // Admin has access to everything
-  if (user.role === 'admin') return true;
-  
   // Define feature permissions based on roles
   const featurePermissions = {
     // User management is only for admins
     'user-management': ['admin'],
     
     // Inventory management
-    'inventory-create': ['admin', 'user'],
-    'inventory-edit': ['admin', 'user'],
-    'inventory-delete': ['admin', 'user'],
+    'inventory-create': ['user'],
+    'inventory-edit': ['user'],
+    'inventory-view': ['admin', 'user'],
+    'inventory-delete': [], // No one can delete
     
     // Purchase orders
-    'purchase-orders-create': ['admin', 'user'],
-    'purchase-orders-edit': ['admin', 'user'],
-    'purchase-orders-delete': ['admin', 'user'],
+    'purchase-orders-create': ['user'],
+    'purchase-orders-edit': ['user'],
+    'purchase-orders-view': ['admin', 'user'],
+    'purchase-orders-delete': [], // No one can delete
+    'purchase-orders-approve': ['admin'], // Only admin can approve
     
     // Stock transfers
-    'stock-transfers-create': ['admin', 'user'],
-    'stock-transfers-edit': ['admin', 'user'],
-    'stock-transfers-delete': ['admin', 'user'],
+    'stock-transfers-create': ['user'],
+    'stock-transfers-edit': ['user'],
+    'stock-transfers-view': ['admin', 'user'],
+    'stock-transfers-delete': [], // No one can delete
+    'stock-transfers-approve': ['admin'], // Only admin can approve
+    
+    // Receiving
+    'purchase-receiving-create': ['user'],
+    'purchase-receiving-edit': ['user'],
+    'purchase-receiving-view': ['admin', 'user'],
+    'purchase-receiving-delete': [], // No one can delete
     
     // Sales
-    'sales-create': ['admin', 'user'],
-    'sales-edit': ['admin', 'user'],
-    'sales-delete': ['admin', 'user'],
+    'sales-create': ['user'],
+    'sales-edit': ['user'],
+    'sales-view': ['admin', 'user'],
+    'sales-delete': [], // No one can delete
     
     // Customers
-    'customers-create': ['admin', 'user'],
-    'customers-edit': ['admin', 'user'],
-    'customers-delete': ['admin', 'user'],
+    'customers-create': ['user'],
+    'customers-edit': ['user'],
+    'customers-view': ['admin', 'user'],
+    'customers-delete': [], // No one can delete
     
     // Quotations
-    'quotations-create': ['admin', 'user'],
-    'quotations-edit': ['admin', 'user'],
-    'quotations-delete': ['admin', 'user'],
+    'quotations-create': ['user'], // Only user can create quotations
+    'quotations-edit': ['user'],
+    'quotations-view': ['admin', 'user'],
+    'quotations-delete': [], // No one can delete
+    'quotations-convert-to-sale': ['user'], // Only user can convert to sale
+    'quotations-reject': ['user'], // Only user can reject quotations
     
-    // Suppliers
-    'suppliers-create': ['admin', 'user'],
-    'suppliers-edit': ['admin', 'user'],
-    'suppliers-delete': ['admin', 'user'],
+    // Suppliers - Settings
+    'suppliers-create': ['admin'],
+    'suppliers-edit': ['admin'],
+    'suppliers-view': ['admin', 'user'],
+    'suppliers-delete': [], // No one can delete
     
-    // Branches
-    'branches-create': ['admin', 'user'],
-    'branches-edit': ['admin', 'user'],
-    'branches-delete': ['admin', 'user'],
+    // Branches - Settings
+    'branches-create': ['admin'],
+    'branches-edit': ['admin'],
+    'branches-view': ['admin', 'user'],
+    'branches-delete': [], // No one can delete
     
     // Reports
-    'reports-view': ['admin'],
-    'reports-generate': ['admin'],
+    'reports-view': ['admin', 'user'],
+    'reports-generate': ['admin', 'user'],
   };
   
   // Check if the feature exists in the permissions map
@@ -88,10 +103,11 @@ export const useRoleBasedAccess = (requiredRole) => {
   
   if (!isAuthenticated) return false;
   
-  // Admin has access to everything
-  if (user?.role === 'admin') return true;
-  
   // Check if user has the required role
+  if (Array.isArray(requiredRole)) {
+    return requiredRole.includes(user?.role);
+  }
+  
   return user?.role === requiredRole;
 };
 

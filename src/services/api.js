@@ -246,6 +246,9 @@ const api = {
     convertToSale: (id) => request(`/quotations/${id}/convert`, {
       method: 'POST',
     }),
+    reject: (id) => request(`/quotations/${id}/reject`, {
+      method: 'POST',
+    }),
   },
   
   // Sales endpoints
@@ -351,6 +354,10 @@ const api = {
     }),
     updateInventory: (id) => request(`/stock-transfers/${id}/update-inventory`, {
       method: 'POST',
+    }),
+    updateStatus: (id, status) => request(`/stock-transfers/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
     }),
   },
   
