@@ -63,7 +63,21 @@ async function request(endpoint, options = {}) {
       };
     }
     
-    const data = await response.json();
+    // Try to parse the response as JSON
+    let data;
+    const contentType = response.headers.get('content-type');
+    
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      // If not JSON, get the text and create a structured error
+      const text = await response.text();
+      data = {
+        success: false,
+        message: 'Server returned non-JSON response',
+        error: text.substring(0, 100) + '...' // Include part of the response for debugging
+      };
+    }
     
     if (!response.ok) {
       const errorMessage = data.message || 'API request failed';
@@ -373,6 +387,34 @@ const api = {
     delete: (id) => request(`/users/${id}`, {
       method: 'DELETE',
     }),
+  },
+  
+  // Reports endpoints
+  reports: {
+    getSalesReport: (params = {}) => {
+      const queryString = Object.entries(params)
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join('&');
+      return request(`/reports/sales${queryString ? `?${queryString}` : ''}`);
+    },
+    getInventoryReport: (params = {}) => {
+      const queryString = Object.entries(params)
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join('&');
+      return request(`/reports/inventory${queryString ? `?${queryString}` : ''}`);
+    },
+    getPurchasesReport: (params = {}) => {
+      const queryString = Object.entries(params)
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join('&');
+      return request(`/reports/purchases${queryString ? `?${queryString}` : ''}`);
+    },
+    getCustomersReport: (params = {}) => {
+      const queryString = Object.entries(params)
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join('&');
+      return request(`/reports/customers${queryString ? `?${queryString}` : ''}`);
+    },
   },
 };
 

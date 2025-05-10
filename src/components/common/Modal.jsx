@@ -75,7 +75,7 @@ const Modal = ({
   
   return (
     <div
-      class="fixed inset-0 z-50 overflow-y-auto modal-container"
+      class={`fixed inset-0 z-50 overflow-y-auto modal-container ${className}`}
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"
@@ -91,7 +91,7 @@ const Modal = ({
         {/* Modal content */}
         <div
           ref={modalRef}
-          class={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:w-full ${sizeClasses[size] || sizeClasses.md} ${className}`}
+          class={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:w-full ${sizeClasses[size] || sizeClasses.md}`}
           {...rest}
         >
           {/* Modal header */}

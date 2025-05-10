@@ -30,6 +30,7 @@ import ProfilePage from '../pages/profile/ProfilePage';
 import UserManagementPage from '../pages/users/UserManagementPage';
 import SuppliersPage from '../pages/suppliers/SuppliersPage';
 import BranchesPage from '../pages/branches/BranchesPage';
+import ReportsPage from '../pages/reports/ReportsPage';
 import LoginPage from '../pages/auth/LoginPage';
 
 
@@ -66,6 +67,7 @@ const AppContent = () => {
             <RoleProtectedRoute component={UserManagementPage} path="/user-management" allowedRoles={['admin']} />
             <RoleProtectedRoute component={SuppliersPage} path="/suppliers" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={BranchesPage} path="/branches" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={ReportsPage} path="/reports" allowedRoles={['admin']} />
             <LoginPage path="/login" />
             {/* Redirect to dashboard if no route matches */}
             <RoleProtectedRoute component={DashboardPage} default allowedRoles={['admin', 'user']} />

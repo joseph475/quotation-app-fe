@@ -1,0 +1,192 @@
+/**
+ * Print styles for reports and receipts
+ */
+
+/* Hide elements that shouldn't be printed */
+@media print {
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+  
+  /* Hide navigation, header, footer, etc. */
+  header,
+  footer,
+  nav,
+  aside,
+  button,
+  .sidebar,
+  .header,
+  .footer,
+  .print-hidden {
+    display: none !important;
+  }
+  
+  /* Show elements that should only be visible when printing */
+  .print-only {
+    display: block !important;
+  }
+  
+  /* Reset page margins */
+  @page {
+    margin: 0.5cm;
+  }
+  
+  /* Basic page setup */
+  html,
+  body {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: white;
+    color: black;
+    font-size: 12pt;
+  }
+  
+  /* Main content area */
+  main,
+  .main-content,
+  .content-area {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: white;
+  }
+  
+  /* Ensure tables fit on the page */
+  table {
+    page-break-inside: auto;
+    width: 100%;
+  }
+  
+  /* Avoid breaking rows across pages */
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  
+  /* Ensure headings don't break across pages */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+  
+  /* Ensure images don't break across pages */
+  img {
+    page-break-inside: avoid;
+    max-width: 100% !important;
+  }
+  
+  /* Ensure links are readable */
+  a {
+    color: black;
+    text-decoration: underline;
+  }
+  
+  /* Print background colors and images */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Specific styles for reports */
+  .print-container {
+    width: 100%;
+    margin: 0 auto;
+  }
+  
+  /* Adjust font sizes for printing */
+  .print-text-sm {
+    font-size: 10pt;
+  }
+  
+  .print-text-xs {
+    font-size: 8pt;
+  }
+  
+  /* Adjust spacing for printing */
+  .print:mb-4 {
+    margin-bottom: 1rem;
+  }
+  
+  .print:mb-2 {
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Grid layouts for printing */
+  .print:grid-cols-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .print:grid-cols-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  
+  .print:grid-cols-4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+  
+  .print:gap-2 {
+    gap: 0.5rem;
+  }
+  
+  /* Table styles for printing */
+  .print:bg-gray-100 {
+    background-color: #f3f4f6 !important;
+  }
+}
+
+/* Specific styles for the receipt modal when printing */
+@media print {
+  .print-receipt-modal,
+  .print-report-modal {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+    background-color: white !important;
+    z-index: 9999 !important;
+  }
+  
+  .print-receipt-modal .modal-overlay,
+  .print-report-modal .modal-overlay {
+    display: none !important;
+  }
+  
+  .print-receipt-modal .modal-content,
+  .print-report-modal .modal-content,
+  .print-receipt-modal div[ref="modalRef"],
+  .print-report-modal div[ref="modalRef"] {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    transform: none !important;
+    position: static !important;
+    display: block !important;
+    background-color: white !important;
+  }
+  
+  .print-receipt-modal .modal-header,
+  .print-receipt-modal .modal-footer,
+  .print-report-modal .modal-header,
+  .print-report-modal .modal-footer {
+    display: none !important;
+  }
+  
+  /* Make sure the print container is visible */
+  .print-container {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background-color: white !important;
+  }
+}
