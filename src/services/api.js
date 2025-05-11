@@ -162,6 +162,23 @@ export const ApiErrorHandler = () => {
  * API methods
  */
 const api = {
+  // Supplier Prices endpoints
+  supplierPrices: {
+    getBySupplier: (supplierId) => request(`/supplier-prices/supplier/${supplierId}`),
+    getByItem: (itemId) => request(`/supplier-prices/item/${itemId}`),
+    create: (priceData) => request('/supplier-prices', {
+      method: 'POST',
+      body: JSON.stringify(priceData),
+    }),
+    update: (supplierId, prices) => request(`/supplier-prices/supplier/${supplierId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ prices }),
+    }),
+    delete: (id) => request(`/supplier-prices/${id}`, {
+      method: 'DELETE',
+    }),
+  },
+  
   // Auth endpoints
   auth: {
     login: (credentials) => request('/auth/login', {

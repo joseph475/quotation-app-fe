@@ -2,6 +2,7 @@ import { h, Fragment } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import PurchaseOrderForm from '../../components/purchases/PurchaseOrderForm';
+import PurchaseOrderDetails from '../../components/purchases/PurchaseOrderDetails';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 import { useConfirmModal } from '../../contexts/ModalContext';
@@ -20,6 +21,7 @@ const PurchaseOrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [currentPO, setCurrentPO] = useState(null);
   const [permissionError, setPermissionError] = useState(null);
 
@@ -533,14 +535,30 @@ const PurchaseOrdersPage = () => {
                           class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                           onClick={() => {
                             setCurrentPO(po);
-                            setIsFormModalOpen(true);
+                            setIsDetailsModalOpen(true);
                           }}
                         >
                           <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
                           </svg>
-                          Edit
+                          View
                         </button>
+                        
+                        {!isAdmin && po.status !== 'Completed' && (
+                          <button 
+                            class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                            onClick={() => {
+                              setCurrentPO(po);
+                              setIsFormModalOpen(true);
+                            }}
+                          >
+                            <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                            Edit
+                          </button>
+                        )}
                         
                         {po.status === 'Draft' && (
                           <button 
@@ -577,18 +595,6 @@ const PurchaseOrdersPage = () => {
                           </>
                         )}
                         
-                        {po.status === 'Approved' && (
-                          <button 
-                            class="inline-flex items-center px-2.5 py-1.5 border border-blue-300 shadow-sm text-xs font-medium rounded text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                            onClick={() => handleStatusChange(po._id, 'Completed')}
-                          >
-                            <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                            </svg>
-                            Complete
-                          </button>
-                        )}
-                        
                         {isAdmin && (
                           <button 
                             class="inline-flex items-center px-2.5 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
@@ -622,6 +628,16 @@ const PurchaseOrdersPage = () => {
           onCancel={() => setIsFormModalOpen(false)}
           onSave={handleSavePO}
         />
+      </Modal>
+
+      {/* Purchase Order Details Modal */}
+      <Modal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        title="Purchase Order Details"
+        size="4xl"
+      >
+        <PurchaseOrderDetails purchaseOrder={currentPO} />
       </Modal>
     </div>
   );

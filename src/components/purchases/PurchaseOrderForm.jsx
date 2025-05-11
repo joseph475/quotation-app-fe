@@ -348,10 +348,45 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
   };
 
   // Handle product selection from search results
-  const handleProductSelect = (product) => {
-    // Ensure price is a valid number
-    const price = parseFloat(product.price) || 0;
+  const handleProductSelect = async (product) => {
+    // Check if we have a supplier selected
+    const selectedSupplier = formData.supplier;
+    let price = parseFloat(product.price) || 0;
     const quantity = parseFloat(currentItem.quantity) || 1;
+    
+    // If we have a supplier selected, check for supplier-specific price
+    if (selectedSupplier) {
+      try {
+        // Try to get supplier-specific price
+        const response = await api.supplierPrices.getByItem(product.id);
+        if (response && response.data && response.data.length > 0) {
+          // Find price for the selected supplier
+          const supplierPrice = response.data.find(p => {
+            // Check if supplier is a string ID or an object with name
+            if (typeof p.supplier === 'string') {
+              // If we have supplier IDs to compare
+              if (typeof selectedSupplier === 'string' && selectedSupplier.match(/^[0-9a-fA-F]{24}$/)) {
+                return p.supplier === selectedSupplier;
+              }
+              // Otherwise, we can't match by ID, so no match
+              return false;
+            } else if (p.supplier && p.supplier.name) {
+              // If supplier is an object with name, match by name
+              return p.supplier.name === selectedSupplier;
+            }
+            return false;
+          });
+          
+          if (supplierPrice && supplierPrice.price > 0) {
+            // Use supplier-specific price if available
+            price = parseFloat(supplierPrice.price);
+            console.log(`Using supplier-specific price: ${price} for ${product.name}`);
+          }
+        }
+      } catch (err) {
+        console.log('No supplier-specific prices found or API not available');
+      }
+    }
     
     setCurrentItem({
       ...currentItem,
