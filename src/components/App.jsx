@@ -29,6 +29,7 @@ import PurchaseReceivingPage from '../pages/purchases/PurchaseReceivingPage';
 import ProfilePage from '../pages/profile/ProfilePage';
 import UserManagementPage from '../pages/users/UserManagementPage';
 import SuppliersPage from '../pages/suppliers/SuppliersPage';
+import SupplierPricesPage from '../pages/suppliers/SupplierPricesPage';
 import BranchesPage from '../pages/branches/BranchesPage';
 import ReportsPage from '../pages/reports/ReportsPage';
 import LoginPage from '../pages/auth/LoginPage';
@@ -66,6 +67,7 @@ const AppContent = () => {
             <RoleProtectedRoute component={ProfilePage} path="/profile" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={UserManagementPage} path="/user-management" allowedRoles={['admin']} />
             <RoleProtectedRoute component={SuppliersPage} path="/suppliers" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={SupplierPricesPage} path="/suppliers/:id/prices" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={BranchesPage} path="/branches" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={ReportsPage} path="/reports" allowedRoles={['admin', 'user']} />
             <LoginPage path="/login" />

@@ -184,9 +184,9 @@ const InventoryPage = () => {
     const headers = [
       'Item Code',
       'Name',
+      'Category',
       'Brand',
       'Model',
-      'Category',
       'Branch',
       'Quantity',
       'Unit',
@@ -212,9 +212,9 @@ const InventoryPage = () => {
       return [
         item.itemCode || '',
         item.name || '',
+        item.category || '',
         item.brand || '',
         item.model || '',
-        item.category || '',
         branchName,
         item.quantity || 0,
         item.unit || '',
@@ -417,13 +417,13 @@ const InventoryPage = () => {
                     SKU
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Brand
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Model
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Branch
@@ -471,13 +471,13 @@ const InventoryPage = () => {
                       {item.itemCode}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.category}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.brand || '-'}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.model || '-'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.category}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.branch && typeof item.branch === 'object' && item.branch.name 

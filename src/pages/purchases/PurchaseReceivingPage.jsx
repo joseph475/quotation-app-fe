@@ -2,6 +2,7 @@ import { h, Fragment } from 'preact';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import PurchaseReceivingForm from '../../components/purchases/PurchaseReceivingForm';
+import PurchaseReceivingDetails from '../../components/purchases/PurchaseReceivingDetails';
 import api from '../../services/api';
 import { useConfirmModal } from '../../contexts/ModalContext';
 import useAuth from '../../hooks/useAuth';
@@ -19,6 +20,7 @@ const PurchaseReceivingPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [currentReceipt, setCurrentReceipt] = useState(null);
 
   // Purchase receipts state
@@ -108,6 +110,10 @@ const PurchaseReceivingPage = () => {
       setError(null);
       console.log('Processing submission in page component...');
       
+      // When a new receipt is created, all items should be fully received
+      // Set the status to Completed
+      formData.status = 'Completed';
+      
       // This is now the ONLY place where the API call happens
       let response;
       
@@ -124,6 +130,25 @@ const PurchaseReceivingPage = () => {
       console.log('API response:', response);
       
       if (response && response.success) {
+        // If the purchase order status needs to be updated based on receiving
+        if (formData.purchaseOrder && typeof formData.purchaseOrder !== 'object') {
+          // Get the purchase order ID
+          const poId = formData.purchaseOrder;
+          
+          // Get the full purchase order data
+          const poResponse = await api.purchaseOrders.getById(poId);
+          
+          if (poResponse && poResponse.data) {
+            const po = poResponse.data;
+            
+            // When a new receipt is created, all items should be fully received
+            // Update purchase order status to Completed
+            if (po.status !== 'Completed') {
+              await api.purchaseOrders.updateStatus(poId, 'Completed');
+            }
+          }
+        }
+        
         // Refresh purchase receipts list
         console.log('Refreshing receipt list');
         const updatedReceipts = await api.purchaseReceiving.getAll();
@@ -352,13 +377,14 @@ const PurchaseReceivingPage = () => {
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receiving Date</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items Received</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               {filteredReceipts.length === 0 ? (
                 <tr>
-                  <td colSpan="6" class="px-6 py-8 text-center text-sm text-gray-500">
+                  <td colSpan="7" class="px-6 py-8 text-center text-sm text-gray-500">
                     <div class="flex flex-col items-center">
                       <svg class="h-12 w-12 text-gray-300 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -389,32 +415,28 @@ const PurchaseReceivingPage = () => {
                         ? receipt.items.reduce((total, item) => total + (item.quantityReceived || 0), 0)
                         : 0}
                     </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                        Completed
+                      </span>
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div class="flex justify-end space-x-2">
                         <button 
                           class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                           onClick={() => {
                             setCurrentReceipt(receipt);
-                            setIsFormModalOpen(true);
+                            setIsDetailsModalOpen(true);
                           }}
                         >
-                          {isAdmin ? (
-                            <>
-                              <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                              </svg>
-                              View
-                            </>
-                          ) : (
-                            <>
-                              <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                              </svg>
-                              Edit
-                            </>
-                          )}
+                          <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                          </svg>
+                          View
                         </button>
+                        
+                        {/* Edit button removed - all receipts are now completed */}
                         {isAdmin && (
                           <button 
                             class="inline-flex items-center px-2.5 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
@@ -451,7 +473,7 @@ const PurchaseReceivingPage = () => {
       <Modal
         isOpen={isFormModalOpen}
         onClose={() => setIsFormModalOpen(false)}
-        title={currentReceipt ? "View Receipt Details" : "Create New Receipt"}
+        title={currentReceipt ? "Edit Receipt" : "Create New Receipt"}
         size="5xl"
       >
         <PurchaseReceivingForm
@@ -459,6 +481,16 @@ const PurchaseReceivingPage = () => {
           onCancel={() => setIsFormModalOpen(false)}
           onSave={handleSaveReceipt}
         />
+      </Modal>
+
+      {/* Purchase Receiving Details Modal */}
+      <Modal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        title="Receipt Details"
+        size="4xl"
+      >
+        <PurchaseReceivingDetails purchaseReceipt={currentReceipt} />
       </Modal>
     </div>
   );

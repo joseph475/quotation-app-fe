@@ -90,6 +90,7 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
         purchaseOrderId: initialData.purchaseOrder?._id || initialData.purchaseOrder,
         receivingDate: formattedDate,
         supplier: supplierName,
+        status: initialData.status || 'Partial', // Ensure status is preserved
       });
       
       // Set the selected PO directly from initialData if it contains the full PO object
@@ -188,13 +189,15 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
       }
       
       setSelectedPO(detailedPO);
+      // Use the autoSetFullReceiving function to set all items to be fully received
+      const itemsWithFullReceiving = autoSetFullReceiving(detailedPO.items);
+      
       setFormData(prev => ({
         ...prev,
         purchaseOrderId: detailedPO._id,
         supplier: detailedPO.supplier.name, // Assuming supplier is populated
-        items: detailedPO.items.map(item => ({
+        items: itemsWithFullReceiving.map(item => ({
           ...item,
-          receivedQuantity: 0,
           notes: ''
         }))
       }));
@@ -240,6 +243,14 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
           ? { ...item, receivedQuantity: quantity } 
           : item
       )
+    }));
+  };
+  
+  // Auto-set all items to be fully received when PO is selected
+  const autoSetFullReceiving = (items) => {
+    return items.map(item => ({
+      ...item,
+      receivedQuantity: item.quantity - (item.received || 0)
     }));
   };
 
@@ -605,9 +616,6 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
                             onChange={(e) => handleQuantityChange(item._id, e.target.value)}
                             className="w-20 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-1 px-2 sm:text-sm"
                           />
-                          <span className="ml-2 text-xs text-gray-500">
-                            (Remaining: {remaining})
-                          </span>
                         </td>
                         <td className="px-6 py-4">
                           <input

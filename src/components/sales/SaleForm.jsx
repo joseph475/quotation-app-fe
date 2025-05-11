@@ -726,8 +726,6 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
                   <option value="pending">Pending</option>
                   <option value="paid">Paid</option>
                   <option value="partially_paid">Partially Paid</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="refunded">Refunded</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                   <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
