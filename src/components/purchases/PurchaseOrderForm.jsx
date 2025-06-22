@@ -24,15 +24,10 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
   const [loading, setLoading] = useState({ suppliers: false, products: false });
   const [error, setError] = useState({ suppliers: null, products: null });
   
-  // State for branches
-  const [branches, setBranches] = useState([]);
-  const [loadingBranches, setLoadingBranches] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
     supplier: '',
-    branch: '',
-    branchName: '',
     date: new Date().toISOString().split('T')[0],
     expectedDeliveryDate: '',
     status: initialData?.status || 'Draft', // Use initialData status if available
@@ -84,30 +79,6 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
       }
     };
 
-    const fetchBranches = async () => {
-      setLoadingBranches(true);
-      try {
-        // Try to get branches from local storage
-        const storedBranches = getFromStorage('branches');
-        
-        if (storedBranches && Array.isArray(storedBranches)) {
-          setBranches(storedBranches);
-        } else {
-          // Fallback to API if not in local storage
-          const response = await api.branches.getAll();
-          const branchesData = response.data || [];
-          setBranches(branchesData);
-        }
-        
-        // We'll handle setting the default branch in a separate useEffect
-        // that depends on both branches and user data
-        
-      } catch (err) {
-        console.error('Error fetching branches:', err);
-      } finally {
-        setLoadingBranches(false);
-      }
-    };
     
     const fetchInventory = async () => {
       setLoading(prev => ({ ...prev, products: true }));
@@ -162,7 +133,6 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
     };
     
     fetchSuppliers();
-    fetchBranches();
     fetchInventory();
   }, []);
 
@@ -249,36 +219,6 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
     }
   }, [initialData]);
   
-  // Set default branch to user's branch when user data becomes available
-  useEffect(() => {
-    if (user && user.branch && branches.length > 0) {
-      const branchId = typeof user.branch === 'object' ? user.branch._id : user.branch;
-      let branchName = '';
-      
-      // Try to get branch name from user object first
-      if (user.branchName) {
-        branchName = user.branchName;
-      } 
-      // If not available, try to get it from the branch object
-      else if (typeof user.branch === 'object' && user.branch.name) {
-        branchName = user.branch.name;
-      } 
-      // If still not available, try to find it in the fetched branches
-      else {
-        const foundBranch = branches.find(b => b._id === branchId);
-        if (foundBranch) {
-          branchName = foundBranch.name;
-        }
-      }
-      
-      // Set the branch in form data
-      setFormData(prev => ({
-        ...prev,
-        branch: branchId,
-        branchName: branchName
-      }));
-    }
-  }, [user, branches]);
 
   // Handle product search
   const handleProductSearch = (e) => {
@@ -738,62 +678,6 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
             )}
           </div>
 
-          {/* Branch Selection */}
-          <div>
-            <label htmlFor="branch" className={labelClasses}>
-              Branch <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              {loadingBranches ? (
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
-                  <span className="text-sm text-gray-500">Loading branches...</span>
-                </div>
-              ) : branches.length > 0 ? (
-                <div className="relative">
-                  <select
-                    id="branch"
-                    name="branch"
-                    value={formData.branch}
-                    onChange={(e) => {
-                      const selectedBranch = branches.find(b => b._id === e.target.value);
-                      setFormData(prev => ({
-                        ...prev,
-                        branch: e.target.value,
-                        branchName: selectedBranch ? selectedBranch.name : ''
-                      }));
-                    }}
-                    className={`${inputClasses} appearance-none pr-10 ${errors.branch ? 'border-red-300' : ''}`}
-                    disabled={user && user.role !== 'admin' && user.role !== 'user'}
-                  >
-                    <option value="">Select a branch</option>
-                    {branches.map(branch => (
-                      <option key={branch._id} value={branch._id}>
-                        {branch.name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                </div>
-              ) : (
-                <input
-                  type="text"
-                  id="branchDisplay"
-                  value={formData.branchName || 'No branches available'}
-                  className={`${inputClasses} ${errors.branch ? 'border-red-300' : ''}`}
-                  disabled={true}
-                  readOnly
-                />
-              )}
-            </div>
-            {errors.branch && (
-              <p className={errorClasses}>{errors.branch}</p>
-            )}
-          </div>
 
           {/* Status */}
           <div>

@@ -35,22 +35,7 @@ const useAuth = () => {
             // The user data is in response.data for the getProfile endpoint
             const userData = response.data;
             
-            // If user has a branch, fetch branch details
-            if (userData.branch && userData.role !== 'admin') {
-              try {
-                const branchResponse = await api.branches.getById(userData.branch);
-                if (branchResponse && branchResponse.success) {
-                  userData.branchName = branchResponse.data.name;
-                }
-              } catch (branchErr) {
-                console.error('Error fetching branch details:', branchErr);
-                userData.branchName = 'Unknown branch';
-              }
-            } else if (userData.role === 'admin') {
-              userData.branchName = 'All Branches';
-            } else {
-              userData.branchName = 'No branch';
-            }
+            // No branch functionality needed
             
             // Store user data in local storage
             storeAuthUser(userData);
@@ -59,19 +44,31 @@ const useAuth = () => {
             setIsAuthenticated(true);
             
             // Fetch and store app data upon successful token validation
+            // Use graceful error handling to prevent logout issues
             try {
               await initializeAppData();
             } catch (dataError) {
               console.error('Error fetching app data after token validation:', dataError);
-              // Continue even if data fetch fails
+              // Continue even if data fetch fails - don't let this cause logout
+              // The app will still work with cached data or fetch data on-demand
             }
-          } else {
-            // Token is invalid, remove it
+          } else if (response && response.status === 401) {
+            // Only remove token if it's specifically a 401 auth error
+            console.log('Token validation failed with 401, removing token');
             localStorage.removeItem('authToken');
+          } else {
+            // For other errors, keep the token but log the issue
+            console.log('Token validation failed but keeping token:', response);
           }
         } catch (error) {
           console.error('Token validation error:', error);
-          localStorage.removeItem('authToken');
+          // Only remove token if it's an auth-related error
+          if (error.message && error.message.includes('Authentication failed')) {
+            console.log('Auth-related error, removing token');
+            localStorage.removeItem('authToken');
+          } else {
+            console.log('Non-auth error, keeping token:', error.message);
+          }
         }
         
         setIsLoading(false);
@@ -98,6 +95,14 @@ const useAuth = () => {
       setIsLoading(true);
       setError(null);
       
+      console.log('useAuth.login received credentials:', {
+        email: credentials.email,
+        hasPassword: !!credentials.password,
+        hasDeviceFingerprint: !!credentials.deviceFingerprint,
+        deviceFingerprintKeys: credentials.deviceFingerprint ? Object.keys(credentials.deviceFingerprint) : [],
+        credentialsKeys: Object.keys(credentials)
+      });
+      
       // Make API call to login endpoint
       const response = await api.auth.login(credentials);
       
@@ -108,34 +113,47 @@ const useAuth = () => {
         }
         
         // The user data is in response.user, not response.data
-        // Make sure we have the branch information
         const userData = {
-          ...response.user,
-          branch: response.user.branch || null
+          ...response.user
         };
-        
-        // If user has a branch, fetch branch details
-        if (userData.branch && userData.role !== 'admin') {
-          try {
-            const branchResponse = await api.branches.getById(userData.branch);
-            if (branchResponse && branchResponse.success) {
-              userData.branchName = branchResponse.data.name;
-            }
-          } catch (branchErr) {
-            console.error('Error fetching branch details:', branchErr);
-            userData.branchName = 'Unknown branch';
-          }
-        } else if (userData.role === 'admin') {
-          userData.branchName = 'All Branches';
-        } else {
-          userData.branchName = 'No branch';
-        }
         
         // Store user data in local storage
         storeAuthUser(userData);
         
         setUser(userData);
         setIsAuthenticated(true);
+        
+        // Handle security analysis if present
+        if (response.security) {
+          const { warnings, isNewDevice, riskScore, sessionLimitExceeded } = response.security;
+          
+          // Store current device ID for future reference
+          if (response.security.deviceId) {
+            localStorage.setItem('currentDeviceId', response.security.deviceId);
+          }
+          
+          // Show security warnings if any
+          if (warnings && warnings.length > 0) {
+            console.warn('Security warnings:', warnings);
+            
+            // You can implement a notification system here
+            // For now, we'll just log the warnings
+            warnings.forEach(warning => {
+              console.warn(`Security Alert: ${warning}`);
+            });
+          }
+          
+          // Handle session limit exceeded
+          if (sessionLimitExceeded) {
+            console.warn('Maximum concurrent sessions exceeded');
+            // You might want to show a modal or notification here
+          }
+          
+          // Log new device detection
+          if (isNewDevice) {
+            console.info('Login from new device detected');
+          }
+        }
         
         // Fetch and store app data upon successful login
         try {
@@ -207,29 +225,12 @@ const useAuth = () => {
           localStorage.setItem('authToken', response.token);
         }
         
-        const userDataWithBranch = { ...response.data };
-        
-        // If user has a branch, fetch branch details
-        if (userDataWithBranch.branch && userDataWithBranch.role !== 'admin') {
-          try {
-            const branchResponse = await api.branches.getById(userDataWithBranch.branch);
-            if (branchResponse && branchResponse.success) {
-              userDataWithBranch.branchName = branchResponse.data.name;
-            }
-          } catch (branchErr) {
-            console.error('Error fetching branch details:', branchErr);
-            userDataWithBranch.branchName = 'Unknown branch';
-          }
-        } else if (userDataWithBranch.role === 'admin') {
-          userDataWithBranch.branchName = 'All Branches';
-        } else {
-          userDataWithBranch.branchName = 'No branch';
-        }
+        const userData = { ...response.data };
         
         // Store user data in local storage
-        storeAuthUser(userDataWithBranch);
+        storeAuthUser(userData);
         
-        setUser(userDataWithBranch);
+        setUser(userData);
         setIsAuthenticated(true);
         
         // Fetch and store app data upon successful registration
@@ -242,7 +243,7 @@ const useAuth = () => {
         
         setIsLoading(false);
         
-        return userDataWithBranch;
+        return userData;
       } else {
         throw new Error(response.message || 'Registration failed');
       }
@@ -269,23 +270,6 @@ const useAuth = () => {
       
       if (response && response.success) {
         const updatedUserData = { ...response.data };
-        
-        // If user has a branch, fetch branch details
-        if (updatedUserData.branch && updatedUserData.role !== 'admin') {
-          try {
-            const branchResponse = await api.branches.getById(updatedUserData.branch);
-            if (branchResponse && branchResponse.success) {
-              updatedUserData.branchName = branchResponse.data.name;
-            }
-          } catch (branchErr) {
-            console.error('Error fetching branch details:', branchErr);
-            updatedUserData.branchName = 'Unknown branch';
-          }
-        } else if (updatedUserData.role === 'admin') {
-          updatedUserData.branchName = 'All Branches';
-        } else {
-          updatedUserData.branchName = 'No branch';
-        }
         
         // Update user data in local storage
         storeAuthUser(updatedUserData);

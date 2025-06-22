@@ -15,7 +15,6 @@
  * @param {number} params.quantityAdded - The quantity added
  * @param {string} params.reason - The reason for the cost change
  * @param {string} params.userId - The user who made the change
- * @param {string} params.branchId - The branch where the change occurred
  * @returns {Object} - Cost history record
  */
 export const createCostHistoryRecord = ({
@@ -26,8 +25,7 @@ export const createCostHistoryRecord = ({
   newCost,
   quantityAdded,
   reason,
-  userId,
-  branchId
+  userId
 }) => {
   return {
     itemId,
@@ -39,7 +37,6 @@ export const createCostHistoryRecord = ({
     quantityAdded: parseInt(quantityAdded) || 0,
     reason: reason || '',
     userId: userId || '',
-    branchId: branchId || '',
     timestamp: new Date().toISOString(),
     date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format for easy filtering
     month: new Date().toISOString().substr(0, 7), // YYYY-MM format for monthly reports

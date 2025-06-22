@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Input from '../common/Input';
+import { generateFingerprint } from '../../utils/fingerprinting';
 
 /**
  * LoginForm component for user authentication
@@ -51,7 +52,7 @@ const LoginForm = ({ onLogin, isLoading = false, error = '' }) => {
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Validate form
@@ -64,8 +65,34 @@ const LoginForm = ({ onLogin, isLoading = false, error = '' }) => {
       return;
     }
     
-    // Call the login handler
-    onLogin(formData);
+    try {
+      // Generate device fingerprint
+      console.log('Generating device fingerprint...');
+      const deviceFingerprint = await generateFingerprint();
+      console.log('Device fingerprint generated:', Object.keys(deviceFingerprint));
+      console.log('Fingerprint object:', deviceFingerprint);
+      console.log('Fingerprint is empty?', Object.keys(deviceFingerprint).length === 0);
+      
+      const credentialsToSend = {
+        ...formData,
+        deviceFingerprint
+      };
+      
+      console.log('Credentials being sent to onLogin:', {
+        email: credentialsToSend.email,
+        hasPassword: !!credentialsToSend.password,
+        hasDeviceFingerprint: !!credentialsToSend.deviceFingerprint,
+        deviceFingerprintKeys: credentialsToSend.deviceFingerprint ? Object.keys(credentialsToSend.deviceFingerprint) : []
+      });
+      
+      // Call the login handler with fingerprint
+      onLogin(credentialsToSend);
+    } catch (error) {
+      console.error('Error generating fingerprint:', error);
+      console.error('Error stack:', error.stack);
+      // Continue with login even if fingerprinting fails
+      onLogin(formData);
+    }
   };
 
   // Common input classes for consistency

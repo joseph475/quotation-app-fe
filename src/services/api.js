@@ -7,9 +7,9 @@
 import { useErrorModal } from '../contexts/ModalContext';
 
 // Base API URL - connects to our MongoDB backend
-const API_BASE_URL = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) || 
-  ((typeof process !== 'undefined' && process.env && process.env.NODE_ENV) === 'production' 
-    ? 'https://quotation-app-be.vercel.app/api/v1' 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://quotation-backend-api.vercel.app/api/v1' 
     : 'http://localhost:8000/api/v1');
 
 // Store error modal context reference
@@ -53,8 +53,13 @@ async function request(endpoint, options = {}) {
     
     // Handle 401 Unauthorized
     if (response.status === 401) {
-      // Clear token but don't redirect automatically
-      localStorage.removeItem('authToken');
+      // Only clear token for auth-related endpoints
+      if (endpoint.includes('/auth/')) {
+        console.log('Auth endpoint returned 401, clearing token');
+        localStorage.removeItem('authToken');
+      } else {
+        console.log('Non-auth endpoint returned 401, keeping token:', endpoint);
+      }
       
       // Return a structured error response
       return {
@@ -182,10 +187,19 @@ const api = {
   
   // Auth endpoints
   auth: {
-    login: (credentials) => request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    }),
+    login: (credentials) => {
+      console.log('API: Sending login request with credentials:', {
+        email: credentials.email,
+        hasPassword: !!credentials.password,
+        hasDeviceFingerprint: !!credentials.deviceFingerprint,
+        deviceFingerprintKeys: credentials.deviceFingerprint ? Object.keys(credentials.deviceFingerprint) : []
+      });
+      
+      return request('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      });
+    },
     logout: () => request('/auth/logout', {
       method: 'POST',
     }),
@@ -261,6 +275,9 @@ const api = {
     reject: (id) => request(`/quotations/${id}/reject`, {
       method: 'POST',
     }),
+    approve: (id) => request(`/quotations/${id}/approve`, {
+      method: 'POST',
+    }),
   },
   
   // Sales endpoints
@@ -310,35 +327,67 @@ const api = {
     search: (query) => request(`/suppliers/search?query=${encodeURIComponent(query)}`),
   },
   
-  // Purchase Order endpoints - DISABLED
+  // Purchase Order endpoints
   purchaseOrders: {
-    getAll: () => Promise.resolve({ success: true, data: [], message: 'Purchase Orders feature is disabled' }),
-    getById: (id) => Promise.resolve({ success: false, message: 'Purchase Orders feature is disabled' }),
-    create: (order) => Promise.resolve({ success: false, message: 'Purchase Orders feature is disabled' }),
-    update: (id, order) => Promise.resolve({ success: false, message: 'Purchase Orders feature is disabled' }),
-    delete: (id) => Promise.resolve({ success: false, message: 'Purchase Orders feature is disabled' }),
-    updateStatus: (id, status) => Promise.resolve({ success: false, message: 'Purchase Orders feature is disabled' }),
-    getReceivings: (id) => Promise.resolve({ success: true, data: [], message: 'Purchase Orders feature is disabled' }),
+    getAll: () => request('/purchase-orders'),
+    getById: (id) => request(`/purchase-orders/${id}`),
+    create: (order) => request('/purchase-orders', {
+      method: 'POST',
+      body: JSON.stringify(order),
+    }),
+    update: (id, order) => request(`/purchase-orders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(order),
+    }),
+    delete: (id) => request(`/purchase-orders/${id}`, {
+      method: 'DELETE',
+    }),
+    updateStatus: (id, status) => request(`/purchase-orders/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+    getReceivings: (id) => request(`/purchase-orders/${id}/receivings`),
   },
   
-  // Purchase Receiving endpoints - DISABLED
+  // Purchase Receiving endpoints
   purchaseReceiving: {
-    getAll: () => Promise.resolve({ success: true, data: [], message: 'Purchase Receiving feature is disabled' }),
-    getById: (id) => Promise.resolve({ success: false, message: 'Purchase Receiving feature is disabled' }),
-    create: (receiving) => Promise.resolve({ success: false, message: 'Purchase Receiving feature is disabled' }),
-    update: (id, receiving) => Promise.resolve({ success: false, message: 'Purchase Receiving feature is disabled' }),
-    delete: (id) => Promise.resolve({ success: false, message: 'Purchase Receiving feature is disabled' }),
+    getAll: () => request('/purchase-receiving'),
+    getById: (id) => request(`/purchase-receiving/${id}`),
+    create: (receiving) => request('/purchase-receiving', {
+      method: 'POST',
+      body: JSON.stringify(receiving),
+    }),
+    update: (id, receiving) => request(`/purchase-receiving/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(receiving),
+    }),
+    delete: (id) => request(`/purchase-receiving/${id}`, {
+      method: 'DELETE',
+    }),
   },
   
-  // Stock Transfer endpoints - DISABLED
+  // Stock Transfer endpoints
   stockTransfers: {
-    getAll: () => Promise.resolve({ success: true, data: [], message: 'Stock Transfers feature is disabled' }),
-    getById: (id) => Promise.resolve({ success: false, message: 'Stock Transfers feature is disabled' }),
-    create: (transfer) => Promise.resolve({ success: false, message: 'Stock Transfers feature is disabled' }),
-    update: (id, transfer) => Promise.resolve({ success: false, message: 'Stock Transfers feature is disabled' }),
-    delete: (id) => Promise.resolve({ success: false, message: 'Stock Transfers feature is disabled' }),
-    updateInventory: (id) => Promise.resolve({ success: false, message: 'Stock Transfers feature is disabled' }),
-    updateStatus: (id, status) => Promise.resolve({ success: false, message: 'Stock Transfers feature is disabled' }),
+    getAll: () => request('/stock-transfers'),
+    getById: (id) => request(`/stock-transfers/${id}`),
+    create: (transfer) => request('/stock-transfers/process', {
+      method: 'POST',
+      body: JSON.stringify(transfer),
+    }),
+    update: (id, transfer) => request(`/stock-transfers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(transfer),
+    }),
+    delete: (id) => request(`/stock-transfers/${id}`, {
+      method: 'DELETE',
+    }),
+    updateInventory: (id) => request(`/stock-transfers/${id}/update-inventory`, {
+      method: 'POST',
+    }),
+    updateStatus: (id, status) => request(`/stock-transfers/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
   },
   
   
@@ -386,41 +435,29 @@ const api = {
       return request(`/reports/customers${queryString ? `?${queryString}` : ''}`);
     },
   },
-  
-  // Inventory History endpoints
-  inventoryHistory: {
-    getAll: (params = {}) => {
+
+  // Device management endpoints
+  devices: {
+    getAll: () => request('/devices'),
+    getById: (id) => request(`/devices/${id}`),
+    update: (id, deviceData) => request(`/devices/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(deviceData),
+    }),
+    revoke: (id) => request(`/devices/${id}`, {
+      method: 'DELETE',
+    }),
+    revokeAll: (currentDeviceId) => request('/devices/revoke-all', {
+      method: 'POST',
+      body: JSON.stringify({ currentDeviceId }),
+    }),
+    getSecurityAnalysis: () => request('/devices/security-analysis'),
+    getLoginHistory: (params = {}) => {
       const queryString = Object.entries(params)
         .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
         .join('&');
-      return request(`/inventory-history${queryString ? `?${queryString}` : ''}`);
+      return request(`/devices/login-history${queryString ? `?${queryString}` : ''}`);
     },
-    getByItem: (itemId) => request(`/inventory-history/item/${itemId}`),
-    getByDateRange: (startDate, endDate) => request(`/inventory-history/date-range?start=${startDate}&end=${endDate}`),
-    getByMonth: (month) => request(`/inventory-history/month/${month}`),
-    getByOperation: (operation) => request(`/inventory-history/operation/${operation}`),
-    create: (historyData) => request('/inventory-history', {
-      method: 'POST',
-      body: JSON.stringify(historyData),
-    }),
-    getMonthlyReport: (month) => request(`/inventory-history/reports/monthly/${month}`),
-  },
-  
-  // Cost History endpoints
-  costHistory: {
-    getAll: (params = {}) => {
-      const queryString = Object.entries(params)
-        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-        .join('&');
-      return request(`/cost-history${queryString ? `?${queryString}` : ''}`);
-    },
-    getByItem: (itemId) => request(`/cost-history/item/${itemId}`),
-    getByMonth: (month) => request(`/cost-history/month/${month}`),
-    create: (costData) => request('/cost-history', {
-      method: 'POST',
-      body: JSON.stringify(costData),
-    }),
-    getMonthlyReport: (month) => request(`/cost-history/reports/monthly/${month}`),
   },
 };
 

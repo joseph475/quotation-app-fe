@@ -13,11 +13,16 @@ const LoginPage = () => {
     setError('');
 
     try {
-      // Use the login function from useAuth hook
-      await login({
+      console.log('LoginPage.handleLogin received formData:', {
         email: formData.email,
-        password: formData.password
+        hasPassword: !!formData.password,
+        hasDeviceFingerprint: !!formData.deviceFingerprint,
+        deviceFingerprintKeys: formData.deviceFingerprint ? Object.keys(formData.deviceFingerprint) : [],
+        allFormDataKeys: Object.keys(formData)
       });
+      
+      // Use the login function from useAuth hook - pass ALL formData
+      await login(formData);
       
       // Redirect will be handled by the useAuth hook
     } catch (err) {

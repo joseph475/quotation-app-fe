@@ -39,7 +39,7 @@ const UserManagementPage = () => {
           phone: user.phone || 'No phone number',
           role: user.role,
           department: user.department || 'No department',
-          isActive: true, // Assuming all users are active by default
+          isActive: user.isActive !== undefined ? user.isActive : true,
         }));
         
         setUsers(formattedUsers);
@@ -77,7 +77,8 @@ const UserManagementPage = () => {
               name: userData.name,
               email: userData.email,
               phone: userData.phone || 'No phone number',
-              department: userData.department || 'No department'
+              department: userData.department || 'No department',
+              isActive: userData.isActive !== undefined ? userData.isActive : true
             } : user
           );
           setUsers(updatedUsers);
@@ -98,7 +99,7 @@ const UserManagementPage = () => {
             phone: response.data.phone || 'No phone number',
             role: response.data.role,
             department: response.data.department || 'No department',
-            isActive: true,
+            isActive: response.data.isActive !== undefined ? response.data.isActive : true,
           };
           setUsers([...users, newUser]);
           setSuccessMessage('User created successfully!');

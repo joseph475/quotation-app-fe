@@ -9,6 +9,7 @@ import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 import { hasPermission } from '../../utils/pageHelpers';
 import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
 import { syncAfterDataUpdate } from '../../utils/dataSync';
+import { getCustomerDisplayName } from '../../utils/customerHelpers';
 
 const SalesPage = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -136,9 +137,7 @@ const SalesPage = () => {
     const matchesTab = activeTab === 'all' || sale.status?.toLowerCase() === activeTab.toLowerCase();
     
     // Handle customer which might be an object or string
-    const customerName = typeof sale.customer === 'string' 
-      ? sale.customer 
-      : (sale.customer?.name || '');
+    const customerName = getCustomerDisplayName(sale.customer);
       
     const matchesSearch = customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          (sale.saleNumber?.toLowerCase() || '').includes(searchTerm.toLowerCase());
@@ -322,9 +321,6 @@ const SalesPage = () => {
                   Customer
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Branch
-                </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Amount
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -341,7 +337,7 @@ const SalesPage = () => {
             <tbody class="bg-white divide-y divide-gray-200">
               {filteredSales.length === 0 ? (
                 <tr>
-                  <td colSpan="6" class="px-6 py-8 text-center text-sm text-gray-500">
+                  <td colSpan="5" class="px-6 py-8 text-center text-sm text-gray-500">
                     <div class="flex flex-col items-center">
                       <p>No sales found</p>
                       <p class="text-xs mt-1">Try adjusting your filters or create a new sale</p>
@@ -355,14 +351,7 @@ const SalesPage = () => {
                       {sale.saleNumber}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {typeof sale.customer === 'string' 
-                        ? sale.customer 
-                        : (sale.customer?.name || 'Unknown Customer')}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {typeof sale.branch === 'string'
-                        ? sale.branch
-                        : (sale.branch?.name || 'Unknown Branch')}
+                      {getCustomerDisplayName(sale.customer)}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       ${(sale.total || 0).toFixed(2)}
@@ -584,23 +573,13 @@ const SalesPage = () => {
                   <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt className="text-sm font-medium text-gray-500">Customer</dt>
                     <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                      {typeof selectedSale.customer === 'string' 
-                        ? selectedSale.customer 
-                        : (selectedSale.customer?.name || 'Unknown Customer')}
+                      {getCustomerDisplayName(selectedSale.customer)}
                     </dd>
                   </div>
                   <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt className="text-sm font-medium text-gray-500">Date</dt>
                     <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                       {formatDate(selectedSale.createdAt)}
-                    </dd>
-                  </div>
-                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt className="text-sm font-medium text-gray-500">Branch</dt>
-                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                      {typeof selectedSale.branch === 'string'
-                        ? selectedSale.branch
-                        : (selectedSale.branch?.name || 'Unknown Branch')}
                     </dd>
                   </div>
                   <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">

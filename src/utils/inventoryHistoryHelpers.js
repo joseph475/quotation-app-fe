@@ -16,8 +16,6 @@
  * @param {string} params.reason - The reason for the operation
  * @param {string} params.userId - The user who made the change
  * @param {string} params.userName - The user name who made the change
- * @param {string} params.branchId - The branch where the change occurred
- * @param {string} params.branchName - The branch name where the change occurred
  * @returns {Object} - Inventory history record
  */
 export const createInventoryHistoryRecord = ({
@@ -29,9 +27,7 @@ export const createInventoryHistoryRecord = ({
   afterData = {},
   reason = '',
   userId,
-  userName,
-  branchId,
-  branchName
+  userName
 }) => {
   const timestamp = new Date().toISOString();
   const date = timestamp.split('T')[0]; // YYYY-MM-DD format
@@ -48,8 +44,6 @@ export const createInventoryHistoryRecord = ({
     reason,
     userId: userId || 'unknown',
     userName: userName || 'Unknown User',
-    branchId: branchId || 'unknown',
-    branchName: branchName || 'Unknown Branch',
     timestamp,
     date,
     month
@@ -358,7 +352,6 @@ export const exportInventoryHistoryToCSV = (history) => {
     'Item Name',
     'Summary',
     'User',
-    'Branch',
     'Reason'
   ];
   
@@ -370,7 +363,6 @@ export const exportInventoryHistoryToCSV = (history) => {
     record.itemName || '',
     record.changes.summary || '',
     record.userName || '',
-    record.branchName || '',
     record.reason || ''
   ]);
   

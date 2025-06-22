@@ -19,18 +19,15 @@ import Footer from './layout/Footer';
 
 // Pages
 import DashboardPage from '../pages/dashboard/DashboardPage';
-import DevDashboardPage from '../pages/dashboard/DevDashboardPage';
-import InputComponentsExamplePage from '../pages/examples/InputComponentsExamplePage';
 import InventoryPage from '../pages/inventory/InventoryPage';
 import SalesPage from '../pages/sales/SalesPage';
 import CustomersPage from '../pages/customers/CustomersPage';
 import QuotationsPage from '../pages/quotations/QuotationsPage';
 import ProfilePage from '../pages/profile/ProfilePage';
 import UserManagementPage from '../pages/users/UserManagementPage';
-import SuppliersPage from '../pages/suppliers/SuppliersPage';
-import SupplierPricesPage from '../pages/suppliers/SupplierPricesPage';
 import ReportsPage from '../pages/reports/ReportsPage';
 import LoginPage from '../pages/auth/LoginPage';
+import DeviceManagementPage from '../pages/security/DeviceManagementPage';
 
 
 const AppContent = () => {
@@ -57,11 +54,22 @@ const AppContent = () => {
             storeInStorage('customers', customersResponse.data || []);
           }
           
+          // Fetch stock transfers
+          const stockTransfersResponse = await api.stockTransfers.getAll();
+          if (stockTransfersResponse && stockTransfersResponse.success) {
+            storeInStorage('stockTransfers', stockTransfersResponse.data || []);
+          }
           
           // Fetch inventory
           const inventoryResponse = await api.inventory.getAll();
           if (inventoryResponse && inventoryResponse.success) {
             storeInStorage('inventory', inventoryResponse.data || []);
+          }
+          
+          // Fetch purchase orders
+          const purchaseOrdersResponse = await api.purchaseOrders.getAll();
+          if (purchaseOrdersResponse && purchaseOrdersResponse.success) {
+            storeInStorage('purchaseOrders', purchaseOrdersResponse.data || []);
           }
           
           setDataInitialized(true);
@@ -92,19 +100,27 @@ const AppContent = () => {
         {!isAuthRoute && <Sidebar />}
         <main class={`flex-1 overflow-auto ${isAuthRoute ? '' : 'p-4 bg-gray-50'}`}>
           <Router onChange={handleRouteChange}>
-            <RoleProtectedRoute component={DashboardPage} path="/" allowedRoles={['admin', 'user']} />
-            <RoleProtectedRoute component={InventoryPage} path="/inventory" allowedRoles={['admin', 'user']} />
-            <RoleProtectedRoute component={SalesPage} path="/sales" allowedRoles={['admin', 'user']} />
-            <RoleProtectedRoute component={CustomersPage} path="/customers" allowedRoles={['admin', 'user']} />
+            {/* For users with 'user' role, redirect to quotations page */}
+            <RoleProtectedRoute 
+              component={({ user }) => user?.role === 'user' ? <QuotationsPage /> : <DashboardPage />} 
+              path="/" 
+              allowedRoles={['admin', 'user']} 
+            />
+            <RoleProtectedRoute component={InventoryPage} path="/inventory" allowedRoles={['admin']} />
+            <RoleProtectedRoute component={SalesPage} path="/sales" allowedRoles={['admin']} />
+            <RoleProtectedRoute component={CustomersPage} path="/customers" allowedRoles={['admin']} />
             <RoleProtectedRoute component={QuotationsPage} path="/quotations" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={ProfilePage} path="/profile" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={UserManagementPage} path="/user-management" allowedRoles={['admin']} />
-            <RoleProtectedRoute component={SuppliersPage} path="/suppliers" allowedRoles={['admin', 'user']} />
-            <RoleProtectedRoute component={SupplierPricesPage} path="/suppliers/:id/prices" allowedRoles={['admin', 'user']} />
-            <RoleProtectedRoute component={ReportsPage} path="/reports" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={ReportsPage} path="/reports" allowedRoles={['admin']} />
+            <RoleProtectedRoute component={DeviceManagementPage} path="/device-management" allowedRoles={['admin', 'user']} />
             <LoginPage path="/login" />
-            {/* Redirect to dashboard if no route matches */}
-            <RoleProtectedRoute component={DashboardPage} default allowedRoles={['admin', 'user']} />
+            {/* Redirect to quotations for user role, dashboard for admin */}
+            <RoleProtectedRoute 
+              component={({ user }) => user?.role === 'user' ? <QuotationsPage /> : <DashboardPage />} 
+              default 
+              allowedRoles={['admin', 'user']} 
+            />
           </Router>
         </main>
       </div>

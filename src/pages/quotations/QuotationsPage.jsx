@@ -9,6 +9,7 @@ import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 import { hasPermission } from '../../utils/pageHelpers';
 import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
 import { syncAfterQuotationConversion } from '../../utils/dataSync';
+import { getCustomerDisplayName } from '../../utils/customerHelpers';
 
 const QuotationsPage = () => {
   // Export all filtered quotations to CSV
@@ -31,10 +32,8 @@ const QuotationsPage = () => {
     
     // Convert quotations to CSV rows
     const rows = quotations.map(quotation => {
-      // Format customer name
-      const customerName = typeof quotation.customer === 'string' 
-        ? quotation.customer 
-        : (quotation.customer?.name || 'Unknown Customer');
+      // Format customer name using helper function
+      const customerName = getCustomerDisplayName(quotation.customer);
       
       // Format status
       let status = quotation.status;
@@ -87,10 +86,8 @@ const QuotationsPage = () => {
       'Terms & Conditions'
     ];
     
-    // Format customer name
-    const customerName = typeof quotation.customer === 'string' 
-      ? quotation.customer 
-      : (quotation.customer?.name || 'Unknown Customer');
+    // Format customer name using helper function
+    const customerName = getCustomerDisplayName(quotation.customer);
     
     // Format status
     let status = quotation.status;
@@ -185,6 +182,56 @@ const QuotationsPage = () => {
   const { showConfirm, showDeleteConfirm } = useConfirmModal();
   const { showError } = useErrorModal();
   
+  // Handle approving quotation (admin only)
+  const handleApproveQuotation = async (quotation) => {
+    if (!quotation) return;
+    
+    try {
+      setLoading(true);
+      
+      // Show confirmation dialog
+      showConfirm({
+        title: 'Approve Quotation',
+        message: `Are you sure you want to approve quotation ${quotation.quotationNumber}?`,
+        confirmText: 'Approve',
+        cancelText: 'Cancel',
+        onConfirm: async () => {
+          try {
+            // Call API to approve quotation
+            const response = await api.quotations.approve(quotation._id);
+            
+            if (response && response.success) {
+              // Refresh quotations list
+              const updatedQuotations = await api.quotations.getAll();
+              if (updatedQuotations && updatedQuotations.success) {
+                setQuotations(updatedQuotations.data || []);
+                // Update localStorage
+                storeInStorage('quotations', updatedQuotations.data || []);
+              }
+              
+              setError(null);
+              
+              // Show success message
+              showSuccess('Quotation successfully approved!');
+            } else {
+              throw new Error(response.message || 'Failed to approve quotation');
+            }
+          } catch (err) {
+            console.error('Error approving quotation:', err);
+            setError(err.message || 'Failed to approve quotation. Please try again.');
+            showError('Failed to approve quotation', err.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Error preparing to approve quotation:', err);
+      setError(err.message || 'An error occurred. Please try again.');
+      setLoading(false);
+    }
+  };
+
   // Handle converting quotation to sale
   const handleConvertToSale = async (quotation) => {
     if (!quotation) return;
@@ -195,8 +242,8 @@ const QuotationsPage = () => {
       // Show confirmation dialog
       showConfirm({
         title: 'Convert to Sale',
-        message: `Are you sure you want to convert quotation ${quotation.quotationNumber} to a sale?`,
-        confirmText: 'Convert',
+        message: `Are you sure you want to update quotation ${quotation.quotationNumber} to delivered?`,
+        confirmText: 'Yes',
         cancelText: 'Cancel',
         onConfirm: async () => {
           try {
@@ -320,17 +367,19 @@ const QuotationsPage = () => {
     }
   }, []);
 
-  // Filter quotations based on active tab, search term, and date filter
+  // Filter quotations based on active tab, search term, date filter, and user role
   const filteredQuotations = quotations.filter(quotation => {
+    // Role-based filtering: users with 'user' role can only see quotations they created
+    const matchesUserRole = user?.role === 'admin' || 
+                           (user?.role === 'user' && quotation.createdBy === user._id);
+    
     const matchesTab = activeTab === 'all' || 
-                      (activeTab === 'pending' && quotation.status === 'draft') ||
-                      (activeTab === 'approved' && quotation.status === 'accepted') ||
+                      (activeTab === 'pending' && (quotation.status === 'draft' || quotation.status === 'pending')) ||
+                      (activeTab === 'approved' && (quotation.status === 'accepted' || quotation.status === 'approved')) ||
                       (activeTab === 'rejected' && quotation.status === 'rejected');
     
     // Handle customer which might be an object or string
-    const customerName = typeof quotation.customer === 'string' 
-      ? quotation.customer 
-      : (quotation.customer?.name || '');
+    const customerName = getCustomerDisplayName(quotation.customer);
       
     const quotationNumber = quotation.quotationNumber || '';
     
@@ -355,7 +404,7 @@ const QuotationsPage = () => {
       matchesDate = quotationDate >= monthAgo && quotationDate <= today;
     }
     
-    return matchesTab && matchesSearch && matchesDate;
+    return matchesUserRole && matchesTab && matchesSearch && matchesDate;
   });
 
   // Calculate total quotation amount
@@ -479,7 +528,6 @@ const QuotationsPage = () => {
                   <div class="flex mb-3">
                     <div>
                       <p class="text-sm"><span class="font-medium">Quotation #:</span> ${selectedQuotation.quotationNumber}</p>
-                      <p class="text-sm"><span class="font-medium">Branch:</span> ${selectedQuotation.branch?.name || 'Main Branch'}</p>
                     </div>
                     <div class="text-right">
                       <p class="text-sm"><span class="font-medium">Date:</span> ${new Date(selectedQuotation.createdAt).toLocaleDateString()}</p>
@@ -567,7 +615,7 @@ const QuotationsPage = () => {
                   <div class="text-center text-gray-600 text-xs mt-4 border-t">
                     <p class="font-medium">Thank you for considering our offer!</p>
                     <p>For inquiries: support@example.com</p>
-                    <p>${selectedQuotation.branch?.name || 'Main Branch'} • ${new Date(selectedQuotation.createdAt).toLocaleDateString()}</p>
+                    <p>${new Date(selectedQuotation.createdAt).toLocaleDateString()}</p>
                     <div class="text-right text-xs text-gray-400">1/1</div>
                   </div>
                 </div>
@@ -635,82 +683,97 @@ const QuotationsPage = () => {
 
       {/* Quotation Summary Cards */}
       <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <div class="bg-white overflow-hidden shadow rounded-lg">
-          <div class="px-4 py-5 sm:p-6">
-            <div class="flex items-center">
-              <div class="flex-shrink-0 bg-primary-100 rounded-md p-3">
-                <svg class="h-6 w-6 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div class="ml-5 w-0 flex-1">
-                <dl>
-                  <dt class="text-sm font-medium text-gray-500 truncate">Total Quotations</dt>
-                  <dd class="text-lg font-medium text-gray-900">{quotations.length}</dd>
-                </dl>
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+              <div class="flex items-center">
+                <div class="flex-shrink-0 bg-primary-100 rounded-md p-3">
+                  <svg class="h-6 w-6 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 truncate">
+                      {user?.role === 'user' ? 'My Quotations' : 'Total Quotations'}
+                    </dt>
+                    <dd class="text-lg font-medium text-gray-900">
+                      {quotations.filter(quotation => 
+                        user?.role === 'admin' || 
+                        (user?.role === 'user' && quotation.createdBy === user._id)
+                      ).length}
+                    </dd>
+                  </dl>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="bg-white overflow-hidden shadow rounded-lg">
-          <div class="px-4 py-5 sm:p-6">
-            <div class="flex items-center">
-              <div class="flex-shrink-0 bg-primary-100 rounded-md p-3">
-                <svg class="h-6 w-6 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div class="ml-5 w-0 flex-1">
-                <dl>
-                  <dt class="text-sm font-medium text-gray-500 truncate">Total Value</dt>
-                  <dd class="text-lg font-medium text-gray-900">${totalQuotationAmount.toFixed(2)}</dd>
-                </dl>
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+              <div class="flex items-center">
+                <div class="flex-shrink-0 bg-primary-100 rounded-md p-3">
+                  <svg class="h-6 w-6 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 truncate">Total Value</dt>
+                    <dd class="text-lg font-medium text-gray-900">${totalQuotationAmount.toFixed(2)}</dd>
+                  </dl>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="bg-white overflow-hidden shadow rounded-lg">
-          <div class="px-4 py-5 sm:p-6">
-            <div class="flex items-center">
-              <div class="flex-shrink-0 bg-green-100 rounded-md p-3">
-                <svg class="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div class="ml-5 w-0 flex-1">
-                <dl>
-                  <dt class="text-sm font-medium text-gray-500 truncate">Approved</dt>
-                  <dd class="text-lg font-medium text-gray-900">
-                    {quotations.filter(quotation => quotation.status === 'accepted').length}
-                  </dd>
-                </dl>
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+              <div class="flex items-center">
+                <div class="flex-shrink-0 bg-green-100 rounded-md p-3">
+                  <svg class="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 truncate">Approved</dt>
+                    <dd class="text-lg font-medium text-gray-900">
+                      {quotations.filter(quotation => 
+                        (quotation.status === 'accepted' || quotation.status === 'approved') && 
+                        (user?.role === 'admin' || 
+                        (user?.role === 'user' && quotation.createdBy === user._id))
+                      ).length}
+                    </dd>
+                  </dl>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="bg-white overflow-hidden shadow rounded-lg">
-          <div class="px-4 py-5 sm:p-6">
-            <div class="flex items-center">
-              <div class="flex-shrink-0 bg-yellow-100 rounded-md p-3">
-                <svg class="h-6 w-6 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div class="ml-5 w-0 flex-1">
-                <dl>
-                  <dt class="text-sm font-medium text-gray-500 truncate">Pending</dt>
-                  <dd class="text-lg font-medium text-gray-900">
-                    {quotations.filter(quotation => quotation.status === 'draft').length}
-                  </dd>
-                </dl>
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+              <div class="flex items-center">
+                <div class="flex-shrink-0 bg-yellow-100 rounded-md p-3">
+                  <svg class="h-6 w-6 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 truncate">Pending</dt>
+                    <dd class="text-lg font-medium text-gray-900">
+                      {quotations.filter(quotation => 
+                        (quotation.status === 'draft' || quotation.status === 'pending') && 
+                        (user?.role === 'admin' || 
+                        (user?.role === 'user' && quotation.createdBy === user._id))
+                      ).length}
+                    </dd>
+                  </dl>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
       {/* Filters and Actions */}
       <div class="bg-white shadow rounded-lg mb-6">
@@ -749,15 +812,18 @@ const QuotationsPage = () => {
 
           {/* Actions */}
           <div class="flex space-x-3">
-            <button 
-              class="btn btn-outline flex items-center"
-              onClick={() => exportAllQuotationsToCSV(filteredQuotations)}
-            >
-              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-              </svg>
-              Export CSV
-            </button>
+            {/* Only show Export CSV button for admin users */}
+            {user?.role === 'admin' && (
+              <button 
+                class="btn btn-outline flex items-center"
+                onClick={() => exportAllQuotationsToCSV(filteredQuotations)}
+              >
+                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                Export CSV
+              </button>
+            )}
             {/* Only show New Quotation button for non-admin users */}
             {hasPermission('quotations-create', user) && (
               <button 
@@ -856,9 +922,7 @@ const QuotationsPage = () => {
                     {quotation.quotationNumber}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {typeof quotation.customer === 'string' 
-                      ? quotation.customer 
-                      : (quotation.customer?.name || 'Unknown Customer')}
+                    {getCustomerDisplayName(quotation.customer)}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     ${(quotation.total || 0).toFixed(2)}
@@ -871,11 +935,13 @@ const QuotationsPage = () => {
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      quotation.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                      quotation.status === 'approved' || quotation.status === 'accepted' || quotation.status === 'completed' ? 'bg-green-100 text-green-800' : 
                       quotation.status === 'rejected' ? 'bg-red-100 text-red-800' : 
                       'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1)}
+                      {quotation.status === 'pending' || quotation.status === 'draft' ? 'Pending' :
+                       quotation.status === 'approved' || quotation.status === 'accepted' ? 'Approved' :
+                       quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1)}
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -894,8 +960,8 @@ const QuotationsPage = () => {
                         View
                       </button>
                       
-                      {/* Edit button only for user role */}
-                      {user && user.role === 'user' && (
+                      {/* Edit button only for user role and when quotation is not approved */}
+                      {user && user.role === 'user' && quotation.status !== 'approved' && (
                         <button 
                           class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                           onClick={() => {
@@ -910,21 +976,34 @@ const QuotationsPage = () => {
                         </button>
                       )}
                       
-                      {/* Show Convert to Sale button only for user role and when quotation is active */}
-                      {user && user.role === 'user' && quotation.status === 'active' && (
+                      {/* Show Approve button only for admin role and when quotation is pending */}
+                      {user && user.role === 'admin' && (quotation.status === 'pending' || quotation.status === 'draft') && (
+                        <button 
+                          class="inline-flex items-center px-2.5 py-1.5 border border-blue-300 shadow-sm text-xs font-medium rounded text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          onClick={() => handleApproveQuotation(quotation)}
+                        >
+                          <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                          </svg>
+                          Approve
+                        </button>
+                      )}
+                      
+                      {/* Show Delivered button only for user role and when quotation is approved */}
+                      {user && user.role === 'user' && quotation.status === 'approved' && (
                         <button 
                           class="inline-flex items-center px-2.5 py-1.5 border border-green-300 shadow-sm text-xs font-medium rounded text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                           onClick={() => handleConvertToSale(quotation)}
                         >
                           <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            <path fill-rule="evenodd" d="M5 12a1 1 0 102 0V6.414l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L5 6.414V12zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" clip-rule="evenodd" />
                           </svg>
-                          Convert to Sale
+                          Delivered
                         </button>
                       )}
                       
-                      {/* Show Reject button only for user role and when quotation is active */}
-                      {user && user.role === 'user' && quotation.status === 'active' && (
+                      {/* Show Reject button only for admin role and when quotation is pending */}
+                      {user && user.role === 'admin' && (quotation.status === 'pending' || quotation.status === 'draft') && (
                         <button 
                           class="inline-flex items-center px-2.5 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                           onClick={() => handleRejectQuotation(quotation)}
@@ -1042,9 +1121,7 @@ const QuotationsPage = () => {
                   <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt className="text-sm font-medium text-gray-500">Customer</dt>
                     <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                      {typeof selectedQuotation.customer === 'string' 
-                        ? selectedQuotation.customer 
-                        : (selectedQuotation.customer?.name || 'Unknown Customer')}
+                      {getCustomerDisplayName(selectedQuotation.customer)}
                     </dd>
                   </div>
                   <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -1289,8 +1366,7 @@ const QuotationsPage = () => {
                             <div class="flex mb-3">
                               <div>
                                 <p class="text-sm"><span class="font-medium">Quotation #:</span> ${selectedQuotation.quotationNumber}</p>
-                                <p class="text-sm"><span class="font-medium">Branch:</span> ${selectedQuotation.branch?.name || 'Main Branch'}</p>
-                              </div>
+                                </div>
                               <div class="text-right">
                                 <p class="text-sm"><span class="font-medium">Date:</span> ${new Date(selectedQuotation.createdAt).toLocaleDateString()}</p>
                                 <p class="text-sm"><span class="font-medium">Valid Until:</span> ${new Date(selectedQuotation.validUntil).toLocaleDateString()}</p>
@@ -1377,7 +1453,7 @@ const QuotationsPage = () => {
                             <div class="text-center text-gray-600 text-xs mt-4 border-t">
                               <p class="font-medium">Thank you for considering our offer!</p>
                               <p>For inquiries: support@example.com</p>
-                              <p>${selectedQuotation.branch?.name || 'Main Branch'} • ${new Date(selectedQuotation.createdAt).toLocaleDateString()}</p>
+                              <p>${new Date(selectedQuotation.createdAt).toLocaleDateString()}</p>
                               <div class="text-right text-xs text-gray-400">1/1</div>
                             </div>
                           </div>
@@ -1415,8 +1491,8 @@ const QuotationsPage = () => {
               >
                 Close
               </button>
-              {/* Edit button only for user role */}
-              {user && user.role === 'user' && (
+              {/* Edit button only for user role and when quotation is not approved */}
+              {user && user.role === 'user' && selectedQuotation.status !== 'approved' && (
                 <button
                   type="button"
                   className="btn btn-primary"

@@ -8,6 +8,7 @@ import SalesReportComponent from '../../components/reports/SalesReportComponent'
 import InventoryReportComponent from '../../components/reports/InventoryReportComponent';
 import PurchaseReportComponent from '../../components/reports/PurchaseReportComponent';
 import CustomerReportComponent from '../../components/reports/CustomerReportComponent';
+import { getCustomerDisplayName } from '../../utils/customerHelpers';
 
 const ReportsPage = () => {
   const [activeReport, setActiveReport] = useState('sales');
@@ -15,31 +16,13 @@ const ReportsPage = () => {
     startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0], // Default to last 30 days
     endDate: new Date().toISOString().split('T')[0] // Today
   });
-  const [branchFilter, setBranchFilter] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
-  const [branches, setBranches] = useState([]);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   
   // Get current user from auth context
   const { user } = useAuth();
-  
-  // Fetch branches for filter
-  useEffect(() => {
-    const fetchBranches = async () => {
-      try {
-        const response = await api.branches.getAll();
-        if (response && response.success) {
-          setBranches(response.data || []);
-        }
-      } catch (err) {
-        console.error('Error fetching branches:', err);
-      }
-    };
-    
-    fetchBranches();
-  }, []);
   
   // Generate report based on active report type and filters
   const generateReport = async () => {
@@ -52,10 +35,6 @@ const ReportsPage = () => {
         startDate: dateRange.startDate,
         endDate: dateRange.endDate
       };
-      
-      if (branchFilter) {
-        queryParams.branch = branchFilter;
-      }
       
       let response;
       
@@ -529,7 +508,6 @@ const ReportsPage = () => {
                 'CUSTOMER REPORT'
               }</h2>
               <p class="text-gray-600">Period: ${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}</p>
-              ${branchFilter ? `<p class="text-gray-600">Branch: ${branches.find(b => b._id === branchFilter)?.name || branchFilter}</p>` : ''}
             </div>
 
             <!-- Report Content -->
@@ -633,7 +611,7 @@ const ReportsPage = () => {
           ${data.sales.map(sale => `
             <tr>
               <td>${new Date(sale.createdAt).toLocaleDateString()}</td>
-              <td>${sale.customer?.name || 'Walk-in Customer'}</td>
+              <td>${getCustomerDisplayName(sale.customer)}</td>
               <td>${sale.items?.length || 0}</td>
               <td class="text-right">$${(sale.total || 0).toFixed(2)}</td>
               <td class="text-center">${sale.paymentMethod || 'N/A'}</td>
@@ -950,7 +928,7 @@ const ReportsPage = () => {
           </div>
           
           {/* Filters */}
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {/* Date Range */}
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
@@ -970,25 +948,6 @@ const ReportsPage = () => {
                 class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
               />
             </div>
-            
-            {/* Branch Filter - Only visible to admin users */}
-            {user && user.role === 'admin' && (
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Branch</label>
-                <select
-                  value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value)}
-                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                >
-                  <option value="">All Branches</option>
-                  {branches.map(branch => (
-                    <option key={branch._id} value={branch._id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
           
           {/* Generate Button */}

@@ -21,7 +21,7 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     customer: '',
     date: new Date().toISOString().split('T')[0], // Today's date
     validUntil: '', // Will be set to 14 days from today by default
-    status: 'active', // Default status is 'active'
+    status: 'pending', // Default status is 'pending'
     items: [],
     notes: '',
     terms: '', // Terms and conditions for the quotation
@@ -95,6 +95,7 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     } else {
       const filtered = customers.filter(customer => 
         customer.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+        customer.contactPerson?.toLowerCase().includes(customerSearch.toLowerCase()) ||
         customer.email?.toLowerCase().includes(customerSearch.toLowerCase()) ||
         customer.phone?.toLowerCase().includes(customerSearch.toLowerCase())
       );
@@ -241,7 +242,7 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     setFormData(prev => ({
       ...prev,
       customer: customer._id,
-      customerName: customer.name
+      customerName: customer.name || customer.contactPerson || 'Unknown Customer'
     }));
     
     // Clear search term and hide results after selection
@@ -503,12 +504,7 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
                         onClick={() => handleCustomerSelect(customer)}
                       >
                         <span>
-                          {customer.name}
-                          {customer.email && (
-                            <span className="ml-1 text-xs text-gray-500">
-                              - {customer.email}
-                            </span>
-                          )}
+                          {customer.name || customer.contactPerson || 'Unknown Customer'}
                         </span>
                         {customer.phone && (
                           <span className="text-gray-600">{customer.phone}</span>
@@ -562,7 +558,8 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
                   onChange={handleChange}
                   className={`${inputClasses} appearance-none pr-10`}
                 >
-                  <option value="active">Active</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
                   <option value="rejected">Rejected</option>
                   <option value="completed">Completed</option>
                 </select>

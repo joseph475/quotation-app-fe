@@ -74,11 +74,6 @@ export const hasPermission = (feature, user) => {
     'suppliers-view': ['admin', 'user'],
     'suppliers-delete': [], // No one can delete
     
-    // Branches - Settings
-    'branches-create': ['admin'],
-    'branches-edit': ['admin'],
-    'branches-view': ['admin', 'user'],
-    'branches-delete': [], // No one can delete
     
     // Reports
     'reports-view': ['admin', 'user'],
@@ -563,6 +558,6 @@ export const RoleProtectedRoute = ({ component: Component, allowedRoles = [], ..
     );
   }
   
-  // Render the component if authorized
-  return hasAccess() ? <Component {...rest} /> : null;
+  // Render the component if authorized, passing user as prop
+  return hasAccess() ? <Component {...rest} user={user} /> : null;
 };
