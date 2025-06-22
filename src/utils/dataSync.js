@@ -20,7 +20,6 @@ export const refreshAllData = async () => {
     const dataTypes = [
       { key: 'customers', apiCall: api.customers.getAll },
       { key: 'suppliers', apiCall: api.suppliers.getAll },
-      { key: 'branches', apiCall: api.branches.getAll },
       { key: 'inventory', apiCall: api.inventory.getAll },
       { key: 'quotations', apiCall: api.quotations.getAll },
       { key: 'purchaseOrders', apiCall: api.purchaseOrders.getAll },
@@ -65,9 +64,6 @@ export const refreshDataType = async (dataType) => {
         break;
       case 'suppliers':
         apiCall = api.suppliers.getAll;
-        break;
-      case 'branches':
-        apiCall = api.branches.getAll;
         break;
       case 'inventory':
         apiCall = api.inventory.getAll;
@@ -300,7 +296,7 @@ export const isDataStale = (dataType, maxAgeMinutes = 30) => {
 export const autoRefreshStaleData = async () => {
   try {
     const dataTypes = [
-      'customers', 'suppliers', 'branches', 'inventory', 
+      'customers', 'suppliers', 'inventory', 
       'quotations', 'purchaseOrders', 'purchaseReceiving', 
       'sales', 'stockTransfers'
     ];

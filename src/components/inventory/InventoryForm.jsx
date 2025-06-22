@@ -6,6 +6,7 @@ import Input from '../common/Input';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 import { getFromStorage } from '../../utils/localStorageHelpers';
+import { getItemStatus, getLowStockThreshold } from '../../utils/lowStockHelpers';
 
 /**
  * InventoryForm component for creating and editing inventory items
@@ -25,9 +26,6 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
   // Available status options
   const statusOptions = ['In Stock', 'Low Stock', 'Out of Stock'];
   
-  // State for branches
-  const [branches, setBranches] = useState([]);
-  const [loadingBranches, setLoadingBranches] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -44,7 +42,6 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
     sellingPrice: 0, // Selling price
     discount: 0, // Discount percentage
     status: 'In Stock', // Default status
-    branch: '', // Will be automatically populated from user's branch
     reorderLevel: 10, // Default reorder level
   });
 
@@ -62,39 +59,8 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
       // Generate a new item code for new items
       generateItemCode();
       
-      // If user has a branch and role is 'user', pre-select their branch
-      if (user && user.role === 'user' && user.branch) {
-        setFormData(prev => ({
-          ...prev,
-          branch: user.branch
-        }));
-      }
     }
     
-  // Fetch branches from local storage or API
-  const fetchBranches = async () => {
-    setLoadingBranches(true);
-    try {
-      // Try to get branches from local storage
-      const storedBranches = getFromStorage('branches');
-      
-      if (storedBranches && Array.isArray(storedBranches)) {
-        setBranches(storedBranches);
-      } else {
-        // Fallback to API if not in local storage
-        const response = await api.branches.getAll();
-        if (response && response.data) {
-          setBranches(response.data);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching branches:', err);
-    } finally {
-      setLoadingBranches(false);
-    }
-  };
-    
-    fetchBranches();
   }, [initialData, user]);
 
   // Generate an item code based on the category and a random number
@@ -116,24 +82,17 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
     }
   }, [formData.category]);
 
-  // Update status based on quantity
+  // Update status based on quantity and unit using new low stock logic
   useEffect(() => {
     const quantity = parseInt(formData.quantity, 10) || 0;
-    let newStatus;
-    
-    if (quantity <= 0) {
-      newStatus = 'Out of Stock';
-    } else if (quantity <= 5) {
-      newStatus = 'Low Stock';
-    } else {
-      newStatus = 'In Stock';
-    }
+    const unit = formData.unit || 'pcs';
+    const newStatus = getItemStatus(quantity, unit);
     
     setFormData(prev => ({
       ...prev,
       status: newStatus,
     }));
-  }, [formData.quantity]);
+  }, [formData.quantity, formData.unit]);
 
   // Handle form field changes
   const handleChange = (e) => {
@@ -182,7 +141,6 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
     if (formData.costPrice < 0) newErrors.costPrice = 'Cost price cannot be negative';
     if (formData.sellingPrice < 0) newErrors.sellingPrice = 'Selling price cannot be negative';
     if (formData.discount < 0 || formData.discount > 100) newErrors.discount = 'Discount must be between 0 and 100';
-    if (!formData.branch) newErrors.branch = 'Branch is required';
     
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -194,14 +152,9 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
   // For existing items: preserve the MongoDB _id field
   const { id, ID, ...dataWithoutClientIds } = formData;
   
-  // Ensure branch is properly formatted (as a string ID, not an object)
-  const branch = typeof formData.branch === 'object' && formData.branch?._id 
-    ? formData.branch._id 
-    : formData.branch;
-  
-  const inventoryData = initialData 
-    ? { ...dataWithoutClientIds, _id: initialData._id, branch } 
-    : { ...dataWithoutClientIds, branch };
+  const inventoryData = initialData
+    ? { ...dataWithoutClientIds, _id: initialData._id }
+    : { ...dataWithoutClientIds };
     
     // Call the save handler
     onSave(inventoryData);
@@ -435,72 +388,17 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
                 )}
               </div>
 
-              {/* Branch */}
-              <div>
-                <label htmlFor="branch" className={labelClasses}>
-                  Branch <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    id="branch"
-                    name="branch"
-                    value={
-                      // Handle different branch formats
-                      typeof formData.branch === 'object' && formData.branch?._id 
-                        ? formData.branch._id 
-                        : formData.branch
-                    }
-                    onChange={handleChange}
-                    className={`${inputClasses} appearance-none pr-10 ${errors.branch ? 'border-red-300' : ''}`}
-                    disabled={loadingBranches || (user && user.role === 'user')}
-                    required
-                  >
-                    <option value="">Select a branch</option>
-                    {branches.map((branch) => (
-                      <option key={branch._id} value={branch._id}>
-                        {branch.name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                    {loadingBranches ? (
-                      <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                    ) : (
-                      <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </div>
-                </div>
-                {errors.branch && (
-                  <p className={errorClasses}>{errors.branch}</p>
-                )}
-                <p className="mt-1 text-xs text-gray-500">
-                  Select the branch or warehouse where this item is located
-                </p>
-              </div>
 
-              {/* Reorder Level */}
+              {/* Low Stock Threshold Display */}
               <div>
-                <label htmlFor="reorderLevel" className={labelClasses}>
-                  Reorder Level
+                <label className={labelClasses}>
+                  Low Stock Threshold
                 </label>
-                <input
-                  type="number"
-                  id="reorderLevel"
-                  name="reorderLevel"
-                  min="0"
-                  step="1"
-                  value={formData.reorderLevel}
-                  onChange={handleChange}
-                  className={inputClasses}
-                  placeholder="Minimum stock level before reordering"
-                />
+                <div className="bg-gray-50 border border-gray-300 rounded-md py-2 px-3 text-sm text-gray-700">
+                  {getLowStockThreshold(formData.unit)} {formData.unit}
+                </div>
                 <p className="mt-1 text-xs text-gray-500">
-                  System will alert when stock falls below this level
+                  Automatically determined based on unit type. System will alert when stock falls below this level.
                 </p>
               </div>
 

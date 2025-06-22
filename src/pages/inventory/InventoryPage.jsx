@@ -1,138 +1,52 @@
-import { h } from 'preact';
+import { h, Fragment } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import { FilterSelect } from '../../components/common';
 import InventoryForm from '../../components/inventory/InventoryForm';
+import AddStockForm from '../../components/inventory/AddStockForm';
 import useAuth from '../../hooks/useAuth';
 import api from '../../services/api';
 import { hasPermission } from '../../utils/pageHelpers';
 import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
+import { getItemStatus } from '../../utils/lowStockHelpers';
+import { createCostHistoryRecord, saveCostHistory } from '../../utils/costHistoryHelpers';
+import { createInventoryHistoryRecord, saveInventoryHistory } from '../../utils/inventoryHistoryHelpers';
+import { useConfirmModal } from '../../contexts/ModalContext';
 
 const InventoryPage = () => {
   // Get user data from auth context
   const { user } = useAuth();
+  const confirmModal = useConfirmModal();
   
-  // State for user's branch
-  const [userBranchName, setUserBranchName] = useState('');
-  const [userBranchId, setUserBranchId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [branchFilter, setBranchFilter] = useState('');
-  
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
-  
-  // State for branches
-  const [branches, setBranches] = useState([]);
-  const [loadingBranches, setLoadingBranches] = useState(false);
 
   // Form state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState(null);
+  
+  // Add Stock modal state
+  const [isAddStockOpen, setIsAddStockOpen] = useState(false);
+  const [stockItem, setStockItem] = useState(null);
 
   // Inventory state
   const [inventoryItems, setInventoryItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Fetch inventory items and branches from local storage or API
+  // Fetch inventory items from local storage or API
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Try to get branches from local storage
-      setLoadingBranches(true);
-      const storedBranches = getFromStorage('branches');
-      
-      if (storedBranches && Array.isArray(storedBranches)) {
-        setBranches(storedBranches);
-        
-        // If user has a branch assigned, find it and set as default filter
-        if (user && user.branch) {
-          // Check if branch is an ObjectId or a string like 'All'
-          if (user.branch === 'All') {
-            // For admin users with 'All' branch
-            setBranchFilter('all');
-            setUserBranchName('All Branches');
-          } else {
-            // For users with a specific branch ID
-            const userBranch = storedBranches.find(branch => {
-              return branch._id === user.branch || branch.name === 'Main Branch';
-            });
-            
-            if (userBranch) {
-              setUserBranchName(userBranch.name);
-              setUserBranchId(userBranch._id);
-              
-              // Always set branch filter to user's branch name
-              setBranchFilter(userBranch.name);
-            } else {
-              // Default to Main Branch if available
-              const mainBranch = storedBranches.find(branch => branch.name === 'Main Branch');
-              if (mainBranch) {
-                setBranchFilter(mainBranch.name);
-                setUserBranchName(mainBranch.name);
-                setUserBranchId(mainBranch._id);
-              }
-            }
-          }
-        } else if (user && user.role === 'admin') {
-          // For admin users without a branch, set to 'all'
-          setBranchFilter('all');
-        }
-      } else {
-        // Fallback to API if not in local storage
-        const branchesResponse = await api.branches.getAll();
-        if (branchesResponse && branchesResponse.data) {
-          setBranches(branchesResponse.data);
-          // If user has a branch assigned, find it and set as default filter
-          if (user && user.branch) {
-            // Check if branch is an ObjectId or a string like 'All'
-            if (user.branch === 'All') {
-              // For admin users with 'All' branch
-              setBranchFilter('all');
-              setUserBranchName('All Branches');
-            } else {
-              // For users with a specific branch ID
-              const userBranch = branchesResponse.data.find(branch => {
-                return branch._id === user.branch || branch.name === 'Main Branch';
-              });
-              
-              if (userBranch) {
-                setUserBranchName(userBranch.name);
-                setUserBranchId(userBranch._id);
-                
-                // Always set branch filter to user's branch name
-                setBranchFilter(userBranch.name);
-              } else {
-                // Default to Main Branch if available
-                const mainBranch = branchesResponse.data.find(branch => branch.name === 'Main Branch');
-                if (mainBranch) {
-                  setBranchFilter(mainBranch.name);
-                  setUserBranchName(mainBranch.name);
-                  setUserBranchId(mainBranch._id);
-                }
-              }
-            }
-          } else if (user && user.role === 'admin') {
-            // For admin users without a branch, set to 'all'
-            setBranchFilter('all');
-          }
-        }
-      }
-      setLoadingBranches(false);
-      
       // Try to get inventory items from local storage
       const storedInventory = getFromStorage('inventory');
       
       if (storedInventory && Array.isArray(storedInventory)) {
-        // Add status field based on quantity
+        // Add status field based on quantity and unit using new low stock logic
         const itemsWithStatus = storedInventory.map(item => {
-          let status = 'In Stock';
-          if (item.quantity <= 0) {
-            status = 'Out of Stock';
-          } else if (item.quantity <= item.reorderLevel) {
-            status = 'Low Stock';
-          }
+          const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
           return { ...item, status };
         });
         
@@ -143,14 +57,9 @@ const InventoryPage = () => {
         const inventoryResponse = await api.inventory.getAll();
         
         if (inventoryResponse && inventoryResponse.success) {
-          // Add status field based on quantity
+          // Add status field based on quantity and unit using new low stock logic
           const itemsWithStatus = (inventoryResponse.data || []).map(item => {
-            let status = 'In Stock';
-            if (item.quantity <= 0) {
-              status = 'Out of Stock';
-            } else if (item.quantity <= item.reorderLevel) {
-              status = 'Low Stock';
-            }
+            const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
             return { ...item, status };
           });
           
@@ -165,14 +74,13 @@ const InventoryPage = () => {
       setError('Failed to load data. Please try again.');
     } finally {
       setLoading(false);
-      setLoadingBranches(false);
     }
   };
   
   // Initial data fetch
   useEffect(() => {
     fetchData();
-  }, [user]); // Add user to dependency array so fetchData is called when user is available
+  }, [user]);
 
   // Available categories for filtering
   const categories = ['all', 'Widgets', 'Components', 'Parts', 'Tools'];
@@ -185,35 +93,7 @@ const InventoryPage = () => {
                            (item.itemCode && item.itemCode.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
       
-      // Branch filtering logic
-      let matchesBranch = false;
-      
-      // If branchFilter is 'all' or empty, show all items
-      if (branchFilter === 'all' || branchFilter === '') {
-        matchesBranch = true;
-      } 
-      // Otherwise, check if the item's branch matches the selected branch
-      else if (item.branch) {
-        // Get the branch name from the item
-        let itemBranchName = '';
-        
-        // Case 1: Branch is an object with name property
-        if (typeof item.branch === 'object' && item.branch.name) {
-          itemBranchName = item.branch.name;
-        } 
-        // Case 2: Branch is an ID, find the corresponding branch name
-        else {
-          const matchingBranch = branches.find(branch => branch._id === item.branch);
-          if (matchingBranch) {
-            itemBranchName = matchingBranch.name;
-          }
-        }
-        
-        // Compare the item's branch name with the selected branch filter
-        matchesBranch = (itemBranchName === branchFilter);
-      }
-      
-      return matchesSearch && matchesCategory && matchesBranch;
+      return matchesSearch && matchesCategory;
     })
     .sort((a, b) => {
       let comparison = 0;
@@ -248,7 +128,6 @@ const InventoryPage = () => {
       'Category',
       'Brand',
       'Model',
-      'Branch',
       'Quantity',
       'Unit',
       'Cost Price',
@@ -258,25 +137,12 @@ const InventoryPage = () => {
     
     // Convert items to CSV rows
     const rows = items.map(item => {
-      let branchName = '';
-      if (item.branch) {
-        if (typeof item.branch === 'object' && item.branch.name) {
-          branchName = item.branch.name;
-        } else {
-          const matchingBranch = branches.find(branch => branch._id === item.branch);
-          if (matchingBranch) {
-            branchName = matchingBranch.name;
-          }
-        }
-      }
-      
       return [
         item.itemCode || '',
         item.name || '',
         item.category || '',
         item.brand || '',
         item.model || '',
-        branchName,
         item.quantity || 0,
         item.unit || '',
         item.costPrice ? `$${item.costPrice.toFixed(2)}` : '$0.00',
@@ -389,18 +255,6 @@ const InventoryPage = () => {
                 optionLabelKey="name"
               />
             </div>
-
-            {/* Branch Filter */}
-            <div>
-              <FilterSelect
-                value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}
-                options={[{ id: 'all', name: 'All Branches' }, ...branches.map(branch => ({ id: branch.name, name: branch.name }))]}
-                optionValueKey="id"
-                optionLabelKey="name"
-                disabled={loadingBranches}
-              />
-            </div>
           </div>
 
           {/* Actions */}
@@ -487,9 +341,6 @@ const InventoryPage = () => {
                     Model
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Branch
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <div class="flex items-center cursor-pointer" onClick={() => handleSort('quantity')}>
                       Stock
                       {getSortIcon('quantity')}
@@ -541,11 +392,6 @@ const InventoryPage = () => {
                       {item.model || '-'}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.branch && typeof item.branch === 'object' && item.branch.name 
-                        ? item.branch.name 
-                        : branches.find(branch => branch._id === item.branch)?.name || '-'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.quantity}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -566,65 +412,95 @@ const InventoryPage = () => {
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div class="flex justify-end space-x-2">
                         {hasPermission('inventory-edit', user) && (
-                          <button 
-                            class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                            onClick={() => {
-                              setCurrentItem(item);
-                              setIsFormOpen(true);
-                            }}
-                          >
-                            <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                            </svg>
-                            Edit
-                          </button>
+                          <>
+                            <button 
+                              class="inline-flex items-center px-2.5 py-1.5 border border-green-300 shadow-sm text-xs font-medium rounded text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                              onClick={() => {
+                                setStockItem(item);
+                                setIsAddStockOpen(true);
+                              }}
+                              title="Add Stock"
+                            >
+                              <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                              </svg>
+                              Stock
+                            </button>
+                            <button 
+                              class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                              onClick={() => {
+                                setCurrentItem(item);
+                                setIsFormOpen(true);
+                              }}
+                            >
+                              <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                              </svg>
+                              Edit
+                            </button>
+                          </>
                         )}
                         {hasPermission('inventory-delete', user) && (
                           <button 
                             class="inline-flex items-center px-2.5 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                            onClick={async () => {
-                              if (confirm(`Are you sure you want to delete ${item.name}?`)) {
-                                try {
-                                  setLoading(true);
-                                  const response = await api.inventory.delete(item._id);
-                                  
-                                  if (response && response.success) {
-                                    // Get updated inventory list
-                                    const updatedInventoryResponse = await api.inventory.getAll();
+                            onClick={() => {
+                              confirmModal.showDeleteConfirm({
+                                itemName: 'inventory item',
+                                itemIdentifier: item.name,
+                                onConfirm: async () => {
+                                  try {
+                                    setLoading(true);
                                     
-                                    if (updatedInventoryResponse && updatedInventoryResponse.success) {
-                                      // Update local storage with new inventory data
-                                      storeInStorage('inventory', updatedInventoryResponse.data || []);
+                                    const deleteHistoryRecord = createInventoryHistoryRecord({
+                                      itemId: item._id,
+                                      itemName: item.name,
+                                      itemCode: item.itemCode,
+                                      operation: 'delete_item',
+                                      beforeData: item,
+                                      afterData: {},
+                                      reason: 'Item deleted by user',
+                                      userId: user?._id || user?.id || 'unknown',
+                                      userName: user?.name || user?.email || 'Unknown User'
+                                    });
+                                    
+                                    // Save inventory history
+                                    saveInventoryHistory(deleteHistoryRecord);
+                                    
+                                    const response = await api.inventory.delete(item._id);
+                                    
+                                    if (response && response.success) {
+                                      // Get updated inventory list
+                                      const updatedInventoryResponse = await api.inventory.getAll();
                                       
-                                      // Add status field based on quantity
-                                      const itemsWithStatus = (updatedInventoryResponse.data || []).map(item => {
-                                        let status = 'In Stock';
-                                        if (item.quantity <= 0) {
-                                          status = 'Out of Stock';
-                                        } else if (item.quantity <= item.reorderLevel) {
-                                          status = 'Low Stock';
-                                        }
-                                        return { ...item, status };
-                                      });
+                                      if (updatedInventoryResponse && updatedInventoryResponse.success) {
+                                        // Update local storage with new inventory data
+                                        storeInStorage('inventory', updatedInventoryResponse.data || []);
+                                        
+                                        // Add status field based on quantity using improved logic
+                                        const itemsWithStatus = (updatedInventoryResponse.data || []).map(item => {
+                                          const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
+                                          return { ...item, status };
+                                        });
+                                        
+                                        // Update state
+                                        setInventoryItems(itemsWithStatus);
+                                      } else {
+                                        // If API call fails, just remove from local state
+                                        setInventoryItems(prev => prev.filter(i => i._id !== item._id));
+                                      }
                                       
-                                      // Update state
-                                      setInventoryItems(itemsWithStatus);
+                                      setError(null);
                                     } else {
-                                      // If API call fails, just remove from local state
-                                      setInventoryItems(prev => prev.filter(i => i._id !== item._id));
+                                      throw new Error(response.message || 'Failed to delete inventory item');
                                     }
-                                    
-                                    setError(null);
-                                  } else {
-                                    throw new Error(response.message || 'Failed to delete inventory item');
+                                  } catch (err) {
+                                    console.error('Error deleting inventory item:', err);
+                                    setError(err.message || 'Failed to delete inventory item. Please try again.');
+                                  } finally {
+                                    setLoading(false);
                                   }
-                                } catch (err) {
-                                  console.error('Error deleting inventory item:', err);
-                                  setError(err.message || 'Failed to delete inventory item. Please try again.');
-                                } finally {
-                                  setLoading(false);
                                 }
-                              }
+                              });
                             }}
                           >
                             <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -660,56 +536,56 @@ const InventoryPage = () => {
             try {
               setLoading(true);
               
-              // Ensure the branch is set to the user's branch
-              const itemWithBranch = {
-                ...itemData,
-                branch: itemData.branch || userBranchId
-              };
-              
               let response;
               if (currentItem) {
-                // Update existing item - use MongoDB's _id
-                response = await api.inventory.update(currentItem._id, itemWithBranch);
+                // Update existing item
+                response = await api.inventory.update(currentItem._id, itemData);
               } else {
-                // Create new item - let MongoDB generate the _id
-                response = await api.inventory.create(itemWithBranch);
+                // Create new item
+                response = await api.inventory.create(itemData);
               }
               
               if (response && response.success) {
-                // Get updated inventory list
-                const updatedInventoryResponse = await api.inventory.getAll();
-                
-                if (updatedInventoryResponse && updatedInventoryResponse.success) {
-                  // Update local storage with new inventory data
-                  storeInStorage('inventory', updatedInventoryResponse.data || []);
-                  
-                  // Add status field based on quantity
-                  const itemsWithStatus = (updatedInventoryResponse.data || []).map(item => {
-                    let status = 'In Stock';
-                    if (item.quantity <= 0) {
-                      status = 'Out of Stock';
-                    } else if (item.quantity <= item.reorderLevel) {
-                      status = 'Low Stock';
-                    }
-                    return { ...item, status };
-                  });
-                  
-                  // Update state
-                  setInventoryItems(itemsWithStatus);
-                } else {
-                  // If API call fails, just refresh data
-                  fetchData();
-                }
-                
+                // Refresh inventory data
+                await fetchData();
+                setIsFormOpen(false);
+                setCurrentItem(null);
                 setError(null);
               } else {
                 throw new Error(response.message || 'Failed to save inventory item');
               }
-              
-              setIsFormOpen(false);
             } catch (err) {
               console.error('Error saving inventory item:', err);
               setError(err.message || 'Failed to save inventory item. Please try again.');
+            } finally {
+              setLoading(false);
+            }
+          }}
+        />
+      </Modal>
+
+      {/* Add Stock Modal */}
+      <Modal
+        isOpen={isAddStockOpen}
+        onClose={() => setIsAddStockOpen(false)}
+        title="Add Stock"
+        size="lg"
+      >
+        <AddStockForm
+          item={stockItem}
+          onCancel={() => setIsAddStockOpen(false)}
+          onSave={async (stockData) => {
+            try {
+              setLoading(true);
+              
+              // Refresh inventory data after adding stock
+              await fetchData();
+              setIsAddStockOpen(false);
+              setStockItem(null);
+              setError(null);
+            } catch (err) {
+              console.error('Error adding stock:', err);
+              setError(err.message || 'Failed to add stock. Please try again.');
             } finally {
               setLoading(false);
             }

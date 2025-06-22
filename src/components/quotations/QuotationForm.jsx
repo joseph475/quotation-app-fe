@@ -19,7 +19,6 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
   const [formData, setFormData] = useState({
     quotationNumber: '',
     customer: '',
-    branch: '',
     date: new Date().toISOString().split('T')[0], // Today's date
     validUntil: '', // Will be set to 14 days from today by default
     status: 'active', // Default status is 'active'
@@ -42,11 +41,9 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
 
   // Data for dropdowns
   const [customers, setCustomers] = useState([]);
-  const [branches, setBranches] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [loading, setLoading] = useState({
     customers: false,
-    branches: false,
     inventory: false,
     form: false
   });
@@ -73,16 +70,12 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     setCustomerSearch(value);
   };
   
-  // Filter inventory items based on search term and user's branch
+  // Filter inventory items based on search term
   useEffect(() => {
-    // First filter by branch if user is not admin
-    let branchFilteredItems = inventoryItems;
-    
-    // Then filter by search term
     if (!inventorySearch) {
-      setFilteredInventory(branchFilteredItems);
+      setFilteredInventory(inventoryItems);
     } else {
-      const filtered = branchFilteredItems.filter(item => 
+      const filtered = inventoryItems.filter(item => 
         item.name?.toLowerCase().includes(inventorySearch.toLowerCase()) ||
         item.itemCode?.toLowerCase().includes(inventorySearch.toLowerCase())
       );
@@ -143,7 +136,7 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
   
   // Get data from local storage
   useEffect(() => {
-    setLoading(prev => ({ ...prev, customers: true, branches: true, inventory: true }));
+    setLoading(prev => ({ ...prev, customers: true, inventory: true }));
     
     try {
       // Get customers from local storage
@@ -152,49 +145,17 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
         setCustomers(storedCustomers);
       }
       
-      // Get branches from local storage
-      const storedBranches = getFromStorage('branches');
-      if (storedBranches && Array.isArray(storedBranches)) {
-        setBranches(storedBranches);
-      }
-      
-      // Get inventory items from local storage and filter by branch if needed
+      // Get inventory items from local storage
       const storedInventory = getFromStorage('inventory');
       if (storedInventory && Array.isArray(storedInventory)) {
-        // If user is not admin, filter inventory by branch
-        if (user && user.role !== 'admin' && user.branch) {
-          const filteredInventory = storedInventory.filter(item => 
-            item.branch === user.branch || 
-            (item.branch && item.branch._id === user.branch)
-          );
-          setInventoryItems(filteredInventory);
-        } else {
-          setInventoryItems(storedInventory);
-        }
+        setInventoryItems(storedInventory);
       }
     } catch (error) {
       console.error('Error getting data from local storage:', error);
     } finally {
-      setLoading(prev => ({ ...prev, customers: false, branches: false, inventory: false }));
+      setLoading(prev => ({ ...prev, customers: false, inventory: false }));
     }
   }, [user]);
-  
-  // Set default branch based on user's branch
-  useEffect(() => {
-    if (user && user.branch && !formData.branch) {
-      // Check if branch is an object with _id or a string ID directly
-      const branchId = typeof user.branch === 'object' ? user.branch._id : user.branch;
-      const branchName = user.branchName || (typeof user.branch === 'object' ? user.branch.name : '');
-      
-      if (branchId) {
-        setFormData(prev => ({
-          ...prev,
-          branch: branchId,
-          branchName: branchName // Store branch name for display
-        }));
-      }
-    }
-  }, [user, branches]);
 
   // Set default valid until date (14 days from today)
   useEffect(() => {
@@ -211,23 +172,10 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
   // Initialize form with data if editing
   useEffect(() => {
     if (initialData) {
-      // Handle branch which might be an object or string ID
-      const branchId = typeof initialData.branch === 'object' && initialData.branch?._id 
-        ? initialData.branch._id 
-        : initialData.branch;
-      
-      const branchName = typeof initialData.branch === 'object' && initialData.branch?.name
-        ? initialData.branch.name
-        : '';
-      
       setFormData({
         ...initialData,
-        branch: branchId, // Ensure branch is set as ID string
-        branchName: branchName, // Store branch name for display
         date: initialData.date || new Date().toISOString().split('T')[0],
       });
-      
-      console.log('Initializing form with branch:', branchId, 'Branch name:', branchName);
     } else {
       // Generate a new quotation number for new quotations
       setFormData(prev => ({
@@ -403,7 +351,6 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     // Validate form
     const newErrors = {};
     if (!formData.customer) newErrors.customer = 'Customer is required';
-    if (!formData.branch) newErrors.branch = 'Branch is required';
     if (!formData.date) newErrors.date = 'Date is required';
     if (formData.items.length === 0) newErrors.items = 'At least one item is required';
     
@@ -435,7 +382,6 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
     const quotationData = {
       quotationNumber: formData.quotationNumber,
       customer: formData.customer,
-      branch: formData.branch,
       date: formData.date,
       validUntil: formData.validUntil,
       status: formData.status,
@@ -580,42 +526,6 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
             
             {errors.customer && (
               <p className={errorClasses}>{errors.customer}</p>
-            )}
-          </div>
-
-          {/* Branch Selection */}
-          <div>
-            <label htmlFor="branch" className={labelClasses}>
-              Branch <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <select
-                id="branch"
-                name="branch"
-                value={formData.branch}
-                onChange={handleChange}
-                className={`${inputClasses} appearance-none pr-10 ${errors.branch ? 'border-red-300' : ''}`}
-                disabled={user && user.role !== 'admin'} // Only admin can change branch
-              >
-                <option value="">Select Branch</option>
-                {branches.length === 0 ? (
-                  <option value="" disabled>No branches available</option>
-                ) : (
-                  branches.map(branch => (
-                    <option key={branch._id} value={branch._id}>
-                      {branch.name}
-                    </option>
-                  ))
-                )}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </div>
-            </div>
-            {errors.branch && (
-              <p className={errorClasses}>{errors.branch}</p>
             )}
           </div>
 
@@ -765,11 +675,6 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
                         >
                           <span>
                             {item.name} {item.itemCode && `(${item.itemCode})`}
-                            {user && user.role === 'admin' && item.branch && (
-                              <span className="ml-1 text-xs text-gray-500">
-                                - {item.branch.name}
-                              </span>
-                            )}
                           </span>
                           <span className="text-primary-600 font-medium">${(item.sellingPrice || 0).toFixed(2)}</span>
                         </li>

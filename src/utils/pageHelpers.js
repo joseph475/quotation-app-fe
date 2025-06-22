@@ -23,10 +23,10 @@ export const hasPermission = (feature, user) => {
     'user-management': ['admin'],
     
     // Inventory management
-    'inventory-create': ['user'],
-    'inventory-edit': ['user'],
+    'inventory-create': ['admin', 'user'],
+    'inventory-edit': ['admin', 'user'],
     'inventory-view': ['admin', 'user'],
-    'inventory-delete': [], // No one can delete
+    'inventory-delete': ['admin'], // Only admin can delete
     
     // Purchase orders
     'purchase-orders-create': ['user'],

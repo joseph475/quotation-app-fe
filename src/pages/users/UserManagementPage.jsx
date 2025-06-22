@@ -14,25 +14,10 @@ const UserManagementPage = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [branches, setBranches] = useState([]);
-
   // Fetch users on component mount
   useEffect(() => {
     fetchUsers();
-    fetchBranches();
   }, []);
-  
-  // Fetch branches from API
-  const fetchBranches = async () => {
-    try {
-      const response = await api.branches.getAll();
-      if (response && response.data) {
-        setBranches(response.data);
-      }
-    } catch (err) {
-      console.error('Error fetching branches:', err);
-    }
-  };
 
   // Fetch users from API
   const fetchUsers = async () => {
@@ -54,8 +39,6 @@ const UserManagementPage = () => {
           phone: user.phone || 'No phone number',
           role: user.role,
           department: user.department || 'No department',
-          branch: user.branch || null,
-          branchName: getBranchName(user.branch),
           isActive: true, // Assuming all users are active by default
         }));
         
@@ -94,9 +77,7 @@ const UserManagementPage = () => {
               name: userData.name,
               email: userData.email,
               phone: userData.phone || 'No phone number',
-              department: userData.department || 'No department',
-              branch: userData.branch || null,
-              branchName: getBranchName(userData.branch)
+              department: userData.department || 'No department'
             } : user
           );
           setUsers(updatedUsers);
@@ -117,8 +98,6 @@ const UserManagementPage = () => {
             phone: response.data.phone || 'No phone number',
             role: response.data.role,
             department: response.data.department || 'No department',
-            branch: response.data.branch || null,
-            branchName: getBranchName(response.data.branch),
             isActive: true,
           };
           setUsers([...users, newUser]);
@@ -149,12 +128,6 @@ const UserManagementPage = () => {
     setError('');
   };
 
-  // Get branch name by ID
-  const getBranchName = (branchId) => {
-    if (!branchId) return 'No branch';
-    const branch = branches.find(b => b._id === branchId);
-    return branch ? branch.name : 'Unknown branch';
-  };
   
   // Handle delete user
   const handleDeleteUser = async (userId) => {
@@ -377,12 +350,6 @@ const UserManagementPage = () => {
                               <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                             </svg>
                             {user.phone || 'No phone number'}
-                          </div>
-                          <div class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                            <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path fill-rule="evenodd" d="M10.496 2.132a1 1 0 00-.992 0l-7 4A1 1 0 003 8v7a1 1 0 100 2h14a1 1 0 100-2V8a1 1 0 00.496-1.868l-7-4zM6 9a1 1 0 00-1 1v3a1 1 0 102 0v-3a1 1 0 00-1-1zm3 1a1 1 0 012 0v3a1 1 0 11-2 0v-3zm5-1a1 1 0 00-1 1v3a1 1 0 102 0v-3a1 1 0 00-1-1z" clip-rule="evenodd" />
-                            </svg>
-                            {user.branchName || 'No branch'}
                           </div>
                         </div>
                       </div>

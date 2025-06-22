@@ -19,7 +19,6 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
   const [formData, setFormData] = useState({
     saleNumber: '',
     customer: '',
-    branch: '',
     date: new Date().toISOString().split('T')[0], // Today's date
     status: 'paid',
     paymentMethod: 'cash',
@@ -42,11 +41,9 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
 
   // Data for dropdowns
   const [customers, setCustomers] = useState([]);
-  const [branches, setBranches] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [loading, setLoading] = useState({
     customers: false,
-    branches: false,
     inventory: false,
     form: false
   });
@@ -73,16 +70,12 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
     setCustomerSearch(value);
   };
   
-  // Filter inventory items based on search term and user's branch
+  // Filter inventory items based on search term
   useEffect(() => {
-    // First filter by branch if user is not admin
-    let branchFilteredItems = inventoryItems;
-    
-    // Then filter by search term
     if (!inventorySearch) {
-      setFilteredInventory(branchFilteredItems);
+      setFilteredInventory(inventoryItems);
     } else {
-      const filtered = branchFilteredItems.filter(item => 
+      const filtered = inventoryItems.filter(item => 
         item.name?.toLowerCase().includes(inventorySearch.toLowerCase()) ||
         item.itemCode?.toLowerCase().includes(inventorySearch.toLowerCase())
       );
@@ -143,7 +136,7 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
   
   // Get data from local storage
   useEffect(() => {
-    setLoading(prev => ({ ...prev, customers: true, branches: true, inventory: true }));
+    setLoading(prev => ({ ...prev, customers: true, inventory: true }));
     
     try {
       // Get customers from local storage
@@ -165,56 +158,15 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
         fetchCustomers();
       }
       
-      // Get branches from local storage
-      const storedBranches = getFromStorage('branches');
-      if (storedBranches && Array.isArray(storedBranches)) {
-        setBranches(storedBranches);
-      } else {
-        // Fallback to API if not in local storage
-        const fetchBranches = async () => {
-          try {
-            const response = await api.branches.getAll();
-            if (response && response.success) {
-              setBranches(response.data || []);
-            } else {
-              console.error('Failed to fetch branches:', response);
-            }
-          } catch (error) {
-            console.error('Error fetching branches:', error);
-          }
-        };
-        fetchBranches();
-      }
-      
-      // Get inventory items from local storage and filter by branch if needed
+      // Get inventory items from local storage
       const storedInventory = getFromStorage('inventory');
       if (storedInventory && Array.isArray(storedInventory)) {
-        // If user is not admin, filter inventory by branch
-        if (user && user.role !== 'admin' && user.branch) {
-          const branchId = typeof user.branch === 'object' ? user.branch._id : user.branch;
-          const filteredInventory = storedInventory.filter(item => {
-            const itemBranchId = typeof item.branch === 'object' ? item.branch._id : item.branch;
-            return itemBranchId === branchId;
-          });
-          setInventoryItems(filteredInventory);
-        } else {
-          setInventoryItems(storedInventory);
-        }
+        setInventoryItems(storedInventory);
       } else {
         // Fallback to API if not in local storage
         const fetchInventory = async () => {
           try {
-            // If user is not admin, filter inventory by branch
-            let response;
-            if (user && user.role === 'admin') {
-              response = await api.inventory.getAll();
-            } else if (user && user.branch) {
-              // For regular users, only show items from their branch
-              response = await api.inventory.getByBranch(user.branch);
-            } else {
-              // Fallback to get all inventory if branch is not available
-              response = await api.inventory.getAll();
-            }
+            const response = await api.inventory.getAll();
             
             if (response && response.success) {
               setInventoryItems(response.data || []);
@@ -228,39 +180,13 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
     } catch (error) {
       console.error('Error getting data from local storage:', error);
     } finally {
-      setLoading(prev => ({ ...prev, customers: false, branches: false, inventory: false }));
+      setLoading(prev => ({ ...prev, customers: false, inventory: false }));
     }
   }, [user]);
-  
-  // Set default branch based on user's branch
-  useEffect(() => {
-    if (user && user.branch && !formData.branch) {
-      // Check if branch is an object with _id or a string ID directly
-      const branchId = typeof user.branch === 'object' ? user.branch._id : user.branch;
-      const branchName = user.branchName || (typeof user.branch === 'object' ? user.branch.name : '');
-      
-      if (branchId) {
-        setFormData(prev => ({
-          ...prev,
-          branch: branchId,
-          branchName: branchName // Store branch name for display
-        }));
-      }
-    }
-  }, [user, branches]);
 
   // Initialize form with data if editing
   useEffect(() => {
     if (initialData) {
-      // Handle branch which might be an object or string ID
-      const branchId = typeof initialData.branch === 'object' && initialData.branch?._id 
-        ? initialData.branch._id 
-        : initialData.branch;
-      
-      const branchName = typeof initialData.branch === 'object' && initialData.branch?.name
-        ? initialData.branch.name
-        : '';
-      
       // Handle customer which might be an object or string ID
       const customerId = typeof initialData.customer === 'object' && initialData.customer?._id
         ? initialData.customer._id
@@ -274,13 +200,8 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
         ...initialData,
         customer: customerId, // Ensure customer is set as ID string
         customerName: customerName, // Store customer name for display
-        branch: branchId, // Ensure branch is set as ID string
-        branchName: branchName, // Store branch name for display
         date: initialData.date || new Date().toISOString().split('T')[0],
       });
-      
-      console.log('Initializing form with branch:', branchId, 'Branch name:', branchName);
-      console.log('Initializing form with customer:', customerId, 'Customer name:', customerName);
     } else {
       // Generate a new sale number for new sales
       setFormData(prev => ({
@@ -479,7 +400,6 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
     // Validate form
     const newErrors = {};
     if (!formData.customer) newErrors.customer = 'Customer is required';
-    if (!formData.branch) newErrors.branch = 'Branch is required';
     if (!formData.date) newErrors.date = 'Date is required';
     if (formData.items.length === 0) newErrors.items = 'At least one item is required';
     
@@ -528,9 +448,7 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
   const inputClasses = "block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-2 px-3 sm:text-sm transition-all duration-200";
   const labelClasses = "block text-sm font-medium text-gray-700 mb-1";
   const errorClasses = "mt-2 text-sm text-red-600";
-  const sectionClasses = "mb-6 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden";
   const cardHeaderClasses = "bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 py-4 px-6";
-
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -686,47 +604,6 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
                 <p className={errorClasses}>{errors.customer}</p>
               )}
             </div>
-
-            {/* Branch Selection */}
-            <div className="flex-1">
-              <label htmlFor="branch" className={labelClasses}>
-                Branch <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <select
-                  id="branch"
-                  name="branch"
-                  value={formData.branch}
-                  onChange={handleChange}
-                  className={`${inputClasses} appearance-none pl-10 pr-10 ${errors.branch ? 'border-red-300 ring-1 ring-red-300' : ''} ${user && user.role !== 'admin' ? 'bg-gray-50' : ''}`}
-                  disabled={user && user.role !== 'admin'} // Only admin can change branch
-                >
-                  <option value="">Select Branch</option>
-                  {branches.length === 0 ? (
-                    <option value="" disabled>No branches available</option>
-                  ) : (
-                    branches.map(branch => (
-                      <option key={branch._id} value={branch._id}>
-                        {branch.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              </div>
-              {errors.branch && (
-                <p className={errorClasses}>{errors.branch}</p>
-              )}
-            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-6">
@@ -862,392 +739,6 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
         </div>
       </Card>
 
-      {/* Items */}
-      <Card 
-        title={
-          <div className="flex items-center">
-            <svg className="h-5 w-5 text-primary-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
-            </svg>
-            <span>Sale Items</span>
-          </div>
-        }
-        headerClassName={cardHeaderClasses}
-        className="shadow-md"
-      >
-        {/* Add Item Form */}
-        <div className="mb-6 p-6 bg-white rounded-lg border border-gray-100 shadow-sm mx-6 mt-6">
-          <h4 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
-            <svg className="h-5 w-5 text-primary-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-            Add Item to Sale
-          </h4>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
-            {/* Inventory Search */}
-            <div id="inventorySearchContainer" className="sm:col-span-6 relative">
-              <label htmlFor="inventorySearch" className={labelClasses}>
-                Search Inventory <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  id="inventorySearch"
-                  placeholder="Search for inventory items..."
-                  value={inventorySearch}
-                  onChange={handleInventorySearch}
-                  className={`${inputClasses} ${itemErrors.inventory ? 'border-red-300 ring-1 ring-red-300' : ''} pl-10 ${currentItem.description ? 'pr-32' : ''}`}
-                  onFocus={() => {
-                    if (inventorySearch) {
-                      setShowInventoryResults(true);
-                    }
-                  }}
-                  onClick={() => {
-                    setShowInventoryResults(true);
-                  }}
-                />
-                {currentItem.description && (
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                    <span className="text-sm text-primary-600 bg-primary-50 px-2 py-1 rounded-full">
-                      {currentItem.description}
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              {/* Search Results */}
-              {showInventoryResults && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
-                  {loading.inventory ? (
-                    <div className="px-4 py-3 text-sm text-gray-500 flex items-center">
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Loading inventory...
-                    </div>
-                  ) : filteredInventory.length > 0 ? (
-                    <ul className="py-1">
-                      {filteredInventory.map(item => (
-                        <li 
-                          key={item._id}
-                          className="px-3 py-2 hover:bg-primary-50 cursor-pointer flex justify-between items-center text-sm transition-colors duration-150"
-                          onClick={() => handleInventorySelect(item)}
-                        >
-                          <div>
-                            <div className="font-medium">{item.name}</div>
-                            <div className="flex items-center text-xs text-gray-500">
-                              {item.itemCode && <span className="mr-2">Code: {item.itemCode}</span>}
-                              {user && user.role === 'admin' && item.branch && (
-                                <span>Branch: {item.branch.name}</span>
-                              )}
-                            </div>
-                          </div>
-                          <span className="text-primary-600 font-medium">${(item.sellingPrice || 0).toFixed(2)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="px-4 py-3 text-sm text-gray-500">
-                      {inventorySearch ? 'No inventory items found.' : 'Type to search inventory'}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {itemErrors.inventory && (
-                <p className={errorClasses}>{itemErrors.inventory}</p>
-              )}
-            </div>
-
-            {/* Description */}
-            <div className="sm:col-span-6">
-              <label htmlFor="description" className={labelClasses}>
-                Description
-              </label>
-              <input
-                type="text"
-                id="description"
-                name="description"
-                placeholder="Item description"
-                value={currentItem.description}
-                onChange={handleItemChange}
-                className={`${inputClasses} ${itemErrors.description ? 'border-red-300' : ''}`}
-              />
-              {itemErrors.description && (
-                <p className={errorClasses}>{itemErrors.description}</p>
-              )}
-            </div>
-
-            <div className="sm:col-span-3">
-              <label htmlFor="quantity" className={labelClasses}>
-                Quantity
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <input
-                  type="number"
-                  id="quantity"
-                  name="quantity"
-                  min="1"
-                  step="1"
-                  value={currentItem.quantity}
-                  onChange={handleItemChange}
-                  className={`${inputClasses} ${itemErrors.quantity ? 'border-red-300 ring-1 ring-red-300' : ''} pl-10`}
-                />
-              </div>
-              {itemErrors.quantity && (
-                <p className={errorClasses}>{itemErrors.quantity}</p>
-              )}
-            </div>
-
-            {/* Unit Price */}
-            <div className="sm:col-span-3">
-              <label htmlFor="unitPrice" className={labelClasses}>
-                Unit Price
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500">$</span>
-                </div>
-                <input
-                  type="number"
-                  id="unitPrice"
-                  name="unitPrice"
-                  min="0"
-                  step="0.01"
-                  value={currentItem.unitPrice}
-                  onChange={handleItemChange}
-                  className={`${inputClasses} ${itemErrors.unitPrice ? 'border-red-300' : ''} pl-7`}
-                />
-              </div>
-              {itemErrors.unitPrice && (
-                <p className={errorClasses}>{itemErrors.unitPrice}</p>
-              )}
-            </div>
-
-            <div className="sm:col-span-3">
-              <label htmlFor="discount" className={labelClasses}>
-                Discount %
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <input
-                  type="number"
-                  id="discount"
-                  name="discount"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={currentItem.discount}
-                  onChange={handleItemChange}
-                  className={`${inputClasses} pl-10`}
-                />
-              </div>
-            </div>
-
-            {/* Tax */}
-            <div className="sm:col-span-3">
-              <label htmlFor="tax" className={labelClasses}>
-                Tax %
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <input
-                  type="number"
-                  id="tax"
-                  name="tax"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={currentItem.tax}
-                  onChange={handleItemChange}
-                  className={`${inputClasses} pl-10`}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Add Button */}
-          <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
-            <div>
-              {currentItem.description && currentItem.unitPrice > 0 && (
-                <p className="text-sm text-gray-600">
-                  Total: <span className="font-medium">${currentItem.total.toFixed(2)}</span>
-                </p>
-              )}
-            </div>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={addItem}
-            >
-              <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Add Item
-            </Button>
-          </div>
-        </div>
-
-        {/* Items Table */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden mx-6 mb-6">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Quantity
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Unit Price
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Discount
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tax
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {formData.items.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="px-6 py-12 text-center text-sm text-gray-500">
-                      <div className="flex flex-col items-center">
-                        <div className="bg-gray-50 rounded-full p-3 mb-4">
-                          <svg className="h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                          </svg>
-                        </div>
-                        <p className="font-medium text-gray-900">No items added to this sale yet</p>
-                        <p className="text-xs mt-1 text-gray-500">Search for inventory items above to add them to this sale</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  formData.items.map((item, index) => (
-                    <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {item.description}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {item.quantity}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        ${parseFloat(item.unitPrice).toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {item.discount > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                            {item.discount}%
-                          </span>
-                        ) : (
-                          <span className="text-gray-500">0%</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {item.tax > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                            {item.tax}%
-                          </span>
-                        ) : (
-                          <span className="text-gray-500">0%</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${parseFloat(item.total).toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button 
-                          className="text-red-600 hover:text-red-900 focus:outline-none"
-                          onClick={() => removeItem(item.id)}
-                        >
-                          <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-              {formData.items.length > 0 && (
-                <tfoot>
-                <tr className="bg-gray-50">
-                  <td colSpan="3" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
-                    Subtotal:
-                  </td>
-                  <td colSpan="2" className="px-6 py-2 text-sm text-gray-700">
-                    ${subtotal.toFixed(2)}
-                  </td>
-                  <td colSpan="2" className="px-6 py-2 text-sm text-gray-500"></td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td colSpan="3" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
-                    Discount:
-                  </td>
-                  <td colSpan="2" className="px-6 py-2 text-sm text-green-600">
-                    -${discountAmount.toFixed(2)}
-                  </td>
-                  <td colSpan="2" className="px-6 py-2 text-sm text-gray-500"></td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td colSpan="3" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
-                    Tax:
-                  </td>
-                  <td colSpan="2" className="px-6 py-2 text-sm text-blue-600">
-                    +${taxAmount.toFixed(2)}
-                  </td>
-                  <td colSpan="2" className="px-6 py-2 text-sm text-gray-500"></td>
-                </tr>
-                <tr className="bg-gray-100 border-t-2 border-gray-200">
-                  <td colSpan="3" className="px-6 py-3 text-right text-base font-bold text-gray-900">
-                    Total:
-                  </td>
-                  <td colSpan="2" className="px-6 py-3 text-base font-bold text-primary-600">
-                    ${totalAmount.toFixed(2)}
-                  </td>
-                  <td colSpan="2" className="px-6 py-3 text-sm text-gray-500"></td>
-                </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-        </div>
-        
-        {/* Error message for items */}
-        {errors.items && (
-          <p className={errorClasses}>{errors.items}</p>
-        )}
-      </Card>
-      
       {/* Form Actions */}
       <div className="flex justify-between items-center sticky bottom-0 bg-white p-4 border-t border-gray-200 shadow-lg rounded-lg z-10">
         <div className="flex items-center">

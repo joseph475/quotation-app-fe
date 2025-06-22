@@ -14,7 +14,6 @@ const SalesPage = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
-  const [branchFilter, setBranchFilter] = useState('');
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -23,7 +22,6 @@ const SalesPage = () => {
   const [createdByUser, setCreatedByUser] = useState(null);
 
   const [sales, setSales] = useState([]);
-  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
@@ -38,30 +36,11 @@ const SalesPage = () => {
       const storedSales = getFromStorage('sales');
       
       if (storedSales && Array.isArray(storedSales)) {
-        // Filter by branch if needed
-        if (branchFilter) {
-          const filteredSales = storedSales.filter(sale => {
-            if (typeof sale.branch === 'string') {
-              return sale.branch === branchFilter;
-            } else if (sale.branch && sale.branch._id) {
-              return sale.branch._id === branchFilter;
-            }
-            return false;
-          });
-          setSales(filteredSales);
-        } else {
-          setSales(storedSales);
-        }
+        setSales(storedSales);
         setError(null);
       } else {
         // Fallback to API if not in local storage
-        // Build query parameters
-        const queryParams = {};
-        if (branchFilter) {
-          queryParams.branch = branchFilter;
-        }
-        
-        const response = await api.sales.getAll(queryParams);
+        const response = await api.sales.getAll();
         
         if (response && response.success) {
           setSales(response.data || []);
@@ -78,37 +57,9 @@ const SalesPage = () => {
     }
   };
   
-  // Fetch branches from local storage or API
-  const fetchBranches = async () => {
-    try {
-      // Try to get branches from local storage
-      const storedBranches = getFromStorage('branches');
-      
-      if (storedBranches && Array.isArray(storedBranches)) {
-        setBranches(storedBranches);
-      } else {
-        // Fallback to API if not in local storage
-        const response = await api.branches.getAll();
-        if (response && response.success) {
-          setBranches(response.data || []);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching branches:', err);
-    }
-  };
-  
-  // Set default branch filter based on user's branch
   useEffect(() => {
-    if (user && user.branch && user.role !== 'admin') {
-      setBranchFilter(user.branch._id);
-    }
-  }, [user]);
-  
-  useEffect(() => {
-    fetchBranches();
     fetchSales();
-  }, [branchFilter]);
+  }, []);
 
   // Get modal contexts
   const { showConfirm, showDeleteConfirm } = useConfirmModal();
@@ -292,23 +243,6 @@ const SalesPage = () => {
               </select>
             </div>
             
-            {/* Branch Filter - Only visible to admin users */}
-            {user && user.role === 'admin' && (
-              <div class="w-48">
-                <select
-                  value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value)}
-                  class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-                >
-                  <option value="">All Branches</option>
-                  {branches.map(branch => (
-                    <option key={branch._id} value={branch._id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
 
           {/* Actions */}
