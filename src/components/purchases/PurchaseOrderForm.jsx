@@ -4,6 +4,7 @@ import Card from '../common/Card';
 import Button from '../common/Button';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
+import { getFromStorage } from '../../utils/localStorageHelpers';
 
 /**
  * PurchaseOrderForm component for creating and editing purchase orders
@@ -61,13 +62,21 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
   const [filteredSuppliers, setFilteredSuppliers] = useState([]);
   const [showSupplierResults, setShowSupplierResults] = useState(false);
 
-  // Fetch suppliers, branches, and inventory items
+  // Fetch suppliers, branches, and inventory items from local storage or API
   useEffect(() => {
     const fetchSuppliers = async () => {
       setLoading(prev => ({ ...prev, suppliers: true }));
       try {
-        const response = await api.suppliers.getAll();
-        setSuppliers(response.data || []);
+        // Try to get suppliers from local storage
+        const storedSuppliers = getFromStorage('suppliers');
+        
+        if (storedSuppliers && Array.isArray(storedSuppliers)) {
+          setSuppliers(storedSuppliers);
+        } else {
+          // Fallback to API if not in local storage
+          const response = await api.suppliers.getAll();
+          setSuppliers(response.data || []);
+        }
       } catch (err) {
         console.error('Error fetching suppliers:', err);
       } finally {
@@ -78,9 +87,17 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
     const fetchBranches = async () => {
       setLoadingBranches(true);
       try {
-        const response = await api.branches.getAll();
-        const branchesData = response.data || [];
-        setBranches(branchesData);
+        // Try to get branches from local storage
+        const storedBranches = getFromStorage('branches');
+        
+        if (storedBranches && Array.isArray(storedBranches)) {
+          setBranches(storedBranches);
+        } else {
+          // Fallback to API if not in local storage
+          const response = await api.branches.getAll();
+          const branchesData = response.data || [];
+          setBranches(branchesData);
+        }
         
         // We'll handle setting the default branch in a separate useEffect
         // that depends on both branches and user data
@@ -91,25 +108,52 @@ const PurchaseOrderForm = ({ initialData, onCancel, onSave }) => {
         setLoadingBranches(false);
       }
     };
+    
     const fetchInventory = async () => {
       setLoading(prev => ({ ...prev, products: true }));
       try {
-        let response;
-        if (user && user.role === 'admin') {
-          response = await api.inventory.getAll();
-        } else if (user && user.branch && user.branch) {
-          response = await api.inventory.getByBranch(user.branch);
-        } else {
-          response = await api.inventory.getAll();
-        }
+        // Try to get inventory items from local storage
+        const storedInventory = getFromStorage('inventory');
         
-        const mappedProducts = (response.data || []).map(item => ({
-          id: item._id,
-          name: item.name,
-          price: item.costPrice,
-          itemCode: item.itemCode
-        }));
-        setProducts(mappedProducts);
+        if (storedInventory && Array.isArray(storedInventory)) {
+          let filteredInventory = storedInventory;
+          
+          // Filter by branch if user is not admin
+          if (user && user.role !== 'admin' && user.branch) {
+            const branchId = typeof user.branch === 'object' ? user.branch._id : user.branch;
+            filteredInventory = storedInventory.filter(item => {
+              const itemBranchId = typeof item.branch === 'object' ? item.branch._id : item.branch;
+              return itemBranchId === branchId;
+            });
+          }
+          
+          const mappedProducts = filteredInventory.map(item => ({
+            id: item._id,
+            name: item.name,
+            price: item.costPrice,
+            itemCode: item.itemCode
+          }));
+          
+          setProducts(mappedProducts);
+        } else {
+          // Fallback to API if not in local storage
+          let response;
+          if (user && user.role === 'admin') {
+            response = await api.inventory.getAll();
+          } else if (user && user.branch) {
+            response = await api.inventory.getByBranch(user.branch);
+          } else {
+            response = await api.inventory.getAll();
+          }
+          
+          const mappedProducts = (response.data || []).map(item => ({
+            id: item._id,
+            name: item.name,
+            price: item.costPrice,
+            itemCode: item.itemCode
+          }));
+          setProducts(mappedProducts);
+        }
       } catch (err) {
         console.error('Error fetching inventory:', err);
       } finally {

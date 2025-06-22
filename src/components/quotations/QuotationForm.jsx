@@ -4,6 +4,7 @@ import Card from '../common/Card';
 import Button from '../common/Button';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
+import { getFromStorage } from '../../utils/localStorageHelpers';
 
 /**
  * QuotationForm component for creating and editing quotations
@@ -140,83 +141,42 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
   // Get current user from auth context
   const { user } = useAuth();
   
-  // Fetch customers, branches, and inventory data
+  // Get data from local storage
   useEffect(() => {
-    const fetchCustomers = async () => {
-      setLoading(prev => ({ ...prev, customers: true }));
-      try {
-        const response = await api.customers.getAll();
-        if (response && response.success) {
-          setCustomers(response.data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching customers:', error);
-      } finally {
-        setLoading(prev => ({ ...prev, customers: false }));
-      }
-    };
+    setLoading(prev => ({ ...prev, customers: true, branches: true, inventory: true }));
     
-  const fetchBranches = async () => {
-    setLoading(prev => ({ ...prev, branches: true }));
     try {
-      const response = await api.branches.getAll();
-      console.log('Branches API response:', response);
-      
-      // More detailed logging to debug the issue
-      if (!response) {
-        console.error('Response is undefined or null');
-      } else {
-        console.log('Response structure:', Object.keys(response));
-        if (response.data) {
-          console.log('Data exists, length:', response.data.length);
-          console.log('First branch (if any):', response.data[0]);
-        } else {
-          console.error('No data property in response');
-        }
+      // Get customers from local storage
+      const storedCustomers = getFromStorage('customers');
+      if (storedCustomers && Array.isArray(storedCustomers)) {
+        setCustomers(storedCustomers);
       }
       
-      if (response && response.success) {
-        setBranches(response.data || []);
-        console.log('Branches set:', response.data);
-      } else {
-        console.error('Failed to fetch branches:', response);
+      // Get branches from local storage
+      const storedBranches = getFromStorage('branches');
+      if (storedBranches && Array.isArray(storedBranches)) {
+        setBranches(storedBranches);
+      }
+      
+      // Get inventory items from local storage and filter by branch if needed
+      const storedInventory = getFromStorage('inventory');
+      if (storedInventory && Array.isArray(storedInventory)) {
+        // If user is not admin, filter inventory by branch
+        if (user && user.role !== 'admin' && user.branch) {
+          const filteredInventory = storedInventory.filter(item => 
+            item.branch === user.branch || 
+            (item.branch && item.branch._id === user.branch)
+          );
+          setInventoryItems(filteredInventory);
+        } else {
+          setInventoryItems(storedInventory);
+        }
       }
     } catch (error) {
-      console.error('Error fetching branches:', error);
+      console.error('Error getting data from local storage:', error);
     } finally {
-      setLoading(prev => ({ ...prev, branches: false }));
+      setLoading(prev => ({ ...prev, customers: false, branches: false, inventory: false }));
     }
-  };
-
-    const fetchInventory = async () => {
-      console.log('aaaa', user);
-      setLoading(prev => ({ ...prev, inventory: true }));
-      try {
-        // If user is not admin, filter inventory by branch
-        let response;
-        if (user && user.role === 'admin') {
-          response = await api.inventory.getAll();
-        } else if (user && user.branch) {
-          // For regular users, only show items from their branch
-          response = await api.inventory.getByBranch(user.branch);
-        } else {
-          // Fallback to get all inventory if branch is not available
-          response = await api.inventory.getAll();
-        }
-        
-        if (response && response.success) {
-          setInventoryItems(response.data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching inventory:', error);
-      } finally {
-        setLoading(prev => ({ ...prev, inventory: false }));
-      }
-    };
-
-    fetchCustomers();
-    fetchBranches();
-    fetchInventory();
   }, [user]);
   
   // Set default branch based on user's branch

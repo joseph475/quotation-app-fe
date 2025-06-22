@@ -1,11 +1,13 @@
 import { h, Fragment } from 'preact';
-import { useState } from 'preact/hooks';
+import { useState, useEffect } from 'preact/hooks';
 import Router from 'preact-router';
 import { getCurrentUrl } from 'preact-router';
 import useAuth from '../hooks/useAuth';
 import { RoleProtectedRoute } from '../utils/pageHelpers';
 import { ModalProvider } from '../contexts/ModalContext';
 import { ApiErrorHandler } from '../services/api';
+import api from '../services/api';
+import { storeInStorage } from '../utils/localStorageHelpers';
 
 // Development mode flag - set to false for production
 const DEV_MODE = false;
@@ -37,7 +39,62 @@ import LoginPage from '../pages/auth/LoginPage';
 
 const AppContent = () => {
   const [currentUrl, setCurrentUrl] = useState(getCurrentUrl());
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const [dataInitialized, setDataInitialized] = useState(false);
+  
+  // Initialize data in local storage when the app loads
+  useEffect(() => {
+    const initializeData = async () => {
+      if (isAuthenticated && !dataInitialized) {
+        try {
+          console.log('Initializing app data...');
+          
+          // Fetch suppliers
+          const suppliersResponse = await api.suppliers.getAll();
+          if (suppliersResponse && suppliersResponse.success) {
+            storeInStorage('suppliers', suppliersResponse.data || []);
+          }
+          
+          // Fetch customers
+          const customersResponse = await api.customers.getAll();
+          if (customersResponse && customersResponse.success) {
+            storeInStorage('customers', customersResponse.data || []);
+          }
+          
+          // Fetch branches
+          const branchesResponse = await api.branches.getAll();
+          if (branchesResponse && branchesResponse.success) {
+            storeInStorage('branches', branchesResponse.data || []);
+          }
+          
+          // Fetch stock transfers
+          const stockTransfersResponse = await api.stockTransfers.getAll();
+          if (stockTransfersResponse && stockTransfersResponse.success) {
+            storeInStorage('stockTransfers', stockTransfersResponse.data || []);
+          }
+          
+          // Fetch inventory
+          const inventoryResponse = await api.inventory.getAll();
+          if (inventoryResponse && inventoryResponse.success) {
+            storeInStorage('inventory', inventoryResponse.data || []);
+          }
+          
+          // Fetch purchase orders
+          const purchaseOrdersResponse = await api.purchaseOrders.getAll();
+          if (purchaseOrdersResponse && purchaseOrdersResponse.success) {
+            storeInStorage('purchaseOrders', purchaseOrdersResponse.data || []);
+          }
+          
+          setDataInitialized(true);
+          console.log('App data initialization complete');
+        } catch (error) {
+          console.error('Error initializing app data:', error);
+        }
+      }
+    };
+    
+    initializeData();
+  }, [isAuthenticated]);
   
   // Check if the current route is an auth route (login, register, etc.)
   const isAuthRoute = currentUrl === '/login';

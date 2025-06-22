@@ -6,6 +6,7 @@ import InventoryForm from '../../components/inventory/InventoryForm';
 import useAuth from '../../hooks/useAuth';
 import api from '../../services/api';
 import { hasPermission } from '../../utils/pageHelpers';
+import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
 
 const InventoryPage = () => {
   // Get user data from auth context
@@ -34,15 +35,17 @@ const InventoryPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Fetch inventory items and branches from API
+  // Fetch inventory items and branches from local storage or API
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch branches first
+      // Try to get branches from local storage
       setLoadingBranches(true);
-      const branchesResponse = await api.branches.getAll();
-      if (branchesResponse && branchesResponse.data) {
-        setBranches(branchesResponse.data);
+      const storedBranches = getFromStorage('branches');
+      
+      if (storedBranches && Array.isArray(storedBranches)) {
+        setBranches(storedBranches);
+        
         // If user has a branch assigned, find it and set as default filter
         if (user && user.branch) {
           // Check if branch is an ObjectId or a string like 'All'
@@ -52,7 +55,7 @@ const InventoryPage = () => {
             setUserBranchName('All Branches');
           } else {
             // For users with a specific branch ID
-            const userBranch = branchesResponse.data.find(branch => {
+            const userBranch = storedBranches.find(branch => {
               return branch._id === user.branch || branch.name === 'Main Branch';
             });
             
@@ -64,7 +67,7 @@ const InventoryPage = () => {
               setBranchFilter(userBranch.name);
             } else {
               // Default to Main Branch if available
-              const mainBranch = branchesResponse.data.find(branch => branch.name === 'Main Branch');
+              const mainBranch = storedBranches.find(branch => branch.name === 'Main Branch');
               if (mainBranch) {
                 setBranchFilter(mainBranch.name);
                 setUserBranchName(mainBranch.name);
@@ -76,15 +79,54 @@ const InventoryPage = () => {
           // For admin users without a branch, set to 'all'
           setBranchFilter('all');
         }
+      } else {
+        // Fallback to API if not in local storage
+        const branchesResponse = await api.branches.getAll();
+        if (branchesResponse && branchesResponse.data) {
+          setBranches(branchesResponse.data);
+          // If user has a branch assigned, find it and set as default filter
+          if (user && user.branch) {
+            // Check if branch is an ObjectId or a string like 'All'
+            if (user.branch === 'All') {
+              // For admin users with 'All' branch
+              setBranchFilter('all');
+              setUserBranchName('All Branches');
+            } else {
+              // For users with a specific branch ID
+              const userBranch = branchesResponse.data.find(branch => {
+                return branch._id === user.branch || branch.name === 'Main Branch';
+              });
+              
+              if (userBranch) {
+                setUserBranchName(userBranch.name);
+                setUserBranchId(userBranch._id);
+                
+                // Always set branch filter to user's branch name
+                setBranchFilter(userBranch.name);
+              } else {
+                // Default to Main Branch if available
+                const mainBranch = branchesResponse.data.find(branch => branch.name === 'Main Branch');
+                if (mainBranch) {
+                  setBranchFilter(mainBranch.name);
+                  setUserBranchName(mainBranch.name);
+                  setUserBranchId(mainBranch._id);
+                }
+              }
+            }
+          } else if (user && user.role === 'admin') {
+            // For admin users without a branch, set to 'all'
+            setBranchFilter('all');
+          }
+        }
       }
       setLoadingBranches(false);
       
-      // Always fetch all inventory items
-      const inventoryResponse = await api.inventory.getAll();
+      // Try to get inventory items from local storage
+      const storedInventory = getFromStorage('inventory');
       
-      if (inventoryResponse && inventoryResponse.success) {
+      if (storedInventory && Array.isArray(storedInventory)) {
         // Add status field based on quantity
-        const itemsWithStatus = (inventoryResponse.data || []).map(item => {
+        const itemsWithStatus = storedInventory.map(item => {
           let status = 'In Stock';
           if (item.quantity <= 0) {
             status = 'Out of Stock';
@@ -97,7 +139,26 @@ const InventoryPage = () => {
         setInventoryItems(itemsWithStatus);
         setError(null);
       } else {
-        throw new Error(inventoryResponse.message || 'Failed to fetch inventory items');
+        // Fallback to API if not in local storage
+        const inventoryResponse = await api.inventory.getAll();
+        
+        if (inventoryResponse && inventoryResponse.success) {
+          // Add status field based on quantity
+          const itemsWithStatus = (inventoryResponse.data || []).map(item => {
+            let status = 'In Stock';
+            if (item.quantity <= 0) {
+              status = 'Out of Stock';
+            } else if (item.quantity <= item.reorderLevel) {
+              status = 'Low Stock';
+            }
+            return { ...item, status };
+          });
+          
+          setInventoryItems(itemsWithStatus);
+          setError(null);
+        } else {
+          throw new Error(inventoryResponse.message || 'Failed to fetch inventory items');
+        }
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -528,8 +589,31 @@ const InventoryPage = () => {
                                   const response = await api.inventory.delete(item._id);
                                   
                                   if (response && response.success) {
-                                    // Remove from local state
-                                    setInventoryItems(prev => prev.filter(i => i._id !== item._id));
+                                    // Get updated inventory list
+                                    const updatedInventoryResponse = await api.inventory.getAll();
+                                    
+                                    if (updatedInventoryResponse && updatedInventoryResponse.success) {
+                                      // Update local storage with new inventory data
+                                      storeInStorage('inventory', updatedInventoryResponse.data || []);
+                                      
+                                      // Add status field based on quantity
+                                      const itemsWithStatus = (updatedInventoryResponse.data || []).map(item => {
+                                        let status = 'In Stock';
+                                        if (item.quantity <= 0) {
+                                          status = 'Out of Stock';
+                                        } else if (item.quantity <= item.reorderLevel) {
+                                          status = 'Low Stock';
+                                        }
+                                        return { ...item, status };
+                                      });
+                                      
+                                      // Update state
+                                      setInventoryItems(itemsWithStatus);
+                                    } else {
+                                      // If API call fails, just remove from local state
+                                      setInventoryItems(prev => prev.filter(i => i._id !== item._id));
+                                    }
+                                    
                                     setError(null);
                                   } else {
                                     throw new Error(response.message || 'Failed to delete inventory item');
@@ -592,8 +676,31 @@ const InventoryPage = () => {
               }
               
               if (response && response.success) {
-                // Refresh inventory list
-                fetchData();
+                // Get updated inventory list
+                const updatedInventoryResponse = await api.inventory.getAll();
+                
+                if (updatedInventoryResponse && updatedInventoryResponse.success) {
+                  // Update local storage with new inventory data
+                  storeInStorage('inventory', updatedInventoryResponse.data || []);
+                  
+                  // Add status field based on quantity
+                  const itemsWithStatus = (updatedInventoryResponse.data || []).map(item => {
+                    let status = 'In Stock';
+                    if (item.quantity <= 0) {
+                      status = 'Out of Stock';
+                    } else if (item.quantity <= item.reorderLevel) {
+                      status = 'Low Stock';
+                    }
+                    return { ...item, status };
+                  });
+                  
+                  // Update state
+                  setInventoryItems(itemsWithStatus);
+                } else {
+                  // If API call fails, just refresh data
+                  fetchData();
+                }
+                
                 setError(null);
               } else {
                 throw new Error(response.message || 'Failed to save inventory item');

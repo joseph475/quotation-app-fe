@@ -2,6 +2,7 @@ import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import SupplierForm from '../../components/suppliers/SupplierForm';
 import api from '../../services/api';
+import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
 
 const SuppliersPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,18 +21,26 @@ const SuppliersPage = () => {
     fetchSuppliers();
   }, []);
 
-  // Fetch suppliers from API
+  // Fetch suppliers from local storage or API
   const fetchSuppliers = async () => {
     setIsLoading(true);
     setError('');
 
     try {
-      const response = await api.suppliers.getAll();
+      // Try to get suppliers from local storage
+      const storedSuppliers = getFromStorage('suppliers');
       
-      if (response && response.success) {
-        setSuppliers(response.data || []);
+      if (storedSuppliers && Array.isArray(storedSuppliers)) {
+        setSuppliers(storedSuppliers);
       } else {
-        throw new Error(response.message || 'Failed to fetch suppliers');
+        // Fallback to API if not in local storage
+        const response = await api.suppliers.getAll();
+        
+        if (response && response.success) {
+          setSuppliers(response.data || []);
+        } else {
+          throw new Error(response.message || 'Failed to fetch suppliers');
+        }
       }
       
       setIsLoading(false);
@@ -60,8 +69,19 @@ const SuppliersPage = () => {
       }
       
       if (response && response.success) {
-        // Refresh suppliers list
-        await fetchSuppliers();
+        // Get updated suppliers list
+        const updatedSuppliersResponse = await api.suppliers.getAll();
+        
+        if (updatedSuppliersResponse && updatedSuppliersResponse.success) {
+          // Update local storage with new suppliers data
+          storeInStorage('suppliers', updatedSuppliersResponse.data || []);
+          
+          // Update state
+          setSuppliers(updatedSuppliersResponse.data || []);
+        } else {
+          // If API call fails, just refresh suppliers
+          await fetchSuppliers();
+        }
         
         setSuccessMessage(selectedSupplier ? 
           'Supplier updated successfully!' : 
@@ -106,8 +126,20 @@ const SuppliersPage = () => {
       const response = await api.suppliers.delete(supplierId);
       
       if (response && response.success) {
-        // Refresh suppliers list
-        await fetchSuppliers();
+        // Get updated suppliers list
+        const updatedSuppliersResponse = await api.suppliers.getAll();
+        
+        if (updatedSuppliersResponse && updatedSuppliersResponse.success) {
+          // Update local storage with new suppliers data
+          storeInStorage('suppliers', updatedSuppliersResponse.data || []);
+          
+          // Update state
+          setSuppliers(updatedSuppliersResponse.data || []);
+        } else {
+          // If API call fails, just refresh suppliers
+          await fetchSuppliers();
+        }
+        
         setSuccessMessage('Supplier deleted successfully!');
       } else {
         throw new Error(response.message || 'Failed to delete supplier');

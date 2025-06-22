@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import { route } from 'preact-router';
 import api from '../services/api';
+import { storeAuthUser, clearAuthUser, initializeAppData } from '../utils/localStorageHelpers';
 
 /**
  * Custom hook for authentication
@@ -51,8 +52,19 @@ const useAuth = () => {
               userData.branchName = 'No branch';
             }
             
+            // Store user data in local storage
+            storeAuthUser(userData);
+            
             setUser(userData);
             setIsAuthenticated(true);
+            
+            // Fetch and store app data upon successful token validation
+            try {
+              await initializeAppData();
+            } catch (dataError) {
+              console.error('Error fetching app data after token validation:', dataError);
+              // Continue even if data fetch fails
+            }
           } else {
             // Token is invalid, remove it
             localStorage.removeItem('authToken');
@@ -119,8 +131,20 @@ const useAuth = () => {
           userData.branchName = 'No branch';
         }
         
+        // Store user data in local storage
+        storeAuthUser(userData);
+        
         setUser(userData);
         setIsAuthenticated(true);
+        
+        // Fetch and store app data upon successful login
+        try {
+          await initializeAppData(true); // Force refresh to get the latest data
+        } catch (dataError) {
+          console.error('Error fetching app data after login:', dataError);
+          // Continue even if data fetch fails
+        }
+        
         setIsLoading(false);
         
         // After successful login, redirect to dashboard
@@ -144,6 +168,9 @@ const useAuth = () => {
   const logout = () => {
     // Clear auth token from localStorage
     localStorage.removeItem('authToken');
+    
+    // Clear auth user from localStorage
+    clearAuthUser();
     
     // Reset user state
     setUser(null);
@@ -199,8 +226,20 @@ const useAuth = () => {
           userDataWithBranch.branchName = 'No branch';
         }
         
+        // Store user data in local storage
+        storeAuthUser(userDataWithBranch);
+        
         setUser(userDataWithBranch);
         setIsAuthenticated(true);
+        
+        // Fetch and store app data upon successful registration
+        try {
+          await initializeAppData(true); // Force refresh to get the latest data
+        } catch (dataError) {
+          console.error('Error fetching app data after registration:', dataError);
+          // Continue even if data fetch fails
+        }
+        
         setIsLoading(false);
         
         return userDataWithBranch;
@@ -247,6 +286,9 @@ const useAuth = () => {
         } else {
           updatedUserData.branchName = 'No branch';
         }
+        
+        // Update user data in local storage
+        storeAuthUser(updatedUserData);
         
         setUser(updatedUserData);
         setIsLoading(false);

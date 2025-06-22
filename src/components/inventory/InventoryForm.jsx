@@ -5,6 +5,7 @@ import Button from '../common/Button';
 import Input from '../common/Input';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
+import { getFromStorage } from '../../utils/localStorageHelpers';
 
 /**
  * InventoryForm component for creating and editing inventory items
@@ -70,13 +71,21 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
       }
     }
     
-  // Fetch branches from API
+  // Fetch branches from local storage or API
   const fetchBranches = async () => {
     setLoadingBranches(true);
     try {
-      const response = await api.branches.getAll();
-      if (response && response.data) {
-        setBranches(response.data);
+      // Try to get branches from local storage
+      const storedBranches = getFromStorage('branches');
+      
+      if (storedBranches && Array.isArray(storedBranches)) {
+        setBranches(storedBranches);
+      } else {
+        // Fallback to API if not in local storage
+        const response = await api.branches.getAll();
+        if (response && response.data) {
+          setBranches(response.data);
+        }
       }
     } catch (err) {
       console.error('Error fetching branches:', err);

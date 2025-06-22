@@ -7,6 +7,8 @@ import api from '../../services/api';
 import { useConfirmModal } from '../../contexts/ModalContext';
 import useAuth from '../../hooks/useAuth';
 import { hasPermission } from '../../utils/pageHelpers';
+import { storeInStorage, getFromStorage } from '../../utils/localStorageHelpers';
+import { syncAfterPurchaseReceiving } from '../../utils/dataSync';
 
 const PurchaseReceivingPage = () => {
   const confirmModal = useConfirmModal();
@@ -145,6 +147,9 @@ const PurchaseReceivingPage = () => {
             // Update purchase order status to Completed
             if (po.status !== 'Completed') {
               await api.purchaseOrders.updateStatus(poId, 'Completed');
+              
+              // Use the new data synchronization system
+              await syncAfterPurchaseReceiving(poId, response.data);
             }
           }
         }

@@ -4,6 +4,7 @@ import { route } from 'preact-router';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 import BranchForm from '../../components/branches/BranchForm';
+import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
 
 const BranchesPage = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -26,15 +27,25 @@ const BranchesPage = () => {
   const fetchBranches = async () => {
     try {
       setLoading(true);
-      const response = await api.branches.getAll();
       
-      // Check if response has the expected structure
-      if (response && response.data) {
-        setBranches(response.data);
+      // Try to get branches from local storage
+      const storedBranches = getFromStorage('branches');
+      
+      if (storedBranches && Array.isArray(storedBranches)) {
+        setBranches(storedBranches);
         setError(null);
       } else {
-        console.error('Unexpected response format:', response);
-        setError('Received unexpected data format from server.');
+        // Fallback to API if not in local storage
+        const response = await api.branches.getAll();
+        
+        // Check if response has the expected structure
+        if (response && response.data) {
+          setBranches(response.data);
+          setError(null);
+        } else {
+          console.error('Unexpected response format:', response);
+          setError('Received unexpected data format from server.');
+        }
       }
     } catch (err) {
       setError('Failed to fetch branches. Please try again later.');
@@ -62,8 +73,25 @@ const BranchesPage = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this branch?')) {
       try {
-        await api.branches.delete(id);
-        fetchBranches();
+        const response = await api.branches.delete(id);
+        
+        if (response && response.success) {
+          // Get updated branches list
+          const updatedBranchesResponse = await api.branches.getAll();
+          
+          if (updatedBranchesResponse && updatedBranchesResponse.success) {
+            // Update local storage with new branches data
+            storeInStorage('branches', updatedBranchesResponse.data || []);
+            
+            // Update state
+            setBranches(updatedBranchesResponse.data || []);
+          } else {
+            // If API call fails, just refresh branches
+            fetchBranches();
+          }
+        } else {
+          throw new Error(response?.message || 'Failed to delete branch');
+        }
       } catch (err) {
         setError('Failed to delete branch. Please try again later.');
         console.error('Error deleting branch:', err);
@@ -77,8 +105,21 @@ const BranchesPage = () => {
         // Update existing branch
         const response = await api.branches.update(currentBranch._id, formData);
         if (response && response.success) {
+          // Get updated branches list
+          const updatedBranchesResponse = await api.branches.getAll();
+          
+          if (updatedBranchesResponse && updatedBranchesResponse.success) {
+            // Update local storage with new branches data
+            storeInStorage('branches', updatedBranchesResponse.data || []);
+            
+            // Update state
+            setBranches(updatedBranchesResponse.data || []);
+          } else {
+            // If API call fails, just refresh branches
+            fetchBranches();
+          }
+          
           setIsModalOpen(false);
-          fetchBranches();
           return { success: true };
         } else {
           return { error: response?.message || 'Failed to update branch' };
@@ -90,8 +131,21 @@ const BranchesPage = () => {
         console.log('Create branch response:', response);
         
         if (response && response.success) {
+          // Get updated branches list
+          const updatedBranchesResponse = await api.branches.getAll();
+          
+          if (updatedBranchesResponse && updatedBranchesResponse.success) {
+            // Update local storage with new branches data
+            storeInStorage('branches', updatedBranchesResponse.data || []);
+            
+            // Update state
+            setBranches(updatedBranchesResponse.data || []);
+          } else {
+            // If API call fails, just refresh branches
+            fetchBranches();
+          }
+          
           setIsModalOpen(false);
-          fetchBranches();
           return { success: true };
         } else {
           return { error: response?.message || 'Failed to create branch' };

@@ -4,6 +4,7 @@ import Card from '../common/Card';
 import Button from '../common/Button';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
+import { getFromStorage } from '../../utils/localStorageHelpers';
 
 /**
  * SaleForm component for creating and editing sales
@@ -140,83 +141,95 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
   // Get current user from auth context
   const { user } = useAuth();
   
-  // Fetch customers, branches, and inventory data
+  // Get data from local storage
   useEffect(() => {
-    const fetchCustomers = async () => {
-      setLoading(prev => ({ ...prev, customers: true }));
-      try {
-        const response = await api.customers.getAll();
-        if (response && response.success) {
-          setCustomers(response.data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching customers:', error);
-      } finally {
-        setLoading(prev => ({ ...prev, customers: false }));
-      }
-    };
+    setLoading(prev => ({ ...prev, customers: true, branches: true, inventory: true }));
     
-  const fetchBranches = async () => {
-    setLoading(prev => ({ ...prev, branches: true }));
     try {
-      const response = await api.branches.getAll();
-      console.log('Branches API response:', response);
-      
-      // More detailed logging to debug the issue
-      if (!response) {
-        console.error('Response is undefined or null');
+      // Get customers from local storage
+      const storedCustomers = getFromStorage('customers');
+      if (storedCustomers && Array.isArray(storedCustomers)) {
+        setCustomers(storedCustomers);
       } else {
-        console.log('Response structure:', Object.keys(response));
-        if (response.data) {
-          console.log('Data exists, length:', response.data.length);
-          console.log('First branch (if any):', response.data[0]);
-        } else {
-          console.error('No data property in response');
-        }
+        // Fallback to API if not in local storage
+        const fetchCustomers = async () => {
+          try {
+            const response = await api.customers.getAll();
+            if (response && response.success) {
+              setCustomers(response.data || []);
+            }
+          } catch (error) {
+            console.error('Error fetching customers:', error);
+          }
+        };
+        fetchCustomers();
       }
       
-      if (response && response.success) {
-        setBranches(response.data || []);
-        console.log('Branches set:', response.data);
+      // Get branches from local storage
+      const storedBranches = getFromStorage('branches');
+      if (storedBranches && Array.isArray(storedBranches)) {
+        setBranches(storedBranches);
       } else {
-        console.error('Failed to fetch branches:', response);
+        // Fallback to API if not in local storage
+        const fetchBranches = async () => {
+          try {
+            const response = await api.branches.getAll();
+            if (response && response.success) {
+              setBranches(response.data || []);
+            } else {
+              console.error('Failed to fetch branches:', response);
+            }
+          } catch (error) {
+            console.error('Error fetching branches:', error);
+          }
+        };
+        fetchBranches();
+      }
+      
+      // Get inventory items from local storage and filter by branch if needed
+      const storedInventory = getFromStorage('inventory');
+      if (storedInventory && Array.isArray(storedInventory)) {
+        // If user is not admin, filter inventory by branch
+        if (user && user.role !== 'admin' && user.branch) {
+          const branchId = typeof user.branch === 'object' ? user.branch._id : user.branch;
+          const filteredInventory = storedInventory.filter(item => {
+            const itemBranchId = typeof item.branch === 'object' ? item.branch._id : item.branch;
+            return itemBranchId === branchId;
+          });
+          setInventoryItems(filteredInventory);
+        } else {
+          setInventoryItems(storedInventory);
+        }
+      } else {
+        // Fallback to API if not in local storage
+        const fetchInventory = async () => {
+          try {
+            // If user is not admin, filter inventory by branch
+            let response;
+            if (user && user.role === 'admin') {
+              response = await api.inventory.getAll();
+            } else if (user && user.branch) {
+              // For regular users, only show items from their branch
+              response = await api.inventory.getByBranch(user.branch);
+            } else {
+              // Fallback to get all inventory if branch is not available
+              response = await api.inventory.getAll();
+            }
+            
+            if (response && response.success) {
+              setInventoryItems(response.data || []);
+            }
+          } catch (error) {
+            console.error('Error fetching inventory:', error);
+          }
+        };
+        fetchInventory();
       }
     } catch (error) {
-      console.error('Error fetching branches:', error);
+      console.error('Error getting data from local storage:', error);
     } finally {
-      setLoading(prev => ({ ...prev, branches: false }));
+      setLoading(prev => ({ ...prev, customers: false, branches: false, inventory: false }));
     }
-  };
-
-    const fetchInventory = async () => {
-      console.log('aaaa', user);
-      setLoading(prev => ({ ...prev, inventory: true }));
-      try {
-        // If user is not admin, filter inventory by branch
-        let response;
-        if (user && user.role === 'admin') {
-          response = await api.inventory.getAll();
-        } else if (user && user.branch) {
-          // For regular users, only show items from their branch
-          response = await api.inventory.getByBranch(user.branch);
-        } else {
-          // Fallback to get all inventory if branch is not available
-          response = await api.inventory.getAll();
-        }
-        
-        if (response && response.success) {
-          setInventoryItems(response.data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching inventory:', error);
-      } finally {
-        setLoading(prev => ({ ...prev, inventory: false }));
-      }
-    };
-
-    fetchCustomers();
-    fetchBranches();
-    fetchInventory();
   }, [user]);
   
   // Set default branch based on user's branch
@@ -248,14 +261,26 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
         ? initialData.branch.name
         : '';
       
+      // Handle customer which might be an object or string ID
+      const customerId = typeof initialData.customer === 'object' && initialData.customer?._id
+        ? initialData.customer._id
+        : initialData.customer;
+      
+      const customerName = typeof initialData.customer === 'object' && initialData.customer?.name
+        ? initialData.customer.name
+        : '';
+      
       setFormData({
         ...initialData,
+        customer: customerId, // Ensure customer is set as ID string
+        customerName: customerName, // Store customer name for display
         branch: branchId, // Ensure branch is set as ID string
         branchName: branchName, // Store branch name for display
         date: initialData.date || new Date().toISOString().split('T')[0],
       });
       
       console.log('Initializing form with branch:', branchId, 'Branch name:', branchName);
+      console.log('Initializing form with customer:', customerId, 'Customer name:', customerName);
     } else {
       // Generate a new sale number for new sales
       setFormData(prev => ({

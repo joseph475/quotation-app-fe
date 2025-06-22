@@ -3,6 +3,7 @@ import { useState, useEffect } from 'preact/hooks';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import api from '../../services/api';
+import { getFromStorage } from '../../utils/localStorageHelpers';
 
 /**
  * StockTransferForm component for transferring stock between branches
@@ -37,30 +38,55 @@ const StockTransferForm = ({ inventoryItems, onCancel, onTransfer }) => {
   // Selected item details
   const [selectedItem, setSelectedItem] = useState(null);
   
-  // Fetch branches from API
+  // Fetch branches from local storage or API
   useEffect(() => {
     const fetchBranches = async () => {
       setLoadingBranches(true);
       try {
-        const response = await api.branches.getAll();
-        if (response && response.data && response.data.length > 0) {
-          setBranches(response.data);
+        // Try to get branches from local storage
+        const storedBranches = getFromStorage('branches');
+        
+        if (storedBranches && Array.isArray(storedBranches) && storedBranches.length > 0) {
+          setBranches(storedBranches);
           
           // Set default values for fromBranch and toBranch
-          if (response.data.length >= 2) {
+          if (storedBranches.length >= 2) {
             setFormData(prev => ({
               ...prev,
-              fromBranch: response.data[0].name,
-              fromBranchId: response.data[0]._id,
-              toBranch: response.data[1].name,
-              toBranchId: response.data[1]._id
+              fromBranch: storedBranches[0].name,
+              fromBranchId: storedBranches[0]._id,
+              toBranch: storedBranches[1].name,
+              toBranchId: storedBranches[1]._id
             }));
-          } else if (response.data.length === 1) {
+          } else if (storedBranches.length === 1) {
             setFormData(prev => ({
               ...prev,
-              fromBranch: response.data[0].name,
-              fromBranchId: response.data[0]._id
+              fromBranch: storedBranches[0].name,
+              fromBranchId: storedBranches[0]._id
             }));
+          }
+        } else {
+          // Fallback to API if not in local storage
+          const response = await api.branches.getAll();
+          if (response && response.data && response.data.length > 0) {
+            setBranches(response.data);
+            
+            // Set default values for fromBranch and toBranch
+            if (response.data.length >= 2) {
+              setFormData(prev => ({
+                ...prev,
+                fromBranch: response.data[0].name,
+                fromBranchId: response.data[0]._id,
+                toBranch: response.data[1].name,
+                toBranchId: response.data[1]._id
+              }));
+            } else if (response.data.length === 1) {
+              setFormData(prev => ({
+                ...prev,
+                fromBranch: response.data[0].name,
+                fromBranchId: response.data[0]._id
+              }));
+            }
           }
         }
       } catch (err) {

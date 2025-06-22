@@ -7,6 +7,8 @@ import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 import { hasPermission } from '../../utils/pageHelpers';
+import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
+import { syncAfterQuotationConversion } from '../../utils/dataSync';
 
 const QuotationsPage = () => {
   // Export all filtered quotations to CSV
@@ -202,9 +204,17 @@ const QuotationsPage = () => {
             const response = await api.quotations.convertToSale(quotation._id);
             
             if (response && response.success) {
-              // Refresh quotations list
+              // Use the new data synchronization system
+              await syncAfterQuotationConversion(quotation._id, response.data);
+              
+              // Refresh local quotations data
               const updatedQuotations = await api.quotations.getAll();
-              setQuotations(updatedQuotations.data || []);
+              if (updatedQuotations && updatedQuotations.success) {
+                setQuotations(updatedQuotations.data || []);
+                // Update localStorage
+                storeInStorage('quotations', updatedQuotations.data || []);
+              }
+              
               setError(null);
               
               // Show success message
@@ -273,28 +283,41 @@ const QuotationsPage = () => {
     }
   };
   
-  // Fetch quotations from API
+  // Get quotations from local storage
   useEffect(() => {
-    const fetchQuotations = async () => {
-      setLoading(true);
-      try {
-        const response = await api.quotations.getAll();
+    setLoading(true);
+    try {
+      // Get quotations from local storage
+      const storedQuotations = getFromStorage('quotations');
+      if (storedQuotations && Array.isArray(storedQuotations)) {
+        setQuotations(storedQuotations);
+        setError(null);
+      } else {
+        // Fallback to API if not in local storage
+        const fetchQuotations = async () => {
+          try {
+            const response = await api.quotations.getAll();
+            
+            if (response && response.success) {
+              setQuotations(response.data || []);
+              setError(null);
+            } else {
+              throw new Error(response.message || 'Failed to fetch quotations');
+            }
+          } catch (err) {
+            console.error('Error fetching quotations:', err);
+            setError('Failed to load quotations. Please try again.');
+          }
+        };
         
-        if (response && response.success) {
-          setQuotations(response.data || []);
-          setError(null);
-        } else {
-          throw new Error(response.message || 'Failed to fetch quotations');
-        }
-      } catch (err) {
-        console.error('Error fetching quotations:', err);
-        setError('Failed to load quotations. Please try again.');
-      } finally {
-        setLoading(false);
+        fetchQuotations();
       }
-    };
-    
-    fetchQuotations();
+    } catch (err) {
+      console.error('Error getting quotations from storage:', err);
+      setError('Failed to load quotations. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   // Filter quotations based on active tab, search term, and date filter
@@ -975,6 +998,11 @@ const QuotationsPage = () => {
               if (response && response.success) {
                 // Refresh quotations list
                 const updatedQuotations = await api.quotations.getAll();
+                
+                // Update local storage
+                storeInStorage('quotations', updatedQuotations.data || []);
+                
+                // Update state
                 setQuotations(updatedQuotations.data || []);
                 setError(null);
                 setIsFormModalOpen(false);
@@ -1424,6 +1452,11 @@ const QuotationsPage = () => {
                 if (response && response.success) {
                   // Refresh quotations list
                   const updatedQuotations = await api.quotations.getAll();
+                  
+                  // Update local storage
+                  storeInStorage('quotations', updatedQuotations.data || []);
+                  
+                  // Update state
                   setQuotations(updatedQuotations.data || []);
                   setError(null);
                   setIsEditModalOpen(false);

@@ -6,6 +6,7 @@ import StockTransferForm from '../../components/inventory/StockTransferForm';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 import { hasPermission } from '../../utils/pageHelpers';
+import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
 
 const StockTransferPage = () => {
   const { user } = useAuth();
@@ -28,32 +29,50 @@ const StockTransferPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Fetch inventory items, stock transfers, and branches from API
+  // Fetch inventory items, stock transfers, and branches from local storage or API
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch inventory items
-        const inventoryResponse = await api.inventory.getAll();
-        if (inventoryResponse && inventoryResponse.success) {
-          setInventoryItems(inventoryResponse.data || []);
+        // Try to get inventory items from local storage
+        const storedInventory = getFromStorage('inventory');
+        if (storedInventory && Array.isArray(storedInventory)) {
+          setInventoryItems(storedInventory);
         } else {
-          throw new Error('Failed to fetch inventory items');
+          // Fallback to API if not in local storage
+          const inventoryResponse = await api.inventory.getAll();
+          if (inventoryResponse && inventoryResponse.success) {
+            setInventoryItems(inventoryResponse.data || []);
+          } else {
+            throw new Error('Failed to fetch inventory items');
+          }
         }
         
-        // Fetch stock transfers
-        const transfersResponse = await api.stockTransfers.getAll();
-        if (transfersResponse && transfersResponse.success) {
-          setTransferHistory(transfersResponse.data || []);
+        // Try to get stock transfers from local storage
+        const storedTransfers = getFromStorage('stockTransfers');
+        if (storedTransfers && Array.isArray(storedTransfers)) {
+          setTransferHistory(storedTransfers);
         } else {
-          throw new Error('Failed to fetch stock transfers');
+          // Fallback to API if not in local storage
+          const transfersResponse = await api.stockTransfers.getAll();
+          if (transfersResponse && transfersResponse.success) {
+            setTransferHistory(transfersResponse.data || []);
+          } else {
+            throw new Error('Failed to fetch stock transfers');
+          }
         }
         
-        // Fetch branches
+        // Try to get branches from local storage
         setLoadingBranches(true);
-        const branchesResponse = await api.branches.getAll();
-        if (branchesResponse && branchesResponse.data) {
-          setBranches(branchesResponse.data);
+        const storedBranches = getFromStorage('branches');
+        if (storedBranches && Array.isArray(storedBranches)) {
+          setBranches(storedBranches);
+        } else {
+          // Fallback to API if not in local storage
+          const branchesResponse = await api.branches.getAll();
+          if (branchesResponse && branchesResponse.data) {
+            setBranches(branchesResponse.data);
+          }
         }
         
         setError(null);
@@ -135,10 +154,22 @@ const StockTransferPage = () => {
       const response = await api.stockTransfers.updateStatus(transferId, newStatus);
       
       if (response && response.success) {
-        // Update in local state
-        setTransferHistory(prev => 
-          prev.map(transfer => transfer._id === transferId ? { ...transfer, status: newStatus } : transfer)
-        );
+        // Get updated stock transfers
+        const updatedTransfersResponse = await api.stockTransfers.getAll();
+        
+        if (updatedTransfersResponse && updatedTransfersResponse.success) {
+          // Update local storage with new stock transfers data
+          storeInStorage('stockTransfers', updatedTransfersResponse.data || []);
+          
+          // Update state
+          setTransferHistory(updatedTransfersResponse.data || []);
+        } else {
+          // If API call fails, just update in local state
+          setTransferHistory(prev => 
+            prev.map(transfer => transfer._id === transferId ? { ...transfer, status: newStatus } : transfer)
+          );
+        }
+        
         setError(null);
       } else {
         throw new Error('Failed to update stock transfer status');
@@ -194,6 +225,10 @@ const StockTransferPage = () => {
           console.log('Transfer history response:', transfersResponse);
           
           if (transfersResponse && transfersResponse.success) {
+            // Update local storage with new stock transfers data
+            storeInStorage('stockTransfers', transfersResponse.data || []);
+            
+            // Update state
             setTransferHistory(transfersResponse.data || []);
             console.log('Transfer history updated with', transfersResponse.data?.length || 0, 'items');
           }
@@ -204,6 +239,10 @@ const StockTransferPage = () => {
           console.log('Inventory response:', inventoryResponse);
           
           if (inventoryResponse && inventoryResponse.success) {
+            // Update local storage with new inventory data
+            storeInStorage('inventory', inventoryResponse.data || []);
+            
+            // Update state
             setInventoryItems(inventoryResponse.data || []);
             console.log('Inventory items updated with', inventoryResponse.data?.length || 0, 'items');
           }

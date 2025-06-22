@@ -4,6 +4,7 @@ import Card from '../common/Card';
 import Button from '../common/Button';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
+import { getFromStorage } from '../../utils/localStorageHelpers';
 
 /**
  * PurchaseReceivingForm component for receiving items from purchase orders
@@ -26,18 +27,31 @@ const PurchaseReceivingForm = ({ initialData, onCancel, onSave }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Fetch purchase orders
+  // Fetch purchase orders from local storage or API
   useEffect(() => {
     const fetchPurchaseOrders = async () => {
       setLoading(true);
       try {
-        const response = await api.purchaseOrders.getAll();
-        // Filter only approved purchase orders that can be received
-        const approvedPOs = (response.data || []).filter(po => 
-          po.status === 'Approved' || po.status === 'Partial'
-        );
-        setPurchaseOrders(approvedPOs);
-        setError(null);
+        // Try to get purchase orders from local storage
+        const storedPurchaseOrders = getFromStorage('purchaseOrders');
+        
+        if (storedPurchaseOrders && Array.isArray(storedPurchaseOrders)) {
+          // Filter only approved purchase orders that can be received
+          const approvedPOs = storedPurchaseOrders.filter(po => 
+            po.status === 'Approved' || po.status === 'Partial'
+          );
+          setPurchaseOrders(approvedPOs);
+          setError(null);
+        } else {
+          // Fallback to API if not in local storage
+          const response = await api.purchaseOrders.getAll();
+          // Filter only approved purchase orders that can be received
+          const approvedPOs = (response.data || []).filter(po => 
+            po.status === 'Approved' || po.status === 'Partial'
+          );
+          setPurchaseOrders(approvedPOs);
+          setError(null);
+        }
       } catch (err) {
         console.error('Error fetching purchase orders:', err);
         setError('Failed to load purchase orders');

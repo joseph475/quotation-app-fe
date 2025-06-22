@@ -4,6 +4,7 @@ import CustomerForm from '../../components/customers/CustomerForm';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 import { hasPermission } from '../../utils/pageHelpers';
+import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
 
 const CustomersPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,24 +21,25 @@ const CustomersPage = () => {
   const [sales, setSales] = useState([]);
   const [customerTotals, setCustomerTotals] = useState({});
 
-  // Fetch customers and sales on component mount
+  // Fetch customers and sales from local storage on component mount
   useEffect(() => {
-    fetchCustomers();
-    fetchSales();
+    fetchCustomersFromStorage();
+    fetchSalesFromStorage();
   }, []);
 
-  // Fetch sales from API
-  const fetchSales = async () => {
+  // Fetch sales from local storage or API
+  const fetchSalesFromStorage = async () => {
     setIsLoading(true);
     try {
-      const response = await api.sales.getAll();
+      // Try to get sales from local storage
+      const storedSales = getFromStorage('sales');
       
-      if (response && response.success) {
-        setSales(response.data || []);
+      if (storedSales && Array.isArray(storedSales)) {
+        setSales(storedSales);
         
         // Calculate total purchases for each customer
         const totals = {};
-        response.data.forEach(sale => {
+        storedSales.forEach(sale => {
           if (sale.customer && sale.customer._id) {
             const customerId = sale.customer._id;
             if (!totals[customerId]) {
@@ -49,31 +51,61 @@ const CustomersPage = () => {
         
         setCustomerTotals(totals);
       } else {
-        console.error('Failed to fetch sales:', response.message);
+        // Fallback to API if not in local storage
+        const response = await api.sales.getAll();
+        
+        if (response && response.success) {
+          setSales(response.data || []);
+          
+          // Calculate total purchases for each customer
+          const totals = {};
+          response.data.forEach(sale => {
+            if (sale.customer && sale.customer._id) {
+              const customerId = sale.customer._id;
+              if (!totals[customerId]) {
+                totals[customerId] = 0;
+              }
+              totals[customerId] += sale.total || 0;
+            }
+          });
+          
+          setCustomerTotals(totals);
+        } else {
+          console.error('Failed to fetch sales:', response.message);
+        }
       }
     } catch (err) {
       console.error('Error fetching sales:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Fetch customers from API
-  const fetchCustomers = async () => {
+  // Fetch customers from local storage or API
+  const fetchCustomersFromStorage = async () => {
     setIsLoading(true);
     setError('');
 
     try {
-      const response = await api.customers.getAll();
+      // Try to get customers from local storage
+      const storedCustomers = getFromStorage('customers');
       
-      if (response && response.success) {
-        setCustomers(response.data || []);
+      if (storedCustomers && Array.isArray(storedCustomers)) {
+        setCustomers(storedCustomers);
       } else {
-        throw new Error(response.message || 'Failed to fetch customers');
+        // Fallback to API if not in local storage
+        const response = await api.customers.getAll();
+        
+        if (response && response.success) {
+          setCustomers(response.data || []);
+        } else {
+          throw new Error(response.message || 'Failed to fetch customers');
+        }
       }
-      
-      setIsLoading(false);
     } catch (err) {
       console.error('Error fetching customers:', err);
       setError('Failed to fetch customers. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -96,8 +128,16 @@ const CustomersPage = () => {
       }
       
       if (response && response.success) {
-        // Refresh customers list
-        await fetchCustomers();
+        // Get updated customers list
+        const updatedCustomersResponse = await api.customers.getAll();
+        
+        if (updatedCustomersResponse && updatedCustomersResponse.success) {
+          // Update local storage with new customers data
+          storeInStorage('customers', updatedCustomersResponse.data || []);
+          
+          // Update state
+          setCustomers(updatedCustomersResponse.data || []);
+        }
         
         setSuccessMessage(selectedCustomer ? 
           'Customer updated successfully!' : 
@@ -142,8 +182,17 @@ const CustomersPage = () => {
       const response = await api.customers.delete(customerId);
       
       if (response && response.success) {
-        // Refresh customers list
-        await fetchCustomers();
+        // Get updated customers list
+        const updatedCustomersResponse = await api.customers.getAll();
+        
+        if (updatedCustomersResponse && updatedCustomersResponse.success) {
+          // Update local storage with new customers data
+          storeInStorage('customers', updatedCustomersResponse.data || []);
+          
+          // Update state
+          setCustomers(updatedCustomersResponse.data || []);
+        }
+        
         setSuccessMessage('Customer deleted successfully!');
       } else {
         throw new Error(response.message || 'Failed to delete customer');
