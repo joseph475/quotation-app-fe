@@ -5,9 +5,10 @@ import QuotationForm from '../../components/quotations/QuotationForm';
 import QuotationReceipt from '../../components/quotations/QuotationReceipt';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
+import useDataLoader from '../../hooks/useDataLoader';
 import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 import { hasPermission } from '../../utils/pageHelpers';
-import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
+import { storeInStorage } from '../../utils/localStorageHelpers';
 import { syncAfterQuotationConversion } from '../../utils/dataSync';
 import { getCustomerDisplayName } from '../../utils/customerHelpers';
 
@@ -160,9 +161,6 @@ const QuotationsPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
-  const [quotations, setQuotations] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
   
   // Show success message with auto-hide
@@ -178,6 +176,18 @@ const QuotationsPage = () => {
   // Get current user from auth context
   const { user } = useAuth();
   
+  // Use optimized data loader for quotations
+  const {
+    data: quotations = [],
+    loading,
+    error,
+    refresh: refreshQuotations,
+    isStale
+  } = useDataLoader('quotations', api.quotations.getAll, {
+    cacheTimeout: 2 * 60 * 1000, // 2 minutes cache for quotations
+    autoLoad: true
+  });
+  
   // Get modal contexts
   const { showConfirm, showDeleteConfirm } = useConfirmModal();
   const { showError } = useErrorModal();
@@ -186,186 +196,100 @@ const QuotationsPage = () => {
   const handleApproveQuotation = async (quotation) => {
     if (!quotation) return;
     
-    try {
-      setLoading(true);
-      
-      // Show confirmation dialog
-      showConfirm({
-        title: 'Approve Quotation',
-        message: `Are you sure you want to approve quotation ${quotation.quotationNumber}?`,
-        confirmText: 'Approve',
-        cancelText: 'Cancel',
-        onConfirm: async () => {
-          try {
-            // Call API to approve quotation
-            const response = await api.quotations.approve(quotation._id);
+    // Show confirmation dialog
+    showConfirm({
+      title: 'Approve Quotation',
+      message: `Are you sure you want to approve quotation ${quotation.quotationNumber}?`,
+      confirmText: 'Approve',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          // Call API to approve quotation
+          const response = await api.quotations.approve(quotation._id);
+          
+          if (response && response.success) {
+            // Refresh quotations using the data loader
+            await refreshQuotations();
             
-            if (response && response.success) {
-              // Refresh quotations list
-              const updatedQuotations = await api.quotations.getAll();
-              if (updatedQuotations && updatedQuotations.success) {
-                setQuotations(updatedQuotations.data || []);
-                // Update localStorage
-                storeInStorage('quotations', updatedQuotations.data || []);
-              }
-              
-              setError(null);
-              
-              // Show success message
-              showSuccess('Quotation successfully approved!');
-            } else {
-              throw new Error(response.message || 'Failed to approve quotation');
-            }
-          } catch (err) {
-            console.error('Error approving quotation:', err);
-            setError(err.message || 'Failed to approve quotation. Please try again.');
-            showError('Failed to approve quotation', err.message);
-          } finally {
-            setLoading(false);
+            // Show success message
+            showSuccess('Quotation successfully approved!');
+          } else {
+            throw new Error(response.message || 'Failed to approve quotation');
           }
+        } catch (err) {
+          console.error('Error approving quotation:', err);
+          showError('Failed to approve quotation', err.message);
         }
-      });
-    } catch (err) {
-      console.error('Error preparing to approve quotation:', err);
-      setError(err.message || 'An error occurred. Please try again.');
-      setLoading(false);
-    }
+      }
+    });
   };
 
   // Handle converting quotation to sale
   const handleConvertToSale = async (quotation) => {
     if (!quotation) return;
     
-    try {
-      setLoading(true);
-      
-      // Show confirmation dialog
-      showConfirm({
-        title: 'Convert to Sale',
-        message: `Are you sure you want to update quotation ${quotation.quotationNumber} to delivered?`,
-        confirmText: 'Yes',
-        cancelText: 'Cancel',
-        onConfirm: async () => {
-          try {
-            // Call API to convert quotation to sale
-            const response = await api.quotations.convertToSale(quotation._id);
+    // Show confirmation dialog
+    showConfirm({
+      title: 'Convert to Sale',
+      message: `Are you sure you want to update quotation ${quotation.quotationNumber} to delivered?`,
+      confirmText: 'Yes',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          // Call API to convert quotation to sale
+          const response = await api.quotations.convertToSale(quotation._id);
+          
+          if (response && response.success) {
+            // Use the new data synchronization system
+            await syncAfterQuotationConversion(quotation._id, response.data);
             
-            if (response && response.success) {
-              // Use the new data synchronization system
-              await syncAfterQuotationConversion(quotation._id, response.data);
-              
-              // Refresh local quotations data
-              const updatedQuotations = await api.quotations.getAll();
-              if (updatedQuotations && updatedQuotations.success) {
-                setQuotations(updatedQuotations.data || []);
-                // Update localStorage
-                storeInStorage('quotations', updatedQuotations.data || []);
-              }
-              
-              setError(null);
-              
-              // Show success message
-              showSuccess('Quotation successfully converted to sale!');
-            } else {
-              throw new Error(response.message || 'Failed to convert quotation to sale');
-            }
-          } catch (err) {
-            console.error('Error converting quotation to sale:', err);
-            setError(err.message || 'Failed to convert quotation to sale. Please try again.');
-            showError('Failed to convert quotation to sale', err.message);
-          } finally {
-            setLoading(false);
+            // Refresh quotations using the data loader
+            await refreshQuotations();
+            
+            // Show success message
+            showSuccess('Quotation successfully converted to sale!');
+          } else {
+            throw new Error(response.message || 'Failed to convert quotation to sale');
           }
+        } catch (err) {
+          console.error('Error converting quotation to sale:', err);
+          showError('Failed to convert quotation to sale', err.message);
         }
-      });
-    } catch (err) {
-      console.error('Error preparing to convert quotation:', err);
-      setError(err.message || 'An error occurred. Please try again.');
-      setLoading(false);
-    }
+      }
+    });
   };
   
   // Handle rejecting quotation
   const handleRejectQuotation = async (quotation) => {
     if (!quotation) return;
     
-    try {
-      setLoading(true);
-      
-      // Show confirmation dialog
-      showConfirm({
-        title: 'Reject Quotation',
-        message: `Are you sure you want to reject quotation ${quotation.quotationNumber}?`,
-        confirmText: 'Reject',
-        cancelText: 'Cancel',
-        onConfirm: async () => {
-          try {
-            // Call API to reject quotation
-            const response = await api.quotations.reject(quotation._id);
+    // Show confirmation dialog
+    showConfirm({
+      title: 'Reject Quotation',
+      message: `Are you sure you want to reject quotation ${quotation.quotationNumber}?`,
+      confirmText: 'Reject',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          // Call API to reject quotation
+          const response = await api.quotations.reject(quotation._id);
+          
+          if (response && response.success) {
+            // Refresh quotations using the data loader
+            await refreshQuotations();
             
-            if (response && response.success) {
-              // Refresh quotations list
-              const updatedQuotations = await api.quotations.getAll();
-              setQuotations(updatedQuotations.data || []);
-              setError(null);
-              
-              // Show success message
-              showSuccess('Quotation successfully rejected!');
-            } else {
-              throw new Error(response.message || 'Failed to reject quotation');
-            }
-          } catch (err) {
-            console.error('Error rejecting quotation:', err);
-            setError(err.message || 'Failed to reject quotation. Please try again.');
-            showError('Failed to reject quotation', err.message);
-          } finally {
-            setLoading(false);
+            // Show success message
+            showSuccess('Quotation successfully rejected!');
+          } else {
+            throw new Error(response.message || 'Failed to reject quotation');
           }
+        } catch (err) {
+          console.error('Error rejecting quotation:', err);
+          showError('Failed to reject quotation', err.message);
         }
-      });
-    } catch (err) {
-      console.error('Error preparing to reject quotation:', err);
-      setError(err.message || 'An error occurred. Please try again.');
-      setLoading(false);
-    }
-  };
-  
-  // Get quotations from local storage
-  useEffect(() => {
-    setLoading(true);
-    try {
-      // Get quotations from local storage
-      const storedQuotations = getFromStorage('quotations');
-      if (storedQuotations && Array.isArray(storedQuotations)) {
-        setQuotations(storedQuotations);
-        setError(null);
-      } else {
-        // Fallback to API if not in local storage
-        const fetchQuotations = async () => {
-          try {
-            const response = await api.quotations.getAll();
-            
-            if (response && response.success) {
-              setQuotations(response.data || []);
-              setError(null);
-            } else {
-              throw new Error(response.message || 'Failed to fetch quotations');
-            }
-          } catch (err) {
-            console.error('Error fetching quotations:', err);
-            setError('Failed to load quotations. Please try again.');
-          }
-        };
-        
-        fetchQuotations();
       }
-    } catch (err) {
-      console.error('Error getting quotations from storage:', err);
-      setError('Failed to load quotations. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    });
+  };
 
   // Filter quotations based on active tab, search term, date filter, and user role
   const filteredQuotations = quotations.filter(quotation => {
@@ -1071,28 +995,20 @@ const QuotationsPage = () => {
           onCancel={() => setIsFormModalOpen(false)}
           onSave={async (quotationData) => {
             try {
-              setLoading(true);
               const response = await api.quotations.create(quotationData);
               
               if (response && response.success) {
-                // Refresh quotations list
-                const updatedQuotations = await api.quotations.getAll();
+                // Refresh quotations using the data loader
+                await refreshQuotations();
                 
-                // Update local storage
-                storeInStorage('quotations', updatedQuotations.data || []);
-                
-                // Update state
-                setQuotations(updatedQuotations.data || []);
-                setError(null);
                 setIsFormModalOpen(false);
+                showSuccess('Quotation created successfully!');
               } else {
                 throw new Error(response.message || 'Failed to create quotation');
               }
             } catch (err) {
               console.error('Error creating quotation:', err);
-              setError(err.message || 'Failed to create quotation. Please try again.');
-            } finally {
-              setLoading(false);
+              showError('Failed to create quotation', err.message);
             }
           }}
         />
@@ -1522,28 +1438,20 @@ const QuotationsPage = () => {
             onCancel={() => setIsEditModalOpen(false)}
             onSave={async (quotationData) => {
               try {
-                setLoading(true);
                 const response = await api.quotations.update(selectedQuotation._id, quotationData);
                 
                 if (response && response.success) {
-                  // Refresh quotations list
-                  const updatedQuotations = await api.quotations.getAll();
+                  // Refresh quotations using the data loader
+                  await refreshQuotations();
                   
-                  // Update local storage
-                  storeInStorage('quotations', updatedQuotations.data || []);
-                  
-                  // Update state
-                  setQuotations(updatedQuotations.data || []);
-                  setError(null);
                   setIsEditModalOpen(false);
+                  showSuccess('Quotation updated successfully!');
                 } else {
                   throw new Error(response.message || 'Failed to update quotation');
                 }
               } catch (err) {
                 console.error('Error updating quotation:', err);
-                setError(err.message || 'Failed to update quotation. Please try again.');
-              } finally {
-                setLoading(false);
+                showError('Failed to update quotation', err.message);
               }
             }}
           />

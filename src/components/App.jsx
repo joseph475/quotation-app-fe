@@ -33,55 +33,60 @@ import DeviceManagementPage from '../pages/security/DeviceManagementPage';
 const AppContent = () => {
   const [currentUrl, setCurrentUrl] = useState(getCurrentUrl());
   const { isAuthenticated, user } = useAuth();
-  const [dataInitialized, setDataInitialized] = useState(false);
   
-  // Initialize data in local storage when the app loads
+  // Only preload essential data based on user role
   useEffect(() => {
-    const initializeData = async () => {
-      if (isAuthenticated && !dataInitialized) {
+    const preloadEssentialData = async () => {
+      if (isAuthenticated && user) {
         try {
-          console.log('Initializing app data...');
+          console.log('Preloading essential data for user role:', user.role);
           
-          // Fetch suppliers
-          const suppliersResponse = await api.suppliers.getAll();
-          if (suppliersResponse && suppliersResponse.success) {
-            storeInStorage('suppliers', suppliersResponse.data || []);
+          // For user role, only preload quotations data
+          if (user.role === 'user') {
+            // Preload quotations in background (non-blocking)
+            api.quotations.getAll().then(response => {
+              if (response && response.success) {
+                storeInStorage('quotations', response.data || []);
+                storeInStorage('quotations_timestamp', Date.now());
+              }
+            }).catch(err => {
+              console.warn('Failed to preload quotations:', err);
+            });
           }
           
-          // Fetch customers
-          const customersResponse = await api.customers.getAll();
-          if (customersResponse && customersResponse.success) {
-            storeInStorage('customers', customersResponse.data || []);
+          // For admin role, preload customers and quotations (most commonly used)
+          if (user.role === 'admin') {
+            // Preload in parallel, non-blocking
+            Promise.allSettled([
+              api.customers.getAll().then(response => {
+                if (response && response.success) {
+                  storeInStorage('customers', response.data || []);
+                  storeInStorage('customers_timestamp', Date.now());
+                }
+              }),
+              api.quotations.getAll().then(response => {
+                if (response && response.success) {
+                  storeInStorage('quotations', response.data || []);
+                  storeInStorage('quotations_timestamp', Date.now());
+                }
+              })
+            ]).then(results => {
+              console.log('Essential data preloading completed');
+            }).catch(err => {
+              console.warn('Some essential data failed to preload:', err);
+            });
           }
-          
-          // Fetch stock transfers
-          const stockTransfersResponse = await api.stockTransfers.getAll();
-          if (stockTransfersResponse && stockTransfersResponse.success) {
-            storeInStorage('stockTransfers', stockTransfersResponse.data || []);
-          }
-          
-          // Fetch inventory
-          const inventoryResponse = await api.inventory.getAll();
-          if (inventoryResponse && inventoryResponse.success) {
-            storeInStorage('inventory', inventoryResponse.data || []);
-          }
-          
-          // Fetch purchase orders
-          const purchaseOrdersResponse = await api.purchaseOrders.getAll();
-          if (purchaseOrdersResponse && purchaseOrdersResponse.success) {
-            storeInStorage('purchaseOrders', purchaseOrdersResponse.data || []);
-          }
-          
-          setDataInitialized(true);
-          console.log('App data initialization complete');
         } catch (error) {
-          console.error('Error initializing app data:', error);
+          console.warn('Error preloading essential data:', error);
+          // Don't block the app if preloading fails
         }
       }
     };
     
-    initializeData();
-  }, [isAuthenticated]);
+    // Use a small delay to ensure the app renders first
+    const timer = setTimeout(preloadEssentialData, 100);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, user]);
   
   // Check if the current route is an auth route (login, register, etc.)
   const isAuthRoute = currentUrl === '/login';

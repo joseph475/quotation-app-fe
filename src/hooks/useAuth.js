@@ -43,15 +43,8 @@ const useAuth = () => {
             setUser(userData);
             setIsAuthenticated(true);
             
-            // Fetch and store app data upon successful token validation
-            // Use graceful error handling to prevent logout issues
-            try {
-              await initializeAppData();
-            } catch (dataError) {
-              console.error('Error fetching app data after token validation:', dataError);
-              // Continue even if data fetch fails - don't let this cause logout
-              // The app will still work with cached data or fetch data on-demand
-            }
+        // Remove blocking data initialization - let pages load data on-demand
+        // This improves initial load performance significantly
           } else if (response && response.status === 401) {
             // Only remove token if it's specifically a 401 auth error
             console.log('Token validation failed with 401, removing token');
@@ -155,13 +148,9 @@ const useAuth = () => {
           }
         }
         
-        // Fetch and store app data upon successful login
-        try {
-          await initializeAppData(true); // Force refresh to get the latest data
-        } catch (dataError) {
-          console.error('Error fetching app data after login:', dataError);
-          // Continue even if data fetch fails
-        }
+        // Note: Removed blocking data initialization for better performance
+        // Data will be loaded on-demand by individual pages using useDataLoader
+        console.log('Login successful - data will be loaded on-demand for better performance');
         
         setIsLoading(false);
         

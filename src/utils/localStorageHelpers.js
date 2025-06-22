@@ -158,33 +158,27 @@ export const clearAuthUser = () => {
  */
 export const initializeAppData = async (forceRefresh = false) => {
   try {
-    console.log('Initializing app data...');
+    console.log('Initializing essential app data...');
     
-    // Fetch suppliers
+    // Only fetch essential data - removed stock transfers, purchase orders, and purchase receiving
+    // These will be loaded on-demand when their respective pages are accessed
+    
+    // Fetch suppliers (needed for forms)
     await fetchAndStoreData('suppliers', api.suppliers.getAll, forceRefresh);
     
-    // Fetch customers
+    // Fetch customers (needed for quotations and sales)
     await fetchAndStoreData('customers', api.customers.getAll, forceRefresh);
     
-    // Fetch stock transfers
-    await fetchAndStoreData('stockTransfers', api.stockTransfers.getAll, forceRefresh);
-    
-    // Fetch inventory
+    // Fetch inventory (needed for quotations and sales)
     await fetchAndStoreData('inventory', api.inventory.getAll, forceRefresh);
     
-    // Fetch sales
+    // Fetch sales (core business data)
     await fetchAndStoreData('sales', api.sales.getAll, forceRefresh);
     
-    // Fetch quotations
+    // Fetch quotations (core business data)
     await fetchAndStoreData('quotations', api.quotations.getAll, forceRefresh);
     
-    // Fetch purchase orders
-    await fetchAndStoreData('purchaseOrders', api.purchaseOrders.getAll, forceRefresh);
-    
-    // Fetch purchase receiving
-    await fetchAndStoreData('purchaseReceiving', api.purchaseReceiving.getAll, forceRefresh);
-    
-    console.log('App data initialization complete');
+    console.log('Essential app data initialization complete');
   } catch (error) {
     console.error('Error initializing app data:', error);
     throw error;
