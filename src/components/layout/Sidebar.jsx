@@ -7,10 +7,30 @@ import { hasPermission } from '../../utils/pageHelpers';
 const DEV_MODE = true;
 
 const Sidebar = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef(null);
+  
+  // Don't render sidebar until user data is loaded to prevent flash of unauthorized content
+  if (isLoading || !user) {
+    return (
+      <aside class={`bg-white shadow-sm border-r border-gray-200 w-64 transition-all duration-300 ease-in-out`}>
+        <div class="h-full flex flex-col">
+          <div class="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+            <div class="text-lg font-semibold text-gray-800">
+              Menu
+            </div>
+          </div>
+          <nav class="flex-1 overflow-y-auto py-4">
+            <div class="flex items-center justify-center h-32">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            </div>
+          </nav>
+        </div>
+      </aside>
+    );
+  }
   
   // Check user permissions
   const canManageUsers = hasPermission('user-management', user);
