@@ -4,7 +4,7 @@ import Modal from '../../components/common/Modal';
 import QuotationForm from '../../components/quotations/QuotationForm';
 import QuotationReceipt from '../../components/quotations/QuotationReceipt';
 import api from '../../services/api';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import useDataLoader from '../../hooks/useDataLoader';
 import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 import { hasPermission } from '../../utils/pageHelpers';

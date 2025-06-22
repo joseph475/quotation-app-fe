@@ -1,6 +1,6 @@
 import { h } from 'preact';
 import { useState, useRef, useEffect } from 'preact/hooks';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { hasPermission } from '../../utils/pageHelpers';
 
 // Development mode flag - import from App.jsx or set here

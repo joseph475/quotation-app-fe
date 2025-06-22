@@ -2,7 +2,7 @@ import { h, Fragment } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import Router from 'preact-router';
 import { getCurrentUrl } from 'preact-router';
-import useAuth from '../hooks/useAuth';
+import { useAuth, AuthProvider } from '../contexts/AuthContext';
 import { RoleProtectedRoute } from '../utils/pageHelpers';
 import { ModalProvider } from '../contexts/ModalContext';
 import { ApiErrorHandler } from '../services/api';
@@ -134,13 +134,15 @@ const AppContent = () => {
   );
 };
 
-// Wrap the app with the modal provider
+// Wrap the app with the auth provider and modal provider
 const App = () => {
   return (
-    <ModalProvider>
-      <ApiErrorHandler />
-      <AppContent />
-    </ModalProvider>
+    <AuthProvider>
+      <ModalProvider>
+        <ApiErrorHandler />
+        <AppContent />
+      </ModalProvider>
+    </AuthProvider>
   );
 };
 
