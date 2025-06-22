@@ -7,8 +7,8 @@
 import { useErrorModal } from '../contexts/ModalContext';
 
 // Base API URL - connects to our MongoDB backend
-const API_BASE_URL = process.env.REACT_APP_API_URL || 
-  (process.env.NODE_ENV === 'production' 
+const API_BASE_URL = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) || 
+  ((typeof process !== 'undefined' && process.env && process.env.NODE_ENV) === 'production' 
     ? 'https://quotation-app-be.vercel.app/api/v1' 
     : 'http://localhost:8000/api/v1');
 
@@ -209,12 +209,6 @@ const api = {
       return request(`/inventory${queryString ? `?${queryString}` : ''}`);
     },
     getById: (id) => request(`/inventory/${id}`),
-    getByBranch: (branchId, params = {}) => {
-      const queryString = Object.entries(params)
-        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-        .join('&');
-      return request(`/inventory/branch/${branchId}${queryString ? `?${queryString}` : ''}`);
-    },
     create: (item) => request('/inventory', {
       method: 'POST',
       body: JSON.stringify(item),
@@ -316,86 +310,37 @@ const api = {
     search: (query) => request(`/suppliers/search?query=${encodeURIComponent(query)}`),
   },
   
-  // Purchase Order endpoints
+  // Purchase Order endpoints - DISABLED
   purchaseOrders: {
-    getAll: () => request('/purchase-orders'),
-    getById: (id) => request(`/purchase-orders/${id}`),
-    create: (order) => request('/purchase-orders', {
-      method: 'POST',
-      body: JSON.stringify(order),
-    }),
-    update: (id, order) => request(`/purchase-orders/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(order),
-    }),
-    delete: (id) => request(`/purchase-orders/${id}`, {
-      method: 'DELETE',
-    }),
-    updateStatus: (id, status) => request(`/purchase-orders/${id}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    }),
-    getReceivings: (id) => request(`/purchase-orders/${id}/receivings`),
+    getAll: () => Promise.resolve({ success: true, data: [], message: 'Purchase Orders feature is disabled' }),
+    getById: (id) => Promise.resolve({ success: false, message: 'Purchase Orders feature is disabled' }),
+    create: (order) => Promise.resolve({ success: false, message: 'Purchase Orders feature is disabled' }),
+    update: (id, order) => Promise.resolve({ success: false, message: 'Purchase Orders feature is disabled' }),
+    delete: (id) => Promise.resolve({ success: false, message: 'Purchase Orders feature is disabled' }),
+    updateStatus: (id, status) => Promise.resolve({ success: false, message: 'Purchase Orders feature is disabled' }),
+    getReceivings: (id) => Promise.resolve({ success: true, data: [], message: 'Purchase Orders feature is disabled' }),
   },
   
-  // Purchase Receiving endpoints
+  // Purchase Receiving endpoints - DISABLED
   purchaseReceiving: {
-    getAll: () => request('/purchase-receiving'),
-    getById: (id) => request(`/purchase-receiving/${id}`),
-    create: (receiving) => request('/purchase-receiving', {
-      method: 'POST',
-      body: JSON.stringify(receiving),
-    }),
-    update: (id, receiving) => request(`/purchase-receiving/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(receiving),
-    }),
-    delete: (id) => request(`/purchase-receiving/${id}`, {
-      method: 'DELETE',
-    }),
+    getAll: () => Promise.resolve({ success: true, data: [], message: 'Purchase Receiving feature is disabled' }),
+    getById: (id) => Promise.resolve({ success: false, message: 'Purchase Receiving feature is disabled' }),
+    create: (receiving) => Promise.resolve({ success: false, message: 'Purchase Receiving feature is disabled' }),
+    update: (id, receiving) => Promise.resolve({ success: false, message: 'Purchase Receiving feature is disabled' }),
+    delete: (id) => Promise.resolve({ success: false, message: 'Purchase Receiving feature is disabled' }),
   },
   
-  // Stock Transfer endpoints
+  // Stock Transfer endpoints - DISABLED
   stockTransfers: {
-    getAll: () => request('/stock-transfers'),
-    getById: (id) => request(`/stock-transfers/${id}`),
-    create: (transfer) => request('/stock-transfers/process', {
-      method: 'POST',
-      body: JSON.stringify(transfer),
-    }),
-    update: (id, transfer) => request(`/stock-transfers/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(transfer),
-    }),
-    delete: (id) => request(`/stock-transfers/${id}`, {
-      method: 'DELETE',
-    }),
-    updateInventory: (id) => request(`/stock-transfers/${id}/update-inventory`, {
-      method: 'POST',
-    }),
-    updateStatus: (id, status) => request(`/stock-transfers/${id}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    }),
+    getAll: () => Promise.resolve({ success: true, data: [], message: 'Stock Transfers feature is disabled' }),
+    getById: (id) => Promise.resolve({ success: false, message: 'Stock Transfers feature is disabled' }),
+    create: (transfer) => Promise.resolve({ success: false, message: 'Stock Transfers feature is disabled' }),
+    update: (id, transfer) => Promise.resolve({ success: false, message: 'Stock Transfers feature is disabled' }),
+    delete: (id) => Promise.resolve({ success: false, message: 'Stock Transfers feature is disabled' }),
+    updateInventory: (id) => Promise.resolve({ success: false, message: 'Stock Transfers feature is disabled' }),
+    updateStatus: (id, status) => Promise.resolve({ success: false, message: 'Stock Transfers feature is disabled' }),
   },
   
-  // Branch endpoints
-  branches: {
-    getAll: () => request('/branches'),
-    getById: (id) => request(`/branches/${id}`),
-    create: (branch) => request('/branches', {
-      method: 'POST',
-      body: JSON.stringify(branch),
-    }),
-    update: (id, branch) => request(`/branches/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(branch),
-    }),
-    delete: (id) => request(`/branches/${id}`, {
-      method: 'DELETE',
-    }),
-    search: (query) => request(`/branches/search?query=${encodeURIComponent(query)}`),
-  },
   
   // User management endpoints
   users: {
@@ -440,6 +385,42 @@ const api = {
         .join('&');
       return request(`/reports/customers${queryString ? `?${queryString}` : ''}`);
     },
+  },
+  
+  // Inventory History endpoints
+  inventoryHistory: {
+    getAll: (params = {}) => {
+      const queryString = Object.entries(params)
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join('&');
+      return request(`/inventory-history${queryString ? `?${queryString}` : ''}`);
+    },
+    getByItem: (itemId) => request(`/inventory-history/item/${itemId}`),
+    getByDateRange: (startDate, endDate) => request(`/inventory-history/date-range?start=${startDate}&end=${endDate}`),
+    getByMonth: (month) => request(`/inventory-history/month/${month}`),
+    getByOperation: (operation) => request(`/inventory-history/operation/${operation}`),
+    create: (historyData) => request('/inventory-history', {
+      method: 'POST',
+      body: JSON.stringify(historyData),
+    }),
+    getMonthlyReport: (month) => request(`/inventory-history/reports/monthly/${month}`),
+  },
+  
+  // Cost History endpoints
+  costHistory: {
+    getAll: (params = {}) => {
+      const queryString = Object.entries(params)
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join('&');
+      return request(`/cost-history${queryString ? `?${queryString}` : ''}`);
+    },
+    getByItem: (itemId) => request(`/cost-history/item/${itemId}`),
+    getByMonth: (month) => request(`/cost-history/month/${month}`),
+    create: (costData) => request('/cost-history', {
+      method: 'POST',
+      body: JSON.stringify(costData),
+    }),
+    getMonthlyReport: (month) => request(`/cost-history/reports/monthly/${month}`),
   },
 };
 

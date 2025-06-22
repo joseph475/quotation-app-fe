@@ -1,31 +1,29 @@
 import { h } from 'preact';
 
 /**
- * Input component
+ * Textarea component
  * 
  * @param {Object} props - Component props
- * @param {string} [props.id] - Input ID
- * @param {string} [props.name] - Input name
- * @param {string} [props.type='text'] - Input type
- * @param {string} [props.label] - Input label
- * @param {string} [props.placeholder] - Input placeholder
- * @param {string} [props.value] - Input value
+ * @param {string} [props.id] - Textarea ID
+ * @param {string} [props.name] - Textarea name
+ * @param {string} [props.label] - Textarea label
+ * @param {string} [props.placeholder] - Textarea placeholder
+ * @param {string} [props.value] - Textarea value
  * @param {Function} [props.onChange] - Change handler
  * @param {Function} [props.onBlur] - Blur handler
  * @param {Function} [props.onFocus] - Focus handler
  * @param {string} [props.error] - Error message
  * @param {string} [props.helpText] - Help text
- * @param {boolean} [props.disabled=false] - Whether the input is disabled
- * @param {boolean} [props.required=false] - Whether the input is required
- * @param {boolean} [props.readOnly=false] - Whether the input is read-only
+ * @param {boolean} [props.disabled=false] - Whether the textarea is disabled
+ * @param {boolean} [props.required=false] - Whether the textarea is required
+ * @param {boolean} [props.readOnly=false] - Whether the textarea is read-only
  * @param {string} [props.className] - Additional CSS classes
  * @param {JSX.Element} [props.leftIcon] - Icon to display on the left
- * @param {JSX.Element} [props.rightIcon] - Icon to display on the right
+ * @param {number} [props.rows=3] - Number of rows
  */
-const Input = ({
+const Textarea = ({
   id,
   name,
-  type = 'text',
   label,
   placeholder,
   value,
@@ -39,14 +37,14 @@ const Input = ({
   readOnly = false,
   className = '',
   leftIcon,
-  rightIcon,
+  rows = 3,
   ...rest
 }) => {
   // Generate a unique ID if not provided
-  const inputId = id || `input-${name || Math.random().toString(36).substring(2, 9)}`;
+  const textareaId = id || `textarea-${name || Math.random().toString(36).substring(2, 9)}`;
   
   // Base classes
-  const baseInputClasses = 'block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 py-2 px-3 sm:text-sm';
+  const baseTextareaClasses = 'block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm resize-vertical';
   
   // Error classes
   const errorClasses = error ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300';
@@ -56,15 +54,13 @@ const Input = ({
   
   // Icon classes
   const leftIconClasses = leftIcon ? 'pl-10' : '';
-  const rightIconClasses = rightIcon ? 'pr-10' : '';
   
   // Combine classes
-  const inputClasses = [
-    baseInputClasses,
+  const textareaClasses = [
+    baseTextareaClasses,
     errorClasses,
     disabledClasses,
     leftIconClasses,
-    rightIconClasses,
     className,
   ].join(' ');
   
@@ -72,26 +68,26 @@ const Input = ({
     <div>
       {/* Label */}
       {label && (
-        <label htmlFor={inputId} class="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={textareaId} class="block text-sm font-medium text-gray-700 mb-1">
           {label}
           {required && <span class="text-red-500 ml-1">*</span>}
         </label>
       )}
       
-      {/* Input with icons */}
+      {/* Textarea with icons */}
       <div class="relative rounded-md shadow-sm">
         {/* Left icon */}
         {leftIcon && (
-          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <div class="absolute top-3 left-0 pl-3 flex items-start pointer-events-none">
             {leftIcon}
           </div>
         )}
         
-        {/* Input element */}
-        <input
-          id={inputId}
+        {/* Textarea element */}
+        <textarea
+          id={textareaId}
           name={name}
-          type={type}
+          rows={rows}
           value={value}
           placeholder={placeholder}
           onChange={onChange}
@@ -100,30 +96,23 @@ const Input = ({
           disabled={disabled}
           required={required}
           readOnly={readOnly}
-          class={inputClasses}
+          class={textareaClasses}
           aria-invalid={error ? 'true' : 'false'}
-          aria-describedby={error ? `${inputId}-error` : helpText ? `${inputId}-description` : undefined}
+          aria-describedby={error ? `${textareaId}-error` : helpText ? `${textareaId}-description` : undefined}
           {...rest}
         />
-        
-        {/* Right icon */}
-        {rightIcon && (
-          <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-            {rightIcon}
-          </div>
-        )}
       </div>
       
       {/* Error message */}
       {error && (
-        <p class="mt-2 text-sm text-red-600" id={`${inputId}-error`}>
+        <p class="mt-2 text-sm text-red-600" id={`${textareaId}-error`}>
           {error}
         </p>
       )}
       
       {/* Help text */}
       {!error && helpText && (
-        <p class="mt-2 text-sm text-gray-500" id={`${inputId}-description`}>
+        <p class="mt-2 text-sm text-gray-500" id={`${textareaId}-description`}>
           {helpText}
         </p>
       )}
@@ -131,4 +120,4 @@ const Input = ({
   );
 };
 
-export default Input;
+export default Textarea;

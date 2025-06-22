@@ -22,17 +22,13 @@ import DashboardPage from '../pages/dashboard/DashboardPage';
 import DevDashboardPage from '../pages/dashboard/DevDashboardPage';
 import InputComponentsExamplePage from '../pages/examples/InputComponentsExamplePage';
 import InventoryPage from '../pages/inventory/InventoryPage';
-import StockTransferPage from '../pages/inventory/StockTransferPage';
 import SalesPage from '../pages/sales/SalesPage';
 import CustomersPage from '../pages/customers/CustomersPage';
 import QuotationsPage from '../pages/quotations/QuotationsPage';
-import PurchaseOrdersPage from '../pages/purchases/PurchaseOrdersPage';
-import PurchaseReceivingPage from '../pages/purchases/PurchaseReceivingPage';
 import ProfilePage from '../pages/profile/ProfilePage';
 import UserManagementPage from '../pages/users/UserManagementPage';
 import SuppliersPage from '../pages/suppliers/SuppliersPage';
 import SupplierPricesPage from '../pages/suppliers/SupplierPricesPage';
-import BranchesPage from '../pages/branches/BranchesPage';
 import ReportsPage from '../pages/reports/ReportsPage';
 import LoginPage from '../pages/auth/LoginPage';
 
@@ -61,28 +57,11 @@ const AppContent = () => {
             storeInStorage('customers', customersResponse.data || []);
           }
           
-          // Fetch branches
-          const branchesResponse = await api.branches.getAll();
-          if (branchesResponse && branchesResponse.success) {
-            storeInStorage('branches', branchesResponse.data || []);
-          }
-          
-          // Fetch stock transfers
-          const stockTransfersResponse = await api.stockTransfers.getAll();
-          if (stockTransfersResponse && stockTransfersResponse.success) {
-            storeInStorage('stockTransfers', stockTransfersResponse.data || []);
-          }
           
           // Fetch inventory
           const inventoryResponse = await api.inventory.getAll();
           if (inventoryResponse && inventoryResponse.success) {
             storeInStorage('inventory', inventoryResponse.data || []);
-          }
-          
-          // Fetch purchase orders
-          const purchaseOrdersResponse = await api.purchaseOrders.getAll();
-          if (purchaseOrdersResponse && purchaseOrdersResponse.success) {
-            storeInStorage('purchaseOrders', purchaseOrdersResponse.data || []);
           }
           
           setDataInitialized(true);
@@ -115,17 +94,13 @@ const AppContent = () => {
           <Router onChange={handleRouteChange}>
             <RoleProtectedRoute component={DashboardPage} path="/" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={InventoryPage} path="/inventory" allowedRoles={['admin', 'user']} />
-            <RoleProtectedRoute component={StockTransferPage} path="/stock-transfers" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={SalesPage} path="/sales" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={CustomersPage} path="/customers" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={QuotationsPage} path="/quotations" allowedRoles={['admin', 'user']} />
-            <RoleProtectedRoute component={PurchaseOrdersPage} path="/purchase-orders" allowedRoles={['admin', 'user']} />
-            <RoleProtectedRoute component={PurchaseReceivingPage} path="/purchase-receiving" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={ProfilePage} path="/profile" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={UserManagementPage} path="/user-management" allowedRoles={['admin']} />
             <RoleProtectedRoute component={SuppliersPage} path="/suppliers" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={SupplierPricesPage} path="/suppliers/:id/prices" allowedRoles={['admin', 'user']} />
-            <RoleProtectedRoute component={BranchesPage} path="/branches" allowedRoles={['admin', 'user']} />
             <RoleProtectedRoute component={ReportsPage} path="/reports" allowedRoles={['admin', 'user']} />
             <LoginPage path="/login" />
             {/* Redirect to dashboard if no route matches */}

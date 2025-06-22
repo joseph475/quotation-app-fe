@@ -1,7 +1,6 @@
 import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import api from '../../services/api';
-import { FilterSelect } from '../../components/common';
 import useAuth from '../../hooks/useAuth';
 
 const DashboardPage = () => {
@@ -19,14 +18,8 @@ const DashboardPage = () => {
       { name: 'Active Customers', value: '0', change: '0%', changeType: 'neutral' },
     ],
     recentSales: [],
-    lowStockItems: [],
-    branches: []
+    lowStockItems: []
   });
-  
-  // State for user's branch
-  const [userBranchName, setUserBranchName] = useState('');
-  const [userBranchId, setUserBranchId] = useState('');
-  const [selectedBranch, setSelectedBranch] = useState('');
 
   // Format currency
   const formatCurrency = (amount) => {
@@ -46,74 +39,12 @@ const DashboardPage = () => {
     });
   };
 
-  // Set default branch filter to 'all' initially
-  useEffect(() => {
-    if (!selectedBranch) {
-      setSelectedBranch('all');
-    }
-  }, [selectedBranch]);
-
-  // Update branch filter when user data is available
-  useEffect(() => {
-    if (user) {
-      const updateBranchFilter = async () => {
-        try {
-          // Fetch branches
-          const branchesResponse = await api.branches.getAll();
-          const branches = branchesResponse?.data || [];
-          
-          // If user has a branch assigned, find it and set as default filter
-          if (user.branch) {
-            // Check if branch is an ObjectId or a string like 'All'
-            if (user.branch === 'All') {
-              // For admin users with 'All' branch
-              setSelectedBranch('all');
-              setUserBranchName('All Branches');
-            } else {
-              // For users with a specific branch ID
-              const userBranch = branches.find(branch => {
-                return branch._id === user.branch || branch.name === 'Main Branch';
-              });
-              
-              if (userBranch) {
-                setUserBranchName(userBranch.name);
-                setUserBranchId(userBranch._id);
-                
-                // Always set branch filter to user's branch name
-                setSelectedBranch(userBranch.name);
-              } else {
-                // Default to Main Branch if available
-                const mainBranch = branches.find(branch => branch.name === 'Main Branch');
-                if (mainBranch) {
-                  setSelectedBranch(mainBranch.name);
-                  setUserBranchName(mainBranch.name);
-                  setUserBranchId(mainBranch._id);
-                }
-              }
-            }
-          } else if (user.role === 'admin') {
-            // For admin users without a branch, set to 'all'
-            setSelectedBranch('all');
-          }
-        } catch (err) {
-          console.error('Error updating branch filter:', err);
-        }
-      };
-      
-      updateBranchFilter();
-    }
-  }, [user]);
-
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
         
         try {
-          // Fetch branches first so we have them available
-          const branchesResponse = await api.branches.getAll();
-          const branches = branchesResponse?.data || [];
-          
           // Fetch dashboard summary
           const summaryResponse = await api.dashboard.getSummary();
           
@@ -163,12 +94,6 @@ const DashboardPage = () => {
             },
           ];
 
-          // Create a map of branch IDs to names for easy lookup
-          const branchMap = {};
-          branches.forEach(branch => {
-            branchMap[branch._id] = branch.name;
-          });
-
           // Format the sales data to ensure it has the right structure
           const formattedSales = recentSalesResponse.data.map(sale => {
             // Format the ID to be more user-friendly (remove ObjectId format)
@@ -178,62 +103,29 @@ const DashboardPage = () => {
               formattedId = `S-${formattedId.substring(formattedId.length - 8)}`;
             }
             
-            // Get branch name from the branch map or use the branch name directly if available
-            let branchName = '';
-            if (sale.branch) {
-              if (typeof sale.branch === 'string') {
-                // If branch is just an ID
-                branchName = branchMap[sale.branch] || '';
-              } else if (sale.branch._id) {
-                // If branch is an object with _id
-                branchName = branchMap[sale.branch._id] || sale.branch.name || '';
-              } else if (sale.branch.name) {
-                // If branch has a name property
-                branchName = sale.branch.name;
-              }
-            }
-            
             return {
               id: formattedId,
               customer: sale.customer,
               total: sale.total,
               status: sale.status,
-              createdAt: sale.createdAt,
-              branch: branchName
+              createdAt: sale.createdAt
             };
           });
 
           // Format the low stock items to ensure they have the right structure
           const formattedLowStockItems = lowStockResponse.data.map(item => {
-            // Get branch name from the branch map or use the branch name directly if available
-            let branchName = '';
-            if (item.branch) {
-              if (typeof item.branch === 'string') {
-                // If branch is just an ID
-                branchName = branchMap[item.branch] || '';
-              } else if (item.branch._id) {
-                // If branch is an object with _id
-                branchName = branchMap[item.branch._id] || item.branch.name || '';
-              } else if (item.branch.name) {
-                // If branch has a name property
-                branchName = item.branch.name;
-              }
-            }
-            
             return {
               id: item._id,
               name: item.name,
               quantity: item.quantity,
-              reorderLevel: item.reorderLevel,
-              branch: branchName
+              reorderLevel: item.reorderLevel
             };
           });
 
           setDashboardData({
             stats,
             recentSales: formattedSales,
-            lowStockItems: formattedLowStockItems,
-            branches
+            lowStockItems: formattedLowStockItems
           });
           
           console.log('Dashboard data loaded from API successfully');
@@ -268,9 +160,7 @@ const DashboardPage = () => {
         item.id.toLowerCase().includes(searchLower) ||
         // Search by customer name
         (item.customer && item.customer.name && 
-         item.customer.name.toLowerCase().includes(searchLower)) ||
-        // Search by branch
-        (item.branch && item.branch.toLowerCase().includes(searchLower))
+         item.customer.name.toLowerCase().includes(searchLower))
       );
     }
     
@@ -278,26 +168,22 @@ const DashboardPage = () => {
     if (item.name) {
       return (
         // Search by item name
-        item.name.toLowerCase().includes(searchLower) ||
-        // Search by branch
-        (item.branch && item.branch.toLowerCase().includes(searchLower))
+        item.name.toLowerCase().includes(searchLower)
       );
     }
     
     return false;
   };
 
-  // Filter items by selected branch and search query
+  // Filter items by search query
   const filteredSales = dashboardData.recentSales
-    .filter(sale => (selectedBranch === 'all' || sale.branch === selectedBranch))
     .filter(sale => matchesSearch(sale, searchQuery));
 
   const filteredLowStockItems = dashboardData.lowStockItems
-    .filter(item => (selectedBranch === 'all' || item.branch === selectedBranch))
     .filter(item => matchesSearch(item, searchQuery));
 
   // Extract data for rendering
-  const { stats, branches } = dashboardData;
+  const { stats } = dashboardData;
 
   return (
     <div>
@@ -324,23 +210,10 @@ const DashboardPage = () => {
                 </div>
                 <input
                   type="text"
-                  placeholder="Search customer, item, sales ID, branch..."
+                  placeholder="Search customer, item, sales ID..."
                   class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                   value={searchQuery}
                   onInput={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-
-              {/* Branch Filter */}
-              <div>
-                <FilterSelect
-                  id="branch-filter"
-                  name="branch-filter"
-                  value={selectedBranch}
-                  onChange={(e) => setSelectedBranch(e.target.value)}
-                  options={[{ id: 'all', name: 'All Branches' }, ...branches]}
-                  optionValueKey="id"
-                  optionLabelKey="name"
                 />
               </div>
             </div>
@@ -411,7 +284,6 @@ const DashboardPage = () => {
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 </tr>
               </thead>
@@ -430,7 +302,6 @@ const DashboardPage = () => {
                         {sale.status ? sale.status.charAt(0).toUpperCase() + sale.status.slice(1) : 'N/A'}
                       </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{sale.branch || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(sale.createdAt)}</td>
                   </tr>
                 ))}
@@ -464,7 +335,6 @@ const DashboardPage = () => {
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min Stock</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
@@ -474,7 +344,6 @@ const DashboardPage = () => {
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.quantity}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.reorderLevel}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.branch || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap">
                       <div class="flex items-center">
                         <div class={`h-2.5 w-2.5 rounded-full mr-2 ${item.quantity < item.reorderLevel / 2 ? 'bg-red-500' : 'bg-yellow-500'}`}></div>

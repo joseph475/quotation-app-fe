@@ -4,6 +4,7 @@ import Card from '../common/Card';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Select from '../common/Select';
+import Textarea from '../common/Textarea';
 
 /**
  * CustomerForm component for creating and editing customers
@@ -71,7 +72,7 @@ const CustomerForm = ({ customer, onSubmit, isLoading = false, error = '' }) => 
     
     // Validate form
     const newErrors = {};
-    if (!formData.name) newErrors.name = 'Name is required';
+    if (!formData.contactPerson) newErrors.contactPerson = 'Contact person is required';
     if (!formData.phone) newErrors.phone = 'Phone number is required';
     
     if (Object.keys(newErrors).length > 0) {
@@ -166,12 +167,11 @@ const CustomerForm = ({ customer, onSubmit, isLoading = false, error = '' }) => 
             id="name"
             name="name"
             type="text"
-            label="Customer Name"
-            placeholder="Enter customer name"
+            label="Company Name"
+            placeholder="Enter company name"
             value={formData.name}
             onChange={handleChange}
             error={errors.name}
-            required
             leftIcon={buildingIcon}
           />
 
@@ -186,6 +186,7 @@ const CustomerForm = ({ customer, onSubmit, isLoading = false, error = '' }) => 
             onChange={handleChange}
             error={errors.contactPerson}
             leftIcon={userIcon}
+            required
           />
 
           {/* Phone Input */}
@@ -229,79 +230,48 @@ const CustomerForm = ({ customer, onSubmit, isLoading = false, error = '' }) => 
           />
 
           {/* Customer Type Selection */}
-          <div>
-            <label for="customerType" class="block text-sm font-medium text-gray-700">
-              Customer Type
-            </label>
-            <div class="mt-1 relative rounded-md shadow-sm">
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                {customerTypeIcon}
-              </div>
-              <select
-                id="customerType"
-                name="customerType"
-                value={formData.customerType}
-                onChange={handleChange}
-                class="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-              >
-                <option value="individual">Individual</option>
-                <option value="business">Business</option>
-                <option value="government">Government</option>
-              </select>
-            </div>
-            {errors.customerType && (
-              <p class="mt-1 text-sm text-red-600">{errors.customerType}</p>
-            )}
-          </div>
+          <Select
+            id="customerType"
+            name="customerType"
+            label="Customer Type"
+            value={formData.customerType}
+            onChange={handleChange}
+            error={errors.customerType}
+            leftIcon={customerTypeIcon}
+            options={[
+              { value: 'individual', label: 'Individual' },
+              { value: 'business', label: 'Business' },
+              { value: 'government', label: 'Government' }
+            ]}
+          />
 
           {/* Notes Input */}
-          <div>
-            <label for="notes" class="block text-sm font-medium text-gray-700">
-              Notes
-            </label>
-            <div class="mt-1 relative rounded-md shadow-sm">
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                {notesIcon}
-              </div>
-              <textarea
-                id="notes"
-                name="notes"
-                rows="3"
-                placeholder="Additional notes about the customer"
-                value={formData.notes}
-                onChange={handleChange}
-                class="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-              />
-            </div>
-            {errors.notes && (
-              <p class="mt-1 text-sm text-red-600">{errors.notes}</p>
-            )}
-          </div>
+          <Textarea
+            id="notes"
+            name="notes"
+            label="Notes"
+            placeholder="Additional notes about the customer"
+            value={formData.notes}
+            onChange={handleChange}
+            error={errors.notes}
+            leftIcon={notesIcon}
+            rows={3}
+          />
 
           {/* Status Selection (Frontend only) */}
-          <div>
-            <label for="status" class="block text-sm font-medium text-gray-700">
-              Status
-            </label>
-            <div class="mt-1 relative rounded-md shadow-sm">
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                {statusIcon}
-              </div>
-              <select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                class="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-            {errors.status && (
-              <p class="mt-1 text-sm text-red-600">{errors.status}</p>
-            )}
-          </div>
+          <Select
+            id="status"
+            name="status"
+            label="Status"
+            value={formData.status}
+            onChange={handleChange}
+            error={errors.status}
+            leftIcon={statusIcon}
+            options={[
+              { value: 'Active', label: 'Active' },
+              { value: 'Inactive', label: 'Inactive' }
+            ]}
+          />
         </div>
 
         {/* Submit Button */}

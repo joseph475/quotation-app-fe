@@ -101,13 +101,7 @@ const Header = () => {
                     <div class="px-4 py-3 border-b border-gray-100">
                       <p class="text-sm font-medium text-gray-900">{user.name}</p>
                       <p class="text-xs text-gray-500">{user.email}</p>
-                      {user.branchName && (
-                        <p class="text-xs text-gray-500 mt-1">
-                          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                            {user.branchName}
-                          </span>
-                        </p>
-                      )}
+                      
                     </div>
                   )}
                   <a href="/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-0">Your Profile</a>

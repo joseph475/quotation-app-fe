@@ -166,9 +166,6 @@ export const initializeAppData = async (forceRefresh = false) => {
     // Fetch customers
     await fetchAndStoreData('customers', api.customers.getAll, forceRefresh);
     
-    // Fetch branches
-    await fetchAndStoreData('branches', api.branches.getAll, forceRefresh);
-    
     // Fetch stock transfers
     await fetchAndStoreData('stockTransfers', api.stockTransfers.getAll, forceRefresh);
     

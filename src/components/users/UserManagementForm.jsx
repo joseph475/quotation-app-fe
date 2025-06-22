@@ -23,7 +23,6 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
     phone: '',
     role: 'user',
     department: '',
-    branch: '',
     isActive: true,
     password: '',
     confirmPassword: ''
@@ -32,28 +31,6 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
   // Form validation
   const [errors, setErrors] = useState({});
   
-  // Branches state
-  const [branches, setBranches] = useState([]);
-  const [loadingBranches, setLoadingBranches] = useState(false);
-
-  // Fetch branches on component mount
-  useEffect(() => {
-    const fetchBranches = async () => {
-      setLoadingBranches(true);
-      try {
-        const response = await api.branches.getAll();
-        if (response && response.data) {
-          setBranches(response.data);
-        }
-      } catch (err) {
-        console.error('Error fetching branches:', err);
-      } finally {
-        setLoadingBranches(false);
-      }
-    };
-    
-    fetchBranches();
-  }, []);
 
   // Populate form with user data when editing
   useEffect(() => {
@@ -64,7 +41,6 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
         phone: user.phone || '',
         role: user.role || 'user',
         department: user.department || '',
-        branch: user.branch || '',
         isActive: user.isActive !== undefined ? user.isActive : true,
         password: '',
         confirmPassword: ''
@@ -237,58 +213,6 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
             />
           </div>
 
-          {/* Branch Selection - Only shown if role is not admin */}
-          {formData.role !== 'admin' && (
-            <div>
-              <label for="branch" class="block text-sm font-medium text-gray-700">
-                Branch
-              </label>
-              <div class="mt-1 relative rounded-md shadow-sm">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  {buildingIcon}
-                </div>
-                <Select
-                  id="branch"
-                  name="branch"
-                  value={formData.branch}
-                  onChange={handleChange}
-                  disabled={loadingBranches}
-                  className="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                >
-                  <option value="">Select a branch</option>
-                  {branches.map(branch => (
-                    <option key={branch._id} value={branch._id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              {errors.branch && (
-                <p class="mt-1 text-sm text-red-600">{errors.branch}</p>
-              )}
-              {loadingBranches && (
-                <p class="mt-1 text-sm text-gray-500">Loading branches...</p>
-              )}
-            </div>
-          )}
-          
-          {/* Display info message for admin users */}
-          {formData.role === 'admin' && (
-            <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
-              <div class="flex">
-                <div class="flex-shrink-0">
-                  <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clip-rule="evenodd" />
-                  </svg>
-                </div>
-                <div class="ml-3">
-                  <p class="text-sm text-blue-700">
-                    Admin users have access to all branches. Branch will be set to 'All' automatically.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Role Selection */}
           <div>
@@ -308,7 +232,6 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
               >
                 <option value="user">User</option>
                 <option value="admin">Admin</option>
-                <option value="manager">Manager</option>
               </select>
             </div>
             {errors.role && (
