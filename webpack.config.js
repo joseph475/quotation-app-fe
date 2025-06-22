@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 
@@ -41,6 +42,12 @@ module.exports = {
     ],
   },
   plugins: [
+    new webpack.DefinePlugin({
+      'process.env': {
+        NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development'),
+        REACT_APP_API_URL: JSON.stringify(process.env.REACT_APP_API_URL || ''),
+      },
+    }),
     new HtmlWebpackPlugin({
       template: './src/index.html',
       filename: 'index.html',
