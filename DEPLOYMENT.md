@@ -116,7 +116,15 @@ If you need to populate your database with initial data:
 
 ### Frontend Environment Variables
 
-The frontend automatically uses the correct API URL based on `NODE_ENV`. No additional environment variables are required.
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `REACT_APP_API_URL` | Backend API URL (optional) | `https://your-backend-name.vercel.app/api/v1` |
+
+**Note**: If `REACT_APP_API_URL` is not set, the frontend will automatically use:
+- Development: `http://localhost:8000/api/v1`
+- Production: `https://quotation-app-be.vercel.app/api/v1`
+
+To use a custom backend URL, set `REACT_APP_API_URL` in Vercel's environment variables.
 
 ## Troubleshooting
 

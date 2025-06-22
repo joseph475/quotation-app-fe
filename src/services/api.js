@@ -7,9 +7,10 @@
 import { useErrorModal } from '../contexts/ModalContext';
 
 // Base API URL - connects to our MongoDB backend
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://quotation-app-be.vercel.app/api/v1' 
-  : 'http://localhost:8000/api/v1';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://quotation-app-be.vercel.app/api/v1' 
+    : 'http://localhost:8000/api/v1');
 
 // Store error modal context reference
 let errorModalContext = null;
