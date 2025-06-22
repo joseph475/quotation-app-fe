@@ -292,7 +292,7 @@ const QuotationsPage = () => {
   };
 
   // Filter quotations based on active tab, search term, date filter, and user role
-  const filteredQuotations = quotations.filter(quotation => {
+  const filteredQuotations = (quotations || []).filter(quotation => {
     // Role-based filtering: users with 'user' role can only see quotations they created
     const matchesUserRole = user?.role === 'admin' || 
                            (user?.role === 'user' && quotation.createdBy === user._id);
@@ -621,7 +621,7 @@ const QuotationsPage = () => {
                       {user?.role === 'user' ? 'My Quotations' : 'Total Quotations'}
                     </dt>
                     <dd class="text-lg font-medium text-gray-900">
-                      {quotations.filter(quotation => 
+                      {(quotations || []).filter(quotation => 
                         user?.role === 'admin' || 
                         (user?.role === 'user' && quotation.createdBy === user._id)
                       ).length}
@@ -662,7 +662,7 @@ const QuotationsPage = () => {
                   <dl>
                     <dt class="text-sm font-medium text-gray-500 truncate">Approved</dt>
                     <dd class="text-lg font-medium text-gray-900">
-                      {quotations.filter(quotation => 
+                      {(quotations || []).filter(quotation => 
                         (quotation.status === 'accepted' || quotation.status === 'approved') && 
                         (user?.role === 'admin' || 
                         (user?.role === 'user' && quotation.createdBy === user._id))
@@ -686,7 +686,7 @@ const QuotationsPage = () => {
                   <dl>
                     <dt class="text-sm font-medium text-gray-500 truncate">Pending</dt>
                     <dd class="text-lg font-medium text-gray-900">
-                      {quotations.filter(quotation => 
+                      {(quotations || []).filter(quotation => 
                         (quotation.status === 'draft' || quotation.status === 'pending') && 
                         (user?.role === 'admin' || 
                         (user?.role === 'user' && quotation.createdBy === user._id))
