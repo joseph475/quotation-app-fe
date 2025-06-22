@@ -112,3 +112,35 @@ For more detailed instructions on setting up the backend, refer to the [Backend 
 - Regular User:
   - Email: user@example.com
   - Password: password123
+
+## Deployment
+
+This application is ready for deployment on Vercel. See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+
+### Quick Deployment Steps
+
+1. **Prepare for deployment:**
+   ```bash
+   ./deploy.sh
+   ```
+
+2. **Deploy Backend:**
+   - Push backend code to a Git repository
+   - Deploy to Vercel with MongoDB Atlas connection
+   - Set environment variables in Vercel dashboard
+
+3. **Deploy Frontend:**
+   - Update API URL in `src/services/api.js` with your backend URL
+   - Push frontend code to a Git repository
+   - Deploy to Vercel
+
+### Files Added for Deployment
+
+- `vercel.json` - Vercel configuration for frontend
+- `../quotation-app-be/vercel.json` - Vercel configuration for backend
+- `.env.example` - Environment variables template for frontend
+- `../quotation-app-be/.env.example` - Environment variables template for backend
+- `DEPLOYMENT.md` - Comprehensive deployment guide
+- `deploy.sh` - Deployment preparation script
+
+For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
