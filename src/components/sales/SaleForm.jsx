@@ -158,16 +158,33 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
           }
         }
         
-        // Get inventory items from local storage only
-        const storedInventory = getFromStorage('inventory');
-        if (storedInventory && Array.isArray(storedInventory)) {
-          if (isMounted) {
-            setInventoryItems(storedInventory);
+        // Always fetch all inventory items from API for sales
+        try {
+          const inventoryResponse = await api.inventory.getAll({ 
+            limit: 10000, // Large limit to get all items
+            sort: 'name' // Sort by name for better UX
+          });
+          if (inventoryResponse && inventoryResponse.success && inventoryResponse.data) {
+            if (isMounted) {
+              setInventoryItems(inventoryResponse.data);
+            }
+          } else {
+            if (isMounted) {
+              setInventoryItems([]);
+            }
           }
-        } else {
-          // Set empty array if no inventory in local storage
-          if (isMounted) {
-            setInventoryItems([]);
+        } catch (apiError) {
+          console.error('Error fetching inventory from API:', apiError);
+          // Fallback to local storage if API fails
+          const storedInventory = getFromStorage('inventory');
+          if (storedInventory && Array.isArray(storedInventory)) {
+            if (isMounted) {
+              setInventoryItems(storedInventory);
+            }
+          } else {
+            if (isMounted) {
+              setInventoryItems([]);
+            }
           }
         }
       } catch (error) {

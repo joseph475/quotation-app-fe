@@ -30,39 +30,51 @@ const InventoryPage = () => {
   const [inventoryItems, setInventoryItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSuccess, setImportSuccess] = useState('');
   
-  // Fetch inventory items from local storage or API
-  const fetchData = async () => {
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [totalItems, setTotalItems] = useState(0);
+  const [pagination, setPagination] = useState({});
+  
+  // Fetch inventory items with pagination
+  const fetchData = async (page = currentPage, limit = itemsPerPage, useCache = true) => {
     if (loading) return; // Prevent multiple simultaneous requests
     
     setLoading(true);
     setError(null);
     
     try {
-      // Try to get inventory items from local storage first
-      const storedInventory = getFromStorage('inventory');
-      
-      if (storedInventory && Array.isArray(storedInventory) && storedInventory.length > 0) {
-        // Add status field based on quantity and unit using new low stock logic
-        const itemsWithStatus = storedInventory.map(item => {
-          const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
-          return { ...item, status };
-        });
+      // For pagination, we need to fetch from API directly
+      // Only use cache for the first page if useCache is true
+      if (useCache && page === 1) {
+        const storedInventory = getFromStorage('inventory');
         
-        setInventoryItems(itemsWithStatus);
-        setLoading(false);
-        return;
+        if (storedInventory && Array.isArray(storedInventory) && storedInventory.length > 0) {
+          // Add status field based on quantity and unit using new low stock logic
+          const itemsWithStatus = storedInventory.map(item => {
+            const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
+            return { ...item, status };
+          });
+          
+          setInventoryItems(itemsWithStatus);
+          setLoading(false);
+          return;
+        }
       }
       
-      // Fallback to API if not in local storage using deduplication
-      const inventoryResponse = await deduplicateRequest('inventory-fetch', () => 
-        api.inventory.getAll()
-      );
+      // Fetch from API with pagination parameters
+      const params = {
+        page: page,
+        limit: limit,
+        sort: sortOrder === 'desc' ? `-${sortBy}` : sortBy
+      };
+      
+      const inventoryResponse = await api.inventory.getAll(params);
       
       if (inventoryResponse && inventoryResponse.success) {
-        // Store in local storage for future use
-        storeInStorage('inventory', inventoryResponse.data || []);
-        
         // Add status field based on quantity and unit using new low stock logic
         const itemsWithStatus = (inventoryResponse.data || []).map(item => {
           const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
@@ -70,6 +82,13 @@ const InventoryPage = () => {
         });
         
         setInventoryItems(itemsWithStatus);
+        setPagination(inventoryResponse.pagination || {});
+        setTotalItems(inventoryResponse.total || inventoryResponse.count || 0);
+        
+        // Store in local storage only for first page
+        if (page === 1) {
+          storeInStorage('inventory', inventoryResponse.data || []);
+        }
       } else {
         throw new Error(inventoryResponse?.message || 'Failed to fetch inventory items');
       }
@@ -89,6 +108,24 @@ const InventoryPage = () => {
       fetchData();
     }
   }, [user]);
+
+  // Refetch when pagination or sorting changes
+  useEffect(() => {
+    if (user) {
+      fetchData(currentPage, itemsPerPage, false);
+    }
+  }, [currentPage, itemsPerPage, sortBy, sortOrder]);
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page
+  };
 
   // Apply client-side filtering for search term
   const filteredItems = inventoryItems
@@ -124,46 +161,74 @@ const InventoryPage = () => {
     }
   };
   
-  // Export to CSV
-  const exportToCSV = (items) => {
-    // Define CSV headers
-    const headers = [
-      'Item Code',
-      'Barcode',
-      'Name',
-      'Unit',
-      'Cost',
-      'Price'
-    ];
-    
-    // Convert items to CSV rows
-    const rows = items.map(item => {
-      return [
-        item.itemcode || '',
-        item.barcode || '',
-        item.name || '',
-        item.unit || '',
-        item.cost ? `$${item.cost.toFixed(2)}` : '$0.00',
-        item.price ? `$${item.price.toFixed(2)}` : '$0.00'
+  // Export to CSV - fetch all items
+  const exportToCSV = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all items without pagination
+      const allItemsResponse = await api.inventory.getAll({ 
+        limit: 10000, // Large limit to get all items
+        sort: sortOrder === 'desc' ? `-${sortBy}` : sortBy 
+      });
+      
+      if (!allItemsResponse || !allItemsResponse.success) {
+        throw new Error('Failed to fetch inventory items for export');
+      }
+      
+      const allItems = allItemsResponse.data || [];
+      
+      // Define CSV headers
+      const headers = [
+        'Item Code',
+        'Barcode',
+        'Name',
+        'Unit',
+        'Cost',
+        'Price'
       ];
-    });
-    
-    // Combine headers and rows
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-    
-    // Create download link
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `inventory_export_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      
+      // Convert items to CSV rows
+      const rows = allItems.map(item => {
+        return [
+          item.itemcode || '',
+          item.barcode || '',
+          item.name || '',
+          item.unit || '',
+          item.cost ? `$${item.cost.toFixed(2)}` : '$0.00',
+          item.price ? `$${item.price.toFixed(2)}` : '$0.00'
+        ];
+      });
+      
+      // Combine headers and rows
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+      
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `inventory_export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Show success message
+      setImportSuccess(`Successfully exported ${allItems.length} inventory items to CSV!`);
+      setTimeout(() => {
+        setImportSuccess('');
+      }, 3000);
+      
+    } catch (err) {
+      console.error('Error exporting CSV:', err);
+      setError(err.message || 'Failed to export inventory items. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getSortIcon = (field) => {
@@ -179,9 +244,80 @@ const InventoryPage = () => {
     );
   };
   
+  // Handle Excel file import
+  const handleExcelImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = [
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.xlsx',
+      '.xls'
+    ];
+    
+    const isValidType = validTypes.some(type => 
+      file.type === type || file.name.toLowerCase().endsWith(type)
+    );
+    
+    if (!isValidType) {
+      setError('Please select a valid Excel file (.xlsx or .xls)');
+      event.target.value = ''; // Reset file input
+      return;
+    }
+
+    // Validate file size (50MB limit to match server configuration)
+    const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+    if (file.size > maxSize) {
+      setError(`File size too large. Please select a file smaller than 50MB. Current file size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      event.target.value = ''; // Reset file input
+      return;
+    }
+
+    setIsImporting(true);
+    setError(null);
+    setImportSuccess('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await api.inventory.importExcel(formData);
+
+      if (response && response.success) {
+        // Refresh inventory data
+        await fetchData();
+        setImportSuccess(`Successfully imported ${response.data.imported || 0} items from Excel file!`);
+        
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => {
+          setImportSuccess('');
+        }, 5000);
+      } else {
+        throw new Error(response.message || 'Failed to import Excel file');
+      }
+    } catch (err) {
+      console.error('Error importing Excel file:', err);
+      let errorMessage = 'Failed to import Excel file. Please check the file format and try again.';
+      
+      // Handle specific error messages
+      if (err.message.includes('request entity too large')) {
+        errorMessage = 'File size too large. Please reduce the file size or split it into smaller files.';
+      } else if (err.message.includes('Server error')) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsImporting(false);
+      event.target.value = ''; // Reset file input
+    }
+  };
+
   // Calculate inventory statistics
   const inventoryStats = {
-    totalItems: filteredItems.length,
+    totalItems: totalItems || filteredItems.length,
     totalValue: filteredItems.reduce((sum, item) => sum + (item.cost || 0), 0).toFixed(2)
   };
 
@@ -226,48 +362,97 @@ const InventoryPage = () => {
 
           </div>
 
-          {/* Actions */}
-          <div class="flex space-x-3">
-            <button 
-              class="btn btn-outline flex items-center"
-              onClick={() => {
-                // Clear local storage and refetch from API
-                localStorage.removeItem('inventory');
-                fetchData();
-              }}
-              disabled={loading}
-            >
-              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
-              </svg>
-              Refresh
-            </button>
-            <button 
-              class="btn btn-outline flex items-center"
-              onClick={() => exportToCSV(filteredItems)}
-            >
-              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-              </svg>
-              Export CSV
-            </button>
-            {hasPermission('inventory-create', user) && (
+            {/* Actions */}
+            <div class="flex space-x-3">
               <button 
-                class="btn btn-primary flex items-center"
+                class="btn btn-outline flex items-center"
                 onClick={() => {
-                  setCurrentItem(null);
-                  setIsFormOpen(true);
+                  // Clear local storage and refetch from API
+                  localStorage.removeItem('inventory');
+                  fetchData();
                 }}
+                disabled={loading}
               >
                 <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                  <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
                 </svg>
-                Add Item
+                Refresh
               </button>
-            )}
-          </div>
+              <button 
+                class="btn btn-outline flex items-center"
+                onClick={exportToCSV}
+                disabled={loading}
+              >
+                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                Export CSV
+              </button>
+              {/* Import Excel button for superadmin only */}
+              {user?.role === 'superadmin' && (
+                <div class="relative">
+                  <input
+                    type="file"
+                    id="excel-import"
+                    accept=".xlsx,.xls"
+                    onChange={handleExcelImport}
+                    class="hidden"
+                    disabled={isImporting}
+                  />
+                  <button 
+                    class="btn btn-secondary flex items-center"
+                    onClick={() => document.getElementById('excel-import').click()}
+                    disabled={isImporting}
+                  >
+                    {isImporting ? (
+                      <svg class="h-5 w-5 mr-2 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    )}
+                    {isImporting ? 'Importing...' : 'Import Excel'}
+                  </button>
+                </div>
+              )}
+              {hasPermission('inventory-create', user) && (
+                <button 
+                  class="btn btn-primary flex items-center"
+                  onClick={() => {
+                    setCurrentItem(null);
+                    setIsFormOpen(true);
+                  }}
+                >
+                  <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                  </svg>
+                  Add Item
+                </button>
+              )}
+            </div>
         </div>
       </div>
+
+      {/* Success message */}
+      {importSuccess && (
+        <div class="mb-6 bg-green-50 border-l-4 border-green-400 p-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-green-700">
+                {importSuccess}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error message */}
       {error && (
@@ -399,7 +584,7 @@ const InventoryPage = () => {
                                       const deleteHistoryRecord = createInventoryHistoryRecord({
                                         itemId: item._id,
                                         itemName: item.name,
-                                        itemCode: item.itemCode,
+                                        itemCode: item.itemcode,
                                         operation: 'delete_item',
                                         beforeData: item,
                                         afterData: {},
@@ -489,6 +674,109 @@ const InventoryPage = () => {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+          
+          {/* Pagination */}
+          {filteredItems.length > 0 && (
+            <div class="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+              <div class="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={!pagination.prev}
+                  class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={!pagination.next}
+                  class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+              <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div class="flex items-center space-x-4">
+                  <p class="text-sm text-gray-700">
+                    Showing <span class="font-medium">{((currentPage - 1) * itemsPerPage) + 1}</span> to{' '}
+                    <span class="font-medium">
+                      {Math.min(currentPage * itemsPerPage, totalItems || filteredItems.length)}
+                    </span> of{' '}
+                    <span class="font-medium">{totalItems || filteredItems.length}</span> results
+                  </p>
+                  <div class="flex items-center space-x-2">
+                    <label class="text-sm text-gray-700">Items per page:</label>
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value))}
+                      class="border border-gray-300 rounded-md text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={!pagination.prev}
+                      class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span class="sr-only">Previous</span>
+                      <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    </button>
+                    
+                    {/* Page numbers */}
+                    {(() => {
+                      const totalPages = Math.ceil((totalItems || filteredItems.length) / itemsPerPage);
+                      const pages = [];
+                      const maxVisiblePages = 5;
+                      
+                      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                      
+                      if (endPage - startPage + 1 < maxVisiblePages) {
+                        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                      }
+                      
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(
+                          <button
+                            key={i}
+                            onClick={() => handlePageChange(i)}
+                            class={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                              i === currentPage
+                                ? 'z-10 bg-primary-50 border-primary-500 text-primary-600'
+                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                            }`}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+                      
+                      return pages;
+                    })()}
+                    
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={!pagination.next}
+                      class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span class="sr-only">Next</span>
+                      <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    </button>
+                  </nav>
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -86,21 +86,24 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
           setCustomers(storedCustomers);
         }
         
-        // Get inventory items from local storage first
-        const storedInventory = getFromStorage('inventory');
-        if (storedInventory && Array.isArray(storedInventory) && storedInventory.length > 0) {
-          setInventoryItems(storedInventory);
-        } else {
-          // Fallback to API if not in local storage
-          try {
-            const inventoryResponse = await api.inventory.getAll();
-            if (inventoryResponse && inventoryResponse.success && inventoryResponse.data) {
-              setInventoryItems(inventoryResponse.data);
-            } else {
-              setInventoryItems([]);
-            }
-          } catch (apiError) {
-            console.error('Error fetching inventory from API:', apiError);
+        // Always fetch all inventory items from API for quotations
+        try {
+          const inventoryResponse = await api.inventory.getAll({ 
+            limit: 10000, // Large limit to get all items
+            sort: 'name' // Sort by name for better UX
+          });
+          if (inventoryResponse && inventoryResponse.success && inventoryResponse.data) {
+            setInventoryItems(inventoryResponse.data);
+          } else {
+            setInventoryItems([]);
+          }
+        } catch (apiError) {
+          console.error('Error fetching inventory from API:', apiError);
+          // Fallback to local storage if API fails
+          const storedInventory = getFromStorage('inventory');
+          if (storedInventory && Array.isArray(storedInventory)) {
+            setInventoryItems(storedInventory);
+          } else {
             setInventoryItems([]);
           }
         }

@@ -34,10 +34,16 @@ async function request(endpoint, options = {}) {
   const { showErrorModal = true, ...fetchOptions } = options;
   const url = `${API_BASE_URL}${endpoint}`;
   
-  const headers = {
-    'Content-Type': 'application/json',
-    ...fetchOptions.headers,
-  };
+  // Initialize headers - don't set Content-Type for FormData
+  const headers = {};
+  
+  // Only set Content-Type to application/json if we're not sending FormData
+  if (!(fetchOptions.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  // Merge with any custom headers
+  Object.assign(headers, fetchOptions.headers);
 
   // Add auth token if available
   const token = getAuthToken();
@@ -238,6 +244,11 @@ const api = {
       method: 'DELETE',
     }),
     search: (query) => request(`/inventory/search-items?query=${encodeURIComponent(query)}`),
+    importExcel: (formData) => request('/inventory/import-excel', {
+      method: 'POST',
+      headers: {}, // Remove Content-Type header to let browser set it for FormData
+      body: formData,
+    }),
   },
   
   // Customer endpoints
@@ -467,6 +478,41 @@ const api = {
         .join('&');
       return request(`/devices/login-history${queryString ? `?${queryString}` : ''}`);
     },
+  },
+
+  // Inventory History endpoints
+  inventoryHistory: {
+    getAll: (params = {}) => {
+      const queryString = Object.entries(params)
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join('&');
+      return request(`/inventory-history${queryString ? `?${queryString}` : ''}`);
+    },
+    getById: (id) => request(`/inventory-history/${id}`),
+    create: (historyRecord) => request('/inventory-history', {
+      method: 'POST',
+      body: JSON.stringify(historyRecord),
+    }),
+    getByItem: (itemId) => request(`/inventory-history/item/${itemId}`),
+    getByDateRange: (startDate, endDate) => request(`/inventory-history/date-range?start=${startDate}&end=${endDate}`),
+    getByOperation: (operation) => request(`/inventory-history/operation/${operation}`),
+  },
+
+  // Cost History endpoints
+  costHistory: {
+    getAll: (params = {}) => {
+      const queryString = Object.entries(params)
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join('&');
+      return request(`/cost-history${queryString ? `?${queryString}` : ''}`);
+    },
+    getById: (id) => request(`/cost-history/${id}`),
+    create: (historyRecord) => request('/cost-history', {
+      method: 'POST',
+      body: JSON.stringify(historyRecord),
+    }),
+    getByItem: (itemId) => request(`/cost-history/item/${itemId}`),
+    getByDateRange: (startDate, endDate) => request(`/cost-history/date-range?start=${startDate}&end=${endDate}`),
   },
 };
 

@@ -60,17 +60,21 @@ const AppContent = () => {
           <Router onChange={handleRouteChange}>
             {/* For users with 'user' or 'delivery' role, redirect to quotations page */}
             <RoleProtectedRoute 
-              component={({ user }) => (user?.role === 'user' || user?.role === 'delivery') ? <QuotationsPage /> : <DashboardPage />} 
+              component={({ user }) => {
+                if (user?.role === 'user' || user?.role === 'delivery') return <QuotationsPage />;
+                if (user?.role === 'superadmin') return <InventoryPage />;
+                return <DashboardPage />;
+              }} 
               path="/" 
-              allowedRoles={['admin', 'user', 'delivery']} 
+              allowedRoles={['admin', 'user', 'delivery', 'superadmin']} 
             />
-            <RoleProtectedRoute component={InventoryPage} path="/inventory" allowedRoles={['admin']} />
+            <RoleProtectedRoute component={InventoryPage} path="/inventory" allowedRoles={['admin', 'superadmin']} />
             <RoleProtectedRoute component={SalesPage} path="/sales" allowedRoles={['admin']} />
             <RoleProtectedRoute component={CustomersPage} path="/customers" allowedRoles={['admin']} />
             <RoleProtectedRoute component={QuotationsPage} path="/quotations" allowedRoles={['admin', 'user', 'delivery']} />
-            <RoleProtectedRoute component={ProfilePage} path="/profile" allowedRoles={['admin', 'user', 'delivery']} />
+            <RoleProtectedRoute component={ProfilePage} path="/profile" allowedRoles={['admin', 'user', 'delivery', 'superadmin']} />
             <RoleProtectedRoute component={UserManagementPage} path="/user-management" allowedRoles={['admin']} />
-            <RoleProtectedRoute component={ReportsPage} path="/reports" allowedRoles={['admin']} />
+            <RoleProtectedRoute component={ReportsPage} path="/reports" allowedRoles={['admin', 'superadmin']} />
             <RoleProtectedRoute component={DeviceManagementPage} path="/device-management" allowedRoles={['admin', 'user']} />
             <LoginPage path="/login" />
             {/* Redirect to quotations for user/delivery role, dashboard for admin */}
