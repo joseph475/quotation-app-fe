@@ -47,8 +47,95 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Prevent zooming on iOS and Android PWA */
+html, body {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Prevent text size adjustment on mobile browsers */
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Allow text selection in input fields and content areas */
+input, textarea, select, [contenteditable] {
+  -webkit-user-select: text;
+  -khtml-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Prevent double-tap zoom and pinch zoom */
+* {
+  touch-action: manipulation;
+}
+
+/* Additional mobile zoom prevention for both iOS and Android */
+@media screen and (max-device-width: 768px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  
+  /* Prevent zoom on focus for mobile browsers */
+  input, textarea, select {
+    transform-origin: left top;
+    font-size: 16px !important;
+  }
+}
+
+/* Specific Android Chrome zoom prevention */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  select, textarea, input {
+    font-size: 16px !important;
+  }
+}
+
 /* Custom button styles */
 @layer components {
+  /* iOS PWA input zoom fix - ensure inputs have minimum 16px font size */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  
+  /* For larger screens, we can use smaller font sizes */
+  @media (min-width: 640px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="search"],
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="time"],
+    textarea,
+    select {
+      font-size: 14px !important;
+    }
+  }
+  
   /* Filter dropdown focus styles */
   select:focus {
     @apply outline-none ring-offset-1 ring-opacity-50;

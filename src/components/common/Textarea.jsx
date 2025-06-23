@@ -43,8 +43,8 @@ const Textarea = ({
   // Generate a unique ID if not provided
   const textareaId = id || `textarea-${name || Math.random().toString(36).substring(2, 9)}`;
   
-  // Base classes
-  const baseTextareaClasses = 'block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm resize-vertical';
+  // Base classes - removed sm:text-sm to prevent iOS zoom, font size now handled by CSS
+  const baseTextareaClasses = 'block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 resize-vertical';
   
   // Error classes
   const errorClasses = error ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300';

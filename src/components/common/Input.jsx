@@ -45,8 +45,8 @@ const Input = ({
   // Generate a unique ID if not provided
   const inputId = id || `input-${name || Math.random().toString(36).substring(2, 9)}`;
   
-  // Base classes
-  const baseInputClasses = 'block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 py-2 px-3 sm:text-sm';
+  // Base classes - removed sm:text-sm to prevent iOS zoom, font size now handled by CSS
+  const baseInputClasses = 'block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 py-2 px-3';
   
   // Error classes
   const errorClasses = error ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300';

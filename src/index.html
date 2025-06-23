@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="print-color-adjust" content="exact">
   <title>Quotation App</title>
   
@@ -102,6 +102,53 @@
     window.addEventListener('appinstalled', () => {
       installPrompt.style.display = 'none';
       console.log('PWA was installed');
+    });
+
+    // Additional JavaScript-based zoom prevention for both iOS and Android
+    document.addEventListener('DOMContentLoaded', function() {
+      // Prevent pinch zoom
+      document.addEventListener('touchstart', function(event) {
+        if (event.touches.length > 1) {
+          event.preventDefault();
+        }
+      }, { passive: false });
+
+      // Prevent double-tap zoom
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', function(event) {
+        const now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) {
+          event.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, { passive: false });
+
+      // Prevent zoom with keyboard shortcuts
+      document.addEventListener('keydown', function(event) {
+        if ((event.ctrlKey || event.metaKey) && (event.key === '+' || event.key === '-' || event.key === '0')) {
+          event.preventDefault();
+        }
+      });
+
+      // Prevent zoom with wheel/trackpad
+      document.addEventListener('wheel', function(event) {
+        if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+        }
+      }, { passive: false });
+
+      // Additional mobile-specific zoom prevention
+      document.addEventListener('gesturestart', function(event) {
+        event.preventDefault();
+      });
+
+      document.addEventListener('gesturechange', function(event) {
+        event.preventDefault();
+      });
+
+      document.addEventListener('gestureend', function(event) {
+        event.preventDefault();
+      });
     });
   </script>
 </body>
