@@ -1,14 +1,11 @@
-import { h } from 'preact';
+import { h, Fragment } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import QuotationForm from '../../components/quotations/QuotationForm';
-import QuotationReceipt from '../../components/quotations/QuotationReceipt';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import useDataLoader from '../../hooks/useDataLoader';
 import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
-import { hasPermission } from '../../utils/pageHelpers';
-import { storeInStorage } from '../../utils/localStorageHelpers';
 import { syncAfterQuotationConversion, syncAfterQuotationStatusUpdate } from '../../utils/dataSync';
 import { getCustomerDisplayName } from '../../utils/customerHelpers';
 
@@ -163,6 +160,9 @@ const QuotationsPage = () => {
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [deliveryUsers, setDeliveryUsers] = useState([]);
   const [selectedDeliveryUser, setSelectedDeliveryUser] = useState('');
+  const [formLoading, setFormLoading] = useState(false);
+  const [deliveryAssignmentLoading, setDeliveryAssignmentLoading] = useState(false);
+  const [deliveryUsersLoading, setDeliveryUsersLoading] = useState(false);
 
   const [successMessage, setSuccessMessage] = useState('');
   
@@ -232,9 +232,11 @@ const QuotationsPage = () => {
     
     // Set the selected quotation and open delivery assignment modal
     setSelectedQuotation(quotation);
+    setIsDeliveryModalOpen(true);
     
     // Load delivery users
     try {
+      setDeliveryUsersLoading(true);
       const response = await api.quotations.getDeliveryUsers();
       if (response && response.success) {
         setDeliveryUsers(response.data || []);
@@ -244,9 +246,9 @@ const QuotationsPage = () => {
     } catch (err) {
       console.error('Error loading delivery users:', err);
       setDeliveryUsers([]);
+    } finally {
+      setDeliveryUsersLoading(false);
     }
-    
-    setIsDeliveryModalOpen(true);
   };
   
   // Handle delivery assignment and approval
@@ -260,6 +262,8 @@ const QuotationsPage = () => {
     }
     
     try {
+      setDeliveryAssignmentLoading(true);
+      
       // Prepare approval data
       const approvalData = {
         assignedDelivery: selectedDeliveryUser
@@ -290,6 +294,8 @@ const QuotationsPage = () => {
     } catch (err) {
       console.error('Error approving quotation:', err);
       showError('Failed to approve quotation', err.message);
+    } finally {
+      setDeliveryAssignmentLoading(false);
     }
   };
 
@@ -1107,9 +1113,11 @@ const QuotationsPage = () => {
         size="5xl"
       >
         <QuotationForm
+          isLoading={formLoading}
           onCancel={() => setIsFormModalOpen(false)}
           onSave={async (quotationData) => {
             try {
+              setFormLoading(true);
               const response = await api.quotations.create(quotationData);
               
               if (response && response.success) {
@@ -1124,6 +1132,8 @@ const QuotationsPage = () => {
             } catch (err) {
               console.error('Error creating quotation:', err);
               showError('Failed to create quotation', err.message);
+            } finally {
+              setFormLoading(false);
             }
           }}
         />
@@ -1551,9 +1561,11 @@ const QuotationsPage = () => {
         {selectedQuotation && (
           <QuotationForm
             initialData={selectedQuotation}
+            isLoading={formLoading}
             onCancel={() => setIsEditModalOpen(false)}
             onSave={async (quotationData) => {
               try {
+                setFormLoading(true);
                 let response;
                 
                 if (quotationData.shouldApprove) {
@@ -1596,6 +1608,8 @@ const QuotationsPage = () => {
               } catch (err) {
                 console.error('Error updating quotation:', err);
                 showError('Failed to update quotation', err.message);
+              } finally {
+                setFormLoading(false);
               }
             }}
           />
@@ -1628,20 +1642,30 @@ const QuotationsPage = () => {
             <label htmlFor="deliveryUser" className="block text-sm font-medium text-gray-700 mb-2">
               Delivery Personnel (Optional)
             </label>
-            <select
-              id="deliveryUser"
-              value={selectedDeliveryUser}
-              onChange={(e) => setSelectedDeliveryUser(e.target.value)}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-2 px-3 sm:text-sm"
-            >
-              <option value="">No delivery assignment</option>
-              {deliveryUsers.map(user => (
-                <option key={user._id} value={user._id}>
-                  {user.name} ({user.email})
-                </option>
-              ))}
-            </select>
-            {deliveryUsers.length === 0 && (
+            {deliveryUsersLoading ? (
+              <div className="flex items-center justify-center py-3 px-4 border border-gray-300 rounded-md bg-gray-50">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-sm text-gray-500">Loading delivery personnel...</span>
+              </div>
+            ) : (
+              <select
+                id="deliveryUser"
+                value={selectedDeliveryUser}
+                onChange={(e) => setSelectedDeliveryUser(e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-2 px-3 sm:text-sm"
+              >
+                <option value="">No delivery assignment</option>
+                {deliveryUsers.map(user => (
+                  <option key={user._id} value={user._id}>
+                    {user.name} ({user.email})
+                  </option>
+                ))}
+              </select>
+            )}
+            {!deliveryUsersLoading && deliveryUsers.length === 0 && (
               <p className="mt-2 text-sm text-gray-500">
                 No delivery personnel available. You can still approve the quotation.
               </p>
@@ -1684,10 +1708,21 @@ const QuotationsPage = () => {
             </button>
             <button
               type="button"
-              className="btn btn-primary"
+              className={`btn btn-primary ${deliveryAssignmentLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={handleDeliveryAssignment}
+              disabled={deliveryAssignmentLoading}
             >
-              Approve Quotation
+              {deliveryAssignmentLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Approving...
+                </>
+              ) : (
+                'Approve Quotation'
+              )}
             </button>
           </div>
         </div>

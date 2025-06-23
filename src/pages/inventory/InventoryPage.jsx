@@ -2,17 +2,14 @@ import { h, Fragment } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
-import { FilterSelect } from '../../components/common';
 import InventoryForm from '../../components/inventory/InventoryForm';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import { hasPermission } from '../../utils/pageHelpers';
 import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
 import { getItemStatus } from '../../utils/lowStockHelpers';
-import { createCostHistoryRecord, saveCostHistory } from '../../utils/costHistoryHelpers';
 import { createInventoryHistoryRecord, saveInventoryHistory } from '../../utils/inventoryHistoryHelpers';
 import { useConfirmModal } from '../../contexts/ModalContext';
-import { deduplicateRequest } from '../../utils/requestDeduplication';
 
 const InventoryPage = () => {
   // Get user data from auth context
@@ -31,6 +28,7 @@ const InventoryPage = () => {
   // Inventory state
   const [inventoryItems, setInventoryItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState('');
@@ -816,11 +814,11 @@ const InventoryPage = () => {
         <InventoryForm
           key={currentItem ? currentItem._id : 'new-item'}
           initialData={currentItem}
-          isLoading={loading}
+          isLoading={formLoading}
           onCancel={() => setIsFormOpen(false)}
           onSave={async (itemData) => {
             try {
-              // Don't set loading state while form is open to prevent form reset
+              setFormLoading(true);
               let response;
               if (currentItem) {
                 // Update existing item
@@ -864,6 +862,8 @@ const InventoryPage = () => {
             } catch (err) {
               console.error('Error saving inventory item:', err);
               setError(err.message || 'Failed to save inventory item. Please try again.');
+            } finally {
+              setFormLoading(false);
             }
           }}
         />

@@ -24,6 +24,7 @@ const SalesPage = () => {
 
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState(null);
   
   // Get current user from auth context
@@ -518,10 +519,11 @@ const SalesPage = () => {
         size="5xl"
       >
         <SaleForm
+          isLoading={formLoading}
           onCancel={() => setIsFormModalOpen(false)}
           onSave={async (saleData) => {
             try {
-              setLoading(true);
+              setFormLoading(true);
               const response = await api.sales.create(saleData);
               
               if (response && response.success) {
@@ -544,7 +546,7 @@ const SalesPage = () => {
               console.error('Error creating sale:', err);
               setError(err.message || 'Failed to create sale. Please try again.');
             } finally {
-              setLoading(false);
+              setFormLoading(false);
             }
           }}
         />
@@ -735,10 +737,11 @@ const SalesPage = () => {
         {selectedSale && (
           <SaleForm
             initialData={selectedSale}
+            isLoading={formLoading}
             onCancel={() => setIsEditModalOpen(false)}
             onSave={async (saleData) => {
               try {
-                setLoading(true);
+                setFormLoading(true);
                 const response = await api.sales.update(selectedSale._id, saleData);
                 
                 if (response && response.success) {
@@ -765,7 +768,7 @@ const SalesPage = () => {
                 console.error('Error updating sale:', err);
                 setError(err.message || 'Failed to update sale. Please try again.');
               } finally {
-                setLoading(false);
+                setFormLoading(false);
               }
             }}
           />
