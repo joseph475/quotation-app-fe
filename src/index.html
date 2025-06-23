@@ -5,11 +5,104 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="print-color-adjust" content="exact">
   <title>Quotation App</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="description" content="Professional quotation and inventory management application">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Quotation App">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <!-- Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  
+  <!-- Icons -->
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+  
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="bg-gray-50">
   <div id="app"></div>
+  
+  <!-- PWA Install Prompt -->
+  <div id="pwa-install-prompt" style="display: none;" class="fixed bottom-4 left-4 right-4 bg-blue-600 text-white p-4 rounded-lg shadow-lg z-50">
+    <div class="flex items-center justify-between">
+      <div>
+        <h3 class="font-semibold">Install Quotation App</h3>
+        <p class="text-sm opacity-90">Add to your home screen for quick access</p>
+      </div>
+      <div class="flex gap-2">
+        <button id="pwa-install-btn" class="bg-white text-blue-600 px-4 py-2 rounded font-medium">Install</button>
+        <button id="pwa-dismiss-btn" class="text-white opacity-75 hover:opacity-100">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Service Worker Registration -->
+  <script>
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('SW registered: ', registration);
+          })
+          .catch((registrationError) => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
+
+    // PWA Install Prompt
+    let deferredPrompt;
+    const installPrompt = document.getElementById('pwa-install-prompt');
+    const installBtn = document.getElementById('pwa-install-btn');
+    const dismissBtn = document.getElementById('pwa-dismiss-btn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later
+      deferredPrompt = e;
+      // Show the install prompt
+      installPrompt.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        // Show the install prompt
+        deferredPrompt.prompt();
+        // Wait for the user to respond to the prompt
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        // Clear the deferredPrompt variable
+        deferredPrompt = null;
+        // Hide the install prompt
+        installPrompt.style.display = 'none';
+      }
+    });
+
+    dismissBtn.addEventListener('click', () => {
+      installPrompt.style.display = 'none';
+      // Remember user dismissed (optional)
+      localStorage.setItem('pwa-dismissed', 'true');
+    });
+
+    // Hide prompt if user previously dismissed
+    if (localStorage.getItem('pwa-dismissed') === 'true') {
+      installPrompt.style.display = 'none';
+    }
+
+    // Hide prompt if already installed
+    window.addEventListener('appinstalled', () => {
+      installPrompt.style.display = 'none';
+      console.log('PWA was installed');
+    });
+  </script>
 </body>
 </html>

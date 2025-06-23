@@ -19,7 +19,6 @@ const InventoryPage = () => {
   const confirmModal = useConfirmModal();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
 
@@ -82,29 +81,26 @@ const InventoryPage = () => {
     fetchData();
   }, [user]);
 
-  // Available categories for filtering
-  const categories = ['all', 'Widgets', 'Components', 'Parts', 'Tools'];
-
-  // Apply client-side filtering for search term and category
+  // Apply client-side filtering for search term
   const filteredItems = inventoryItems
     .filter(item => {
       const matchesSearch = searchTerm === '' || 
                            item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           (item.itemCode && item.itemCode.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
+                           (item.barcode && item.barcode.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                           (item.itemcode && item.itemcode.toString().includes(searchTerm));
       
-      return matchesSearch && matchesCategory;
+      return matchesSearch;
     })
     .sort((a, b) => {
       let comparison = 0;
       if (sortBy === 'name') {
         comparison = a.name.localeCompare(b.name);
-      } else if (sortBy === 'quantity') {
-        comparison = a.quantity - b.quantity;
-      } else if (sortBy === 'costPrice') {
-        comparison = a.costPrice - b.costPrice;
-      } else if (sortBy === 'sellingPrice') {
-        comparison = a.sellingPrice - b.sellingPrice;
+      } else if (sortBy === 'itemcode') {
+        comparison = a.itemcode - b.itemcode;
+      } else if (sortBy === 'cost') {
+        comparison = a.cost - b.cost;
+      } else if (sortBy === 'price') {
+        comparison = a.price - b.price;
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
@@ -124,30 +120,22 @@ const InventoryPage = () => {
     // Define CSV headers
     const headers = [
       'Item Code',
+      'Barcode',
       'Name',
-      'Category',
-      'Brand',
-      'Model',
-      'Quantity',
       'Unit',
-      'Cost Price',
-      'Selling Price',
-      'Status'
+      'Cost',
+      'Price'
     ];
     
     // Convert items to CSV rows
     const rows = items.map(item => {
       return [
-        item.itemCode || '',
+        item.itemcode || '',
+        item.barcode || '',
         item.name || '',
-        item.category || '',
-        item.brand || '',
-        item.model || '',
-        item.quantity || 0,
         item.unit || '',
-        item.costPrice ? `$${item.costPrice.toFixed(2)}` : '$0.00',
-        item.sellingPrice ? `$${item.sellingPrice.toFixed(2)}` : '$0.00',
-        item.status
+        item.cost ? `$${item.cost.toFixed(2)}` : '$0.00',
+        item.price ? `$${item.price.toFixed(2)}` : '$0.00'
       ];
     });
     
@@ -185,10 +173,7 @@ const InventoryPage = () => {
   // Calculate inventory statistics
   const inventoryStats = {
     totalItems: filteredItems.length,
-    inStock: filteredItems.filter(item => item.status === 'In Stock').length,
-    lowStock: filteredItems.filter(item => item.status === 'Low Stock').length,
-    outOfStock: filteredItems.filter(item => item.status === 'Out of Stock').length,
-    totalValue: filteredItems.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0).toFixed(2)
+    totalValue: filteredItems.reduce((sum, item) => sum + (item.cost || 0), 0).toFixed(2)
   };
 
   return (
@@ -199,25 +184,13 @@ const InventoryPage = () => {
       </div>
       
       {/* Inventory Statistics */}
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div class="bg-white shadow rounded-lg p-4 flex flex-col items-center justify-center">
           <span class="text-sm font-medium text-gray-500">Total Items</span>
           <span class="text-2xl font-bold text-gray-900">{inventoryStats.totalItems}</span>
         </div>
         <div class="bg-white shadow rounded-lg p-4 flex flex-col items-center justify-center">
-          <span class="text-sm font-medium text-gray-500">In Stock</span>
-          <span class="text-2xl font-bold text-green-600">{inventoryStats.inStock}</span>
-        </div>
-        <div class="bg-white shadow rounded-lg p-4 flex flex-col items-center justify-center">
-          <span class="text-sm font-medium text-gray-500">Low Stock</span>
-          <span class="text-2xl font-bold text-yellow-600">{inventoryStats.lowStock}</span>
-        </div>
-        <div class="bg-white shadow rounded-lg p-4 flex flex-col items-center justify-center">
-          <span class="text-sm font-medium text-gray-500">Out of Stock</span>
-          <span class="text-2xl font-bold text-red-600">{inventoryStats.outOfStock}</span>
-        </div>
-        <div class="bg-white shadow rounded-lg p-4 flex flex-col items-center justify-center">
-          <span class="text-sm font-medium text-gray-500">Total Value</span>
+          <span class="text-sm font-medium text-gray-500">Total Cost Value</span>
           <span class="text-2xl font-bold text-primary-600">${inventoryStats.totalValue}</span>
         </div>
       </div>
@@ -242,19 +215,6 @@ const InventoryPage = () => {
               />
             </div>
 
-            {/* Category Filter */}
-            <div>
-              <FilterSelect
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                options={categories.map(category => ({
-                  id: category,
-                  name: category === 'all' ? 'All Categories' : category
-                }))}
-                optionValueKey="id"
-                optionLabelKey="name"
-              />
-            </div>
           </div>
 
           {/* Actions */}
@@ -323,43 +283,34 @@ const InventoryPage = () => {
               <thead class="bg-gray-50">
                 <tr>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('itemcode')}>
+                      Item Code
+                      {getSortIcon('itemcode')}
+                    </div>
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Barcode
+                  </th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <div class="flex items-center cursor-pointer" onClick={() => handleSort('name')}>
-                      Item
+                      Name
                       {getSortIcon('name')}
                     </div>
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    SKU
+                    Unit
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Brand
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Model
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('quantity')}>
-                      Stock
-                      {getSortIcon('quantity')}
+                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('cost')}>
+                      Cost
+                      {getSortIcon('cost')}
                     </div>
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('costPrice')}>
-                      Cost Price
-                      {getSortIcon('costPrice')}
+                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('price')}>
+                      Price
+                      {getSortIcon('price')}
                     </div>
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('sellingPrice')}>
-                      Selling Price
-                      {getSortIcon('sellingPrice')}
-                    </div>
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
                   </th>
                   <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -369,6 +320,12 @@ const InventoryPage = () => {
               <tbody class="bg-white divide-y divide-gray-200">
                 {filteredItems.map((item) => (
                   <tr key={item._id || item.id}>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.itemcode}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.barcode}
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                       <div class="flex items-center">
                         <div class="h-10 w-10 flex-shrink-0 bg-gray-100 rounded-md flex items-center justify-center text-gray-500">
@@ -380,34 +337,13 @@ const InventoryPage = () => {
                       </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.itemCode}
+                      {item.unit}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.category}
+                      ${item.cost ? item.cost.toFixed(2) : '0.00'}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.brand || '-'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.model || '-'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.quantity}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      ${item.costPrice.toFixed(2)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      ${item.sellingPrice.toFixed(2)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        item.status === 'In Stock' ? 'bg-green-100 text-green-800' : 
-                        item.status === 'Out of Stock' ? 'bg-red-100 text-red-800' : 
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {item.status}
-                      </span>
+                      ${item.price ? item.price.toFixed(2) : '0.00'}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div class="flex justify-end space-x-2">

@@ -23,7 +23,7 @@ const Header = () => {
         <div class="flex justify-between h-16">
           <div class="flex items-center">
             <div class="flex-shrink-0 flex items-center">
-              <h1 class="text-xl font-bold text-primary-600">Quotation App</h1>
+              <h1 class="text-xl font-bold text-primary-600 lg:ml-0 ml-12">Quotation App</h1>
             </div>
           </div>
           

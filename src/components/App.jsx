@@ -34,59 +34,12 @@ const AppContent = () => {
   const [currentUrl, setCurrentUrl] = useState(getCurrentUrl());
   const { isAuthenticated, user } = useAuth();
   
-  // Only preload essential data based on user role
-  useEffect(() => {
-    const preloadEssentialData = async () => {
-      if (isAuthenticated && user) {
-        try {
-          console.log('Preloading essential data for user role:', user.role);
-          
-          // For user role, only preload quotations data
-          if (user.role === 'user') {
-            // Preload quotations in background (non-blocking)
-            api.quotations.getAll().then(response => {
-              if (response && response.success) {
-                storeInStorage('quotations', response.data || []);
-                storeInStorage('quotations_timestamp', Date.now());
-              }
-            }).catch(err => {
-              console.warn('Failed to preload quotations:', err);
-            });
-          }
-          
-          // For admin role, preload customers and quotations (most commonly used)
-          if (user.role === 'admin') {
-            // Preload in parallel, non-blocking
-            Promise.allSettled([
-              api.customers.getAll().then(response => {
-                if (response && response.success) {
-                  storeInStorage('customers', response.data || []);
-                  storeInStorage('customers_timestamp', Date.now());
-                }
-              }),
-              api.quotations.getAll().then(response => {
-                if (response && response.success) {
-                  storeInStorage('quotations', response.data || []);
-                  storeInStorage('quotations_timestamp', Date.now());
-                }
-              })
-            ]).then(results => {
-              console.log('Essential data preloading completed');
-            }).catch(err => {
-              console.warn('Some essential data failed to preload:', err);
-            });
-          }
-        } catch (error) {
-          console.warn('Error preloading essential data:', error);
-          // Don't block the app if preloading fails
-        }
-      }
-    };
-    
-    // Use a small delay to ensure the app renders first
-    const timer = setTimeout(preloadEssentialData, 100);
-    return () => clearTimeout(timer);
-  }, [isAuthenticated, user]);
+  console.log('AppContent render - User:', { 
+    id: user?._id || user?.id, 
+    role: user?.role, 
+    email: user?.email,
+    isAuthenticated
+  });
   
   // Check if the current route is an auth route (login, register, etc.)
   const isAuthRoute = currentUrl === '/login';

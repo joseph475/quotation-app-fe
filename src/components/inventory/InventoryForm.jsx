@@ -5,8 +5,6 @@ import Button from '../common/Button';
 import Input from '../common/Input';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
-import { getFromStorage } from '../../utils/localStorageHelpers';
-import { getItemStatus, getLowStockThreshold } from '../../utils/lowStockHelpers';
 
 /**
  * InventoryForm component for creating and editing inventory items
@@ -19,97 +17,43 @@ import { getItemStatus, getLowStockThreshold } from '../../utils/lowStockHelpers
 const InventoryForm = ({ initialData, onCancel, onSave }) => {
   // Get user data from auth context
   const { user } = useAuth();
-  
-  // Available categories
-  const categories = ['Widgets', 'Components', 'Parts', 'Tools'];
-  
-  // Available status options
-  const statusOptions = ['In Stock', 'Low Stock', 'Out of Stock'];
-  
 
   // Form state
   const [formData, setFormData] = useState({
+    barcode: '',
     name: '',
-    itemCode: '',
-    brand: '',
-    model: '',
-    category: 'Widgets', // Default category
-    color: '',
-    description: '',
-    quantity: 0,
     unit: 'pcs', // Default unit
-    costPrice: 0, // Purchase/cost price
-    sellingPrice: 0, // Selling price
-    discount: 0, // Discount percentage
-    status: 'In Stock', // Default status
-    reorderLevel: 10, // Default reorder level
+    cost: 0,
+    price: 0,
   });
 
   // Form validation
   const [errors, setErrors] = useState({});
 
-  // Initialize form with data if editing and fetch branches
+  // Initialize form with data if editing
   useEffect(() => {
     if (initialData) {
       // Make sure we preserve the MongoDB _id field when editing
       setFormData({
-        ...initialData,
+        barcode: initialData.barcode || '',
+        name: initialData.name || '',
+        unit: initialData.unit || 'pcs',
+        cost: initialData.cost || 0,
+        price: initialData.price || 0,
       });
-    } else {
-      // Generate a new item code for new items
-      generateItemCode();
-      
     }
-    
-  }, [initialData, user]);
-
-  // Generate an item code based on the category and a random number
-  const generateItemCode = () => {
-    const category = formData.category || 'Widgets';
-    const prefix = category.substring(0, 3).toUpperCase();
-    const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit number
-    
-    setFormData(prev => ({
-      ...prev,
-      itemCode: `${prefix}-${randomNum}`,
-    }));
-  };
-
-  // Update item code when category changes
-  useEffect(() => {
-    if (!initialData) {
-      generateItemCode();
-    }
-  }, [formData.category]);
-
-  // Update status based on quantity and unit using new low stock logic
-  useEffect(() => {
-    const quantity = parseInt(formData.quantity, 10) || 0;
-    const unit = formData.unit || 'pcs';
-    const newStatus = getItemStatus(quantity, unit);
-    
-    setFormData(prev => ({
-      ...prev,
-      status: newStatus,
-    }));
-  }, [formData.quantity, formData.unit]);
+  }, [initialData]);
 
   // Handle form field changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     
     // Convert numeric values
-    if (name === 'quantity') {
-      const quantityValue = parseInt(value, 10) || 0;
+    if (name === 'cost' || name === 'price') {
+      const numericValue = parseFloat(value) || 0;
       setFormData(prev => ({
         ...prev,
-        [name]: quantityValue,
-      }));
-    } else if (name === 'costPrice' || name === 'sellingPrice') {
-      const priceValue = parseFloat(value) || 0;
-      setFormData(prev => ({
-        ...prev,
-        [name]: priceValue,
+        [name]: numericValue,
       }));
     } else {
       setFormData(prev => ({
@@ -133,28 +77,25 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
     
     // Validate form
     const newErrors = {};
+    if (!formData.barcode) newErrors.barcode = 'Barcode is required';
     if (!formData.name) newErrors.name = 'Name is required';
-    if (!formData.itemCode) newErrors.itemCode = 'Item Code is required';
-    if (!formData.category) newErrors.category = 'Category is required';
     if (!formData.unit) newErrors.unit = 'Unit is required';
-    if (formData.quantity < 0) newErrors.quantity = 'Quantity cannot be negative';
-    if (formData.costPrice < 0) newErrors.costPrice = 'Cost price cannot be negative';
-    if (formData.sellingPrice < 0) newErrors.sellingPrice = 'Selling price cannot be negative';
-    if (formData.discount < 0 || formData.discount > 100) newErrors.discount = 'Discount must be between 0 and 100';
+    if (formData.cost < 0) newErrors.cost = 'Cost cannot be negative';
+    if (formData.price < 0) newErrors.price = 'Price cannot be negative';
     
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
     
-  // Handle ID fields properly
-  // For new items: remove any id/ID fields to let MongoDB generate them
-  // For existing items: preserve the MongoDB _id field
-  const { id, ID, ...dataWithoutClientIds } = formData;
-  
-  const inventoryData = initialData
-    ? { ...dataWithoutClientIds, _id: initialData._id }
-    : { ...dataWithoutClientIds };
+    // Handle ID fields properly
+    // For new items: remove any id/ID fields to let MongoDB generate them
+    // For existing items: preserve the MongoDB _id field
+    const { id, ID, ...dataWithoutClientIds } = formData;
+    
+    const inventoryData = initialData
+      ? { ...dataWithoutClientIds, _id: initialData._id }
+      : { ...dataWithoutClientIds };
     
     // Call the save handler
     onSave(inventoryData);
@@ -173,6 +114,41 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
           {/* Basic Information */}
           <Card title="Item Information">
             <div className="grid grid-cols-1 gap-4">
+              {/* Item Code - Display only (auto-increment) */}
+              {initialData && (
+                <div>
+                  <label className={labelClasses}>
+                    Item Code
+                  </label>
+                  <div className="bg-gray-50 border border-gray-300 rounded-md py-2 px-3 text-sm text-gray-700">
+                    {initialData.itemcode}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Auto-generated item code
+                  </p>
+                </div>
+              )}
+
+              {/* Barcode */}
+              <div>
+                <label htmlFor="barcode" className={labelClasses}>
+                  Barcode <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="barcode"
+                  name="barcode"
+                  value={formData.barcode}
+                  onChange={handleChange}
+                  className={`${inputClasses} ${errors.barcode ? 'border-red-300' : ''}`}
+                  placeholder="Enter barcode"
+                  required
+                />
+                {errors.barcode && (
+                  <p className={errorClasses}>{errors.barcode}</p>
+                )}
+              </div>
+
               {/* Name */}
               <div>
                 <label htmlFor="name" className={labelClasses}>
@@ -190,181 +166,6 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
                 />
                 {errors.name && (
                   <p className={errorClasses}>{errors.name}</p>
-                )}
-              </div>
-
-              {/* Item Code */}
-              <div>
-                <label htmlFor="itemCode" className={labelClasses}>
-                  Item Code <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="itemCode"
-                  name="itemCode"
-                  value={formData.itemCode}
-                  onChange={handleChange}
-                  className={`${inputClasses} ${errors.itemCode ? 'border-red-300' : ''}`}
-                  placeholder="Enter Item Code"
-                  required
-                />
-                {errors.itemCode && (
-                  <p className={errorClasses}>{errors.itemCode}</p>
-                )}
-              </div>
-
-              {/* Brand */}
-              <div>
-                <label htmlFor="brand" className={labelClasses}>
-                  Brand
-                </label>
-                <input
-                  type="text"
-                  id="brand"
-                  name="brand"
-                  value={formData.brand}
-                  onChange={handleChange}
-                  className={inputClasses}
-                  placeholder="Enter brand name"
-                />
-              </div>
-
-              {/* Model */}
-              <div>
-                <label htmlFor="model" className={labelClasses}>
-                  Model
-                </label>
-                <input
-                  type="text"
-                  id="model"
-                  name="model"
-                  value={formData.model}
-                  onChange={handleChange}
-                  className={inputClasses}
-                  placeholder="Enter model number/name"
-                />
-              </div>
-
-              {/* Category */}
-              <div>
-                <label htmlFor="category" className={labelClasses}>
-                  Category <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    id="category"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    className={`${inputClasses} appearance-none pr-10 ${errors.category ? 'border-red-300' : ''}`}
-                    required
-                  >
-                    {categories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                </div>
-                {errors.category && (
-                  <p className={errorClasses}>{errors.category}</p>
-                )}
-              </div>
-
-              {/* Color */}
-              <div>
-                <label htmlFor="color" className={labelClasses}>
-                  Color
-                </label>
-                <input
-                  type="text"
-                  id="color"
-                  name="color"
-                  value={formData.color}
-                  onChange={handleChange}
-                  className={inputClasses}
-                  placeholder="Enter color (if applicable)"
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Item Description */}
-          <Card title="Item Description" className="mt-6">
-            <div>
-              <label htmlFor="description" className={labelClasses}>
-                Description
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows="5"
-                className={inputClasses}
-                placeholder="Enter item description"
-              />
-            </div>
-          </Card>
-        </div>
-
-        {/* Right Column */}
-        <div>
-          {/* Inventory Details */}
-          <Card title="Inventory Details">
-            <div className="grid grid-cols-1 gap-4">
-              {/* Status */}
-              <div>
-                <label htmlFor="status" className={labelClasses}>
-                  Status
-                </label>
-                <div className="relative">
-                  <select
-                    id="status"
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    className={`${inputClasses} appearance-none pr-10`}
-                    disabled={true} // Status is determined by stock level
-                  >
-                    {statusOptions.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                </div>
-                <p className="mt-2 text-xs text-gray-500">Status is automatically determined by stock level</p>
-              </div>
-
-              {/* Quantity */}
-              <div>
-                <label htmlFor="quantity" className={labelClasses}>
-                  Stock Quantity <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  id="quantity"
-                  name="quantity"
-                  min="0"
-                  step="1"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  className={`${inputClasses} ${errors.quantity ? 'border-red-300' : ''}`}
-                  required
-                />
-                {errors.quantity && (
-                  <p className={errorClasses}>{errors.quantity}</p>
                 )}
               </div>
 
@@ -387,25 +188,19 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
                   <p className={errorClasses}>{errors.unit}</p>
                 )}
               </div>
+            </div>
+          </Card>
+        </div>
 
-
-              {/* Low Stock Threshold Display */}
+        {/* Right Column */}
+        <div>
+          {/* Pricing Information */}
+          <Card title="Pricing Information">
+            <div className="grid grid-cols-1 gap-4">
+              {/* Cost */}
               <div>
-                <label className={labelClasses}>
-                  Low Stock Threshold
-                </label>
-                <div className="bg-gray-50 border border-gray-300 rounded-md py-2 px-3 text-sm text-gray-700">
-                  {getLowStockThreshold(formData.unit)} {formData.unit}
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Automatically determined based on unit type. System will alert when stock falls below this level.
-                </p>
-              </div>
-
-              {/* Cost Price */}
-              <div>
-                <label htmlFor="costPrice" className={labelClasses}>
-                  Cost Price <span className="text-red-500">*</span>
+                <label htmlFor="cost" className={labelClasses}>
+                  Cost <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -413,25 +208,25 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
                   </div>
                   <input
                     type="number"
-                    id="costPrice"
-                    name="costPrice"
+                    id="cost"
+                    name="cost"
                     min="0"
                     step="0.01"
-                    value={formData.costPrice}
+                    value={formData.cost}
                     onChange={handleChange}
-                    className={`${inputClasses} ${errors.costPrice ? 'border-red-300' : ''} pl-7`}
+                    className={`${inputClasses} ${errors.cost ? 'border-red-300' : ''} pl-7`}
                     required
                   />
                 </div>
-                {errors.costPrice && (
-                  <p className={errorClasses}>{errors.costPrice}</p>
+                {errors.cost && (
+                  <p className={errorClasses}>{errors.cost}</p>
                 )}
               </div>
 
-              {/* Selling Price */}
+              {/* Price */}
               <div>
-                <label htmlFor="sellingPrice" className={labelClasses}>
-                  Selling Price <span className="text-red-500">*</span>
+                <label htmlFor="price" className={labelClasses}>
+                  Price <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -439,51 +234,32 @@ const InventoryForm = ({ initialData, onCancel, onSave }) => {
                   </div>
                   <input
                     type="number"
-                    id="sellingPrice"
-                    name="sellingPrice"
+                    id="price"
+                    name="price"
                     min="0"
                     step="0.01"
-                    value={formData.sellingPrice}
+                    value={formData.price}
                     onChange={handleChange}
-                    className={`${inputClasses} ${errors.sellingPrice ? 'border-red-300' : ''} pl-7`}
+                    className={`${inputClasses} ${errors.price ? 'border-red-300' : ''} pl-7`}
                     required
                   />
                 </div>
-                {errors.sellingPrice && (
-                  <p className={errorClasses}>{errors.sellingPrice}</p>
+                {errors.price && (
+                  <p className={errorClasses}>{errors.price}</p>
                 )}
               </div>
 
-              {/* Discount */}
-              <div>
-                <label htmlFor="discount" className={labelClasses}>
-                  Discount (%)
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    id="discount"
-                    name="discount"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={formData.discount}
-                    onChange={handleChange}
-                    className={`${inputClasses} ${errors.discount ? 'border-red-300' : ''}`}
-                  />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500">%</span>
+              {/* Profit Margin Display */}
+              {formData.cost > 0 && formData.price > 0 && (
+                <div>
+                  <label className={labelClasses}>
+                    Profit Margin
+                  </label>
+                  <div className="bg-gray-50 border border-gray-300 rounded-md py-2 px-3 text-sm text-gray-700">
+                    ${(formData.price - formData.cost).toFixed(2)} ({(((formData.price - formData.cost) / formData.cost) * 100).toFixed(1)}%)
                   </div>
                 </div>
-                {errors.discount && (
-                  <p className={errorClasses}>{errors.discount}</p>
-                )}
-                {formData.discount > 0 && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    Final price: ${((formData.sellingPrice * (100 - formData.discount)) / 100).toFixed(2)}
-                  </p>
-                )}
-              </div>
+              )}
             </div>
           </Card>
         </div>

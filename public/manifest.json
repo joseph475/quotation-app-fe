@@ -1,15 +1,33 @@
 {
   "short_name": "Quotation App",
-  "name": "Quotation App - Inventory and Sales Management",
+  "name": "Quotation Management System",
+  "description": "Professional quotation and inventory management application",
   "icons": [
     {
-      "src": "images/logo.svg",
+      "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/svg+xml"
+      "type": "image/x-icon"
+    },
+    {
+      "src": "icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
-  "theme_color": "#0284c7",
-  "background_color": "#ffffff"
+  "orientation": "portrait-primary",
+  "theme_color": "#2563eb",
+  "background_color": "#ffffff",
+  "categories": ["business", "productivity", "finance"],
+  "lang": "en",
+  "scope": "/",
+  "prefer_related_applications": false
 }
