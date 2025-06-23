@@ -250,7 +250,7 @@ const api = {
       body: formData,
     }),
     importExcelBatch: (formData, onProgress) => {
-      // Use regular fetch with streaming response
+      // Use chunked processing for Vercel timeout limits
       return new Promise(async (resolve, reject) => {
         const token = getAuthToken();
         const API_BASE_URL = process.env.REACT_APP_API_URL || 
@@ -259,7 +259,8 @@ const api = {
             : 'http://localhost:8000/api/v1');
 
         try {
-          const response = await fetch(`${API_BASE_URL}/inventory/import-excel-batch`, {
+          // First, upload the file and get chunks
+          const initialResponse = await fetch(`${API_BASE_URL}/inventory/import-excel-batch`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -267,43 +268,112 @@ const api = {
             body: formData,
           });
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          if (!initialResponse.ok) {
+            throw new Error(`HTTP ${initialResponse.status}: ${initialResponse.statusText}`);
           }
 
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
+          const initialData = await initialResponse.json();
+          
+          if (!initialData.success) {
+            throw new Error(initialData.message || 'Failed to parse Excel file');
+          }
 
-          while (true) {
-            const { done, value } = await reader.read();
+          const { chunks, totalChunks, totalRows, sessionId } = initialData.data;
+
+          if (onProgress) {
+            onProgress({
+              type: 'info',
+              message: `Excel file parsed successfully. Processing ${totalRows} items in ${totalChunks} chunks...`,
+              totalRows,
+              totalChunks
+            });
+          }
+
+          let totalCreated = 0;
+          let totalUpdated = 0;
+          let totalErrors = 0;
+          let allErrors = [];
+
+          // Process each chunk
+          for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
             
-            if (done) break;
+            if (onProgress) {
+              onProgress({
+                type: 'progress',
+                message: `Processing chunk ${i + 1} of ${totalChunks} (${chunk.length} items)`,
+                currentChunk: i + 1,
+                totalChunks,
+                processed: i * 300,
+                total: totalRows
+              });
+            }
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
+            // Process this chunk
+            const chunkResponse = await fetch(`${API_BASE_URL}/inventory/import-excel-batch`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                chunk,
+                chunkIndex: i,
+                totalChunks,
+                sessionId
+              }),
+            });
 
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const data = JSON.parse(line.slice(6));
-                  
-                  if (onProgress) {
-                    onProgress(data);
-                  }
+            if (!chunkResponse.ok) {
+              throw new Error(`HTTP ${chunkResponse.status}: Failed to process chunk ${i + 1}`);
+            }
 
-                  if (data.type === 'complete') {
-                    resolve(data);
-                    return;
-                  } else if (data.type === 'error') {
-                    reject(new Error(data.message));
-                    return;
-                  }
-                } catch (error) {
-                  console.error('Error parsing SSE data:', error);
-                }
-              }
+            const chunkData = await chunkResponse.json();
+            
+            if (!chunkData.success) {
+              throw new Error(chunkData.message || `Failed to process chunk ${i + 1}`);
+            }
+
+            // Accumulate results
+            totalCreated += chunkData.data.created || 0;
+            totalUpdated += chunkData.data.updated || 0;
+            totalErrors += chunkData.data.errors || 0;
+            
+            if (chunkData.data.errorDetails) {
+              allErrors.push(...chunkData.data.errorDetails);
+            }
+
+            if (onProgress) {
+              onProgress({
+                type: 'chunk_complete',
+                message: `Chunk ${i + 1} completed: ${chunkData.data.created} created, ${chunkData.data.updated} updated`,
+                currentChunk: i + 1,
+                totalChunks,
+                processed: (i + 1) * 50,
+                total: totalRows,
+                created: totalCreated,
+                updated: totalUpdated,
+                errors: totalErrors
+              });
             }
           }
+
+          // Final completion
+          const finalResult = {
+            type: 'complete',
+            message: `Import completed successfully! ${totalCreated} created, ${totalUpdated} updated, ${totalErrors} errors`,
+            data: {
+              imported: totalCreated + totalUpdated,
+              created: totalCreated,
+              updated: totalUpdated,
+              errors: totalErrors,
+              errorDetails: allErrors.slice(0, 10), // Limit errors shown
+              totalRows
+            }
+          };
+
+          resolve(finalResult);
+
         } catch (error) {
           console.error('Import error:', error);
           reject(error);
