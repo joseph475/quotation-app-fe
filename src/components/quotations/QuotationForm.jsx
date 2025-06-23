@@ -10,7 +10,7 @@ import { getFromStorage } from '../../utils/localStorageHelpers';
  * QuotationForm component for creating and editing quotations
  * Completely isolated to prevent external re-renders from affecting form state
  */
-const QuotationForm = ({ initialData, onCancel, onSave }) => {
+const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
   // Initialize form data immediately without useEffect
   const getInitialFormData = () => {
     if (initialData) {
@@ -784,9 +784,10 @@ const QuotationForm = ({ initialData, onCancel, onSave }) => {
           <Button
             type="submit"
             variant="primary"
-            disabled={loading.form}
+            isLoading={isLoading}
+            disabled={isLoading}
           >
-            {loading.form ? 'Saving...' : initialData ? 'Update Quotation' : 'Create Quotation'}
+            {isLoading ? 'Saving...' : initialData ? 'Update Quotation' : 'Create Quotation'}
           </Button>
         </div>
       </form>

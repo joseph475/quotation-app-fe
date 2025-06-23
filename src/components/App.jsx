@@ -1,16 +1,11 @@
-import { h, Fragment } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { h } from 'preact';
+import { useState } from 'preact/hooks';
 import Router from 'preact-router';
 import { getCurrentUrl } from 'preact-router';
 import { useAuth, AuthProvider } from '../contexts/AuthContext';
 import { RoleProtectedRoute } from '../utils/pageHelpers';
 import { ModalProvider } from '../contexts/ModalContext';
 import { ApiErrorHandler } from '../services/api';
-import api from '../services/api';
-import { storeInStorage } from '../utils/localStorageHelpers';
-
-// Development mode flag - set to false for production
-const DEV_MODE = false;
 
 // Layout Components
 import Header from './layout/Header';
@@ -21,7 +16,6 @@ import Footer from './layout/Footer';
 import DashboardPage from '../pages/dashboard/DashboardPage';
 import InventoryPage from '../pages/inventory/InventoryPage';
 import SalesPage from '../pages/sales/SalesPage';
-import CustomersPage from '../pages/customers/CustomersPage';
 import QuotationsPage from '../pages/quotations/QuotationsPage';
 import ProfilePage from '../pages/profile/ProfilePage';
 import UserManagementPage from '../pages/users/UserManagementPage';
@@ -70,7 +64,6 @@ const AppContent = () => {
             />
             <RoleProtectedRoute component={InventoryPage} path="/inventory" allowedRoles={['admin', 'superadmin']} />
             <RoleProtectedRoute component={SalesPage} path="/sales" allowedRoles={['admin']} />
-            <RoleProtectedRoute component={CustomersPage} path="/customers" allowedRoles={['admin']} />
             <RoleProtectedRoute component={QuotationsPage} path="/quotations" allowedRoles={['admin', 'user', 'delivery']} />
             <RoleProtectedRoute component={ProfilePage} path="/profile" allowedRoles={['admin', 'user', 'delivery', 'superadmin']} />
             <RoleProtectedRoute component={UserManagementPage} path="/user-management" allowedRoles={['admin']} />

@@ -478,27 +478,6 @@ const api = {
     search: (query) => request(`/suppliers/search?query=${encodeURIComponent(query)}`),
   },
   
-  // Purchase Order endpoints
-  purchaseOrders: {
-    getAll: () => request('/purchase-orders'),
-    getById: (id) => request(`/purchase-orders/${id}`),
-    create: (order) => request('/purchase-orders', {
-      method: 'POST',
-      body: JSON.stringify(order),
-    }),
-    update: (id, order) => request(`/purchase-orders/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(order),
-    }),
-    delete: (id) => request(`/purchase-orders/${id}`, {
-      method: 'DELETE',
-    }),
-    updateStatus: (id, status) => request(`/purchase-orders/${id}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    }),
-    getReceivings: (id) => request(`/purchase-orders/${id}/receivings`),
-  },
   
   // Purchase Receiving endpoints
   purchaseReceiving: {
