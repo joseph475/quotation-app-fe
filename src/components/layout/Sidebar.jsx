@@ -1,9 +1,7 @@
 import { h, Fragment } from 'preact';
-import { useState } from 'preact/hooks';
 import { route } from 'preact-router';
 
-const Sidebar = () => {
-  const [isOpen, setIsOpen] = useState(false);
+const Sidebar = ({ isOpen, setIsOpen }) => {
   
   // DIRECTLY read from localStorage every render - no React state involved
   const rawAuthUser = localStorage.getItem('authUser');
@@ -75,22 +73,8 @@ const Sidebar = () => {
     }
   };
 
-  const toggleSidebar = () => {
-    setIsOpen(!isOpen);
-  };
-
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        onClick={toggleSidebar}
-        class="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-white shadow-md border border-gray-200"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-        </svg>
-      </button>
-
       {/* Mobile Overlay */}
       {isOpen && (
         <div 
@@ -111,7 +95,7 @@ const Sidebar = () => {
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
           <h2 class="text-lg font-medium text-gray-900">Menu</h2>
           <button
-            onClick={toggleSidebar}
+            onClick={() => setIsOpen(false)}
             class="lg:hidden p-1 rounded-md hover:bg-gray-100"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

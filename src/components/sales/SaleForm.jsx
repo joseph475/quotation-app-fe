@@ -706,7 +706,7 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500">$</span>
+                  <span className="text-gray-500">₱</span>
                 </div>
                 <input
                   type="number"
@@ -722,9 +722,9 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
                 />
               </div>
               <div className="mt-2 flex justify-between text-sm">
-                <span className="text-gray-500">Total Amount: ${totalAmount.toFixed(2)}</span>
+                <span className="text-gray-500">Total Amount: ₱{totalAmount.toFixed(2)}</span>
                 <span className="text-gray-500">
-                  Balance: ${(totalAmount - parseFloat(formData.amountPaid || 0)).toFixed(2)}
+                  Balance: ₱{(totalAmount - parseFloat(formData.amountPaid || 0)).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -766,7 +766,7 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
           </div>
           <div>
             <p className="text-sm text-gray-500">Total Amount</p>
-            <p className="text-2xl font-bold text-primary-600">${totalAmount.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-primary-600">₱{totalAmount.toFixed(2)}</p>
           </div>
         </div>
         <div className="flex space-x-3">

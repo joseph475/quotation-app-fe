@@ -2,7 +2,7 @@ import { h } from 'preact';
 import { useState } from 'preact/hooks';
 import { useAuth } from '../../contexts/AuthContext';
 
-const Header = () => {
+const Header = ({ onMenuToggle }) => {
   const { user, logout } = useAuth();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -22,8 +22,19 @@ const Header = () => {
       <div class="container-fluid mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
           <div class="flex items-center">
+            {/* Mobile Menu Button */}
+            <button
+              onClick={onMenuToggle}
+              class="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 mr-3"
+            >
+              <span class="sr-only">Open main menu</span>
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+              </svg>
+            </button>
+            
             <div class="flex-shrink-0 flex items-center">
-              <h1 class="text-xl font-bold text-primary-600 lg:ml-0 ml-12">Quotation App</h1>
+              <h1 class="text-xl font-bold text-primary-600">Quotation App</h1>
             </div>
           </div>
           

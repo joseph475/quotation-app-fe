@@ -372,9 +372,9 @@ const InventoryPage = () => {
           </div>
 
             {/* Actions */}
-            <div class="flex space-x-3">
+            <div class="flex flex-wrap gap-2 sm:space-x-3 sm:gap-0">
               <button 
-                class="btn btn-outline flex items-center"
+                class="btn btn-outline flex items-center text-xs sm:text-sm px-2 py-1.5 sm:px-3 sm:py-2"
                 onClick={() => {
                   // Clear local storage and refetch from API
                   localStorage.removeItem('allInventory');
@@ -382,20 +382,22 @@ const InventoryPage = () => {
                 }}
                 disabled={loading}
               >
-                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg class="h-3 w-3 sm:h-5 sm:w-5 mr-1 sm:mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
                 </svg>
-                Refresh
+                <span class="hidden sm:inline">Refresh</span>
+                <span class="sm:hidden">Refresh</span>
               </button>
               <button 
-                class="btn btn-outline flex items-center"
+                class="btn btn-outline flex items-center text-xs sm:text-sm px-2 py-1.5 sm:px-3 sm:py-2"
                 onClick={exportToCSV}
                 disabled={loading}
               >
-                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg class="h-3 w-3 sm:h-5 sm:w-5 mr-1 sm:mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
                 </svg>
-                Export CSV
+                <span class="hidden sm:inline">Export CSV</span>
+                <span class="sm:hidden">Export</span>
               </button>
               {/* Import Excel button for superadmin only */}
               {user?.role === 'superadmin' && (
@@ -408,33 +410,47 @@ const InventoryPage = () => {
                     class="hidden"
                     disabled={isImporting}
                   />
-                  <Button
-                    variant="secondary"
+                  <button
+                    class="btn btn-secondary flex items-center text-xs sm:text-sm px-2 py-1.5 sm:px-3 sm:py-2"
                     onClick={() => document.getElementById('excel-import').click()}
                     disabled={isImporting}
-                    isLoading={isImporting}
-                    leftIcon={!isImporting && (
-                      <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  >
+                    {!isImporting && (
+                      <svg class="h-3 w-3 sm:h-5 sm:w-5 mr-1 sm:mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                       </svg>
                     )}
-                  >
-                    {isImporting ? 'Importing...' : 'Import Excel'}
-                  </Button>
+                    {isImporting ? (
+                      <>
+                        <svg class="animate-spin h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="hidden sm:inline">Importing...</span>
+                        <span class="sm:hidden">Import...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span class="hidden sm:inline">Import Excel</span>
+                        <span class="sm:hidden">Import</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
               {hasPermission('inventory-create', user) && (
                 <button 
-                  class="btn btn-primary flex items-center"
+                  class="btn btn-primary flex items-center text-xs sm:text-sm px-2 py-1.5 sm:px-3 sm:py-2"
                   onClick={() => {
                     setCurrentItem(null);
                     setIsFormOpen(true);
                   }}
                 >
-                  <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <svg class="h-3 w-3 sm:h-5 sm:w-5 mr-1 sm:mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
                   </svg>
-                  Add Item
+                  <span class="hidden sm:inline">Add Item</span>
+                  <span class="sm:hidden">Add</span>
                 </button>
               )}
             </div>
@@ -581,10 +597,10 @@ const InventoryPage = () => {
                         {item.unit}
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${item.cost ? item.cost.toFixed(2) : '0.00'}
+                        ₱{item.cost ? item.cost.toFixed(2) : '0.00'}
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${item.price ? item.price.toFixed(2) : '0.00'}
+                        ₱{item.price ? item.price.toFixed(2) : '0.00'}
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div class="flex justify-end space-x-2">

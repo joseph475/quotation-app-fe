@@ -26,6 +26,7 @@ import DeviceManagementPage from '../pages/security/DeviceManagementPage';
 
 const AppContent = () => {
   const [currentUrl, setCurrentUrl] = useState(getCurrentUrl());
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
   
   console.log('AppContent render - User:', { 
@@ -43,13 +44,20 @@ const AppContent = () => {
     // Scroll to top when route changes
     window.scrollTo(0, 0);
     setCurrentUrl(e.url);
+    // Close sidebar on route change (mobile)
+    setIsSidebarOpen(false);
+  };
+
+  // Handler for menu toggle
+  const handleMenuToggle = () => {
+    setIsSidebarOpen(!isSidebarOpen);
   };
 
   return (
     <div class="flex flex-col min-h-screen">
-      {!isAuthRoute && <Header />}
+      {!isAuthRoute && <Header onMenuToggle={handleMenuToggle} />}
       <div class={`flex flex-1 overflow-hidden ${isAuthRoute ? '' : ''}`}>
-        {!isAuthRoute && <Sidebar />}
+        {!isAuthRoute && <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />}
         <main class={`flex-1 overflow-auto ${isAuthRoute ? '' : 'p-4 bg-gray-50'}`}>
           <Router onChange={handleRouteChange}>
             {/* For users with 'user' or 'delivery' role, redirect to quotations page */}

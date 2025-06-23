@@ -45,7 +45,7 @@ const QuotationsPage = () => {
         new Date(quotation.createdAt).toLocaleDateString(),
         new Date(quotation.validUntil).toLocaleDateString(),
         status,
-        `$${(quotation.total || 0).toFixed(2)}`,
+        `${process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}${(quotation.total || 0).toFixed(2)}`,
         quotation.notes || ''
       ];
     });
@@ -100,7 +100,7 @@ const QuotationsPage = () => {
       new Date(quotation.createdAt).toLocaleDateString(),
       new Date(quotation.validUntil).toLocaleDateString(),
       status,
-      `$${(quotation.total || 0).toFixed(2)}`,
+      `${process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}${(quotation.total || 0).toFixed(2)}`,
       quotation.notes || '',
       quotation.terms || ''
     ];
@@ -681,10 +681,13 @@ const QuotationsPage = () => {
 
   return (
     <div>
-      <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">Quotation Management</h1>
-        <p class="mt-1 text-sm text-gray-500">Create and manage quotations for your customers</p>
-      </div>
+      {/* Only show header for admin users */}
+      {(user?.role === 'admin' || user?.data?.role === 'admin') && (
+        <div class="mb-6">
+          <h1 class="text-2xl font-bold text-gray-900">Quotation Management</h1>
+          <p class="mt-1 text-sm text-gray-500">Create and manage quotations for your customers</p>
+        </div>
+      )}
 
       {/* Error message */}
       {error && (
@@ -717,9 +720,9 @@ const QuotationsPage = () => {
 
       {/* Quotation Summary Cards - Only show for admin users */}
       {(user?.role === 'admin' || user?.data?.role === 'admin') && (
-        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
           <div class="bg-white overflow-hidden shadow rounded-lg">
-            <div class="px-4 py-5 sm:p-6">
+            <div class="px-3 py-4 sm:px-4 sm:py-5 lg:p-6">
               <div class="flex items-center">
                 <div class="flex-shrink-0 bg-primary-100 rounded-md p-3">
                   <svg class="h-6 w-6 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -806,12 +809,12 @@ const QuotationsPage = () => {
 
       {/* Filters and Actions */}
       <div class="bg-white shadow rounded-lg mb-6">
-        <div class="p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-          <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+        <div class="p-3 sm:p-4 lg:p-6 flex flex-col space-y-4">
+          <div class="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4 w-full">
             {/* Search */}
-            <div class="relative">
+            <div class="relative flex-1 sm:flex-initial sm:min-w-0 sm:w-64">
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
                 </svg>
               </div>
@@ -820,49 +823,56 @@ const QuotationsPage = () => {
                 placeholder="Search quotations..."
                 value={searchTerm}
                 onInput={(e) => setSearchTerm(e.target.value)}
-                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                class="block w-full pl-9 sm:pl-10 pr-3 py-2.5 sm:py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm"
               />
             </div>
 
-            {/* Date Filter */}
-            <div class="w-48">
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-              </select>
+            {/* Date Filter and New Quotation Button - Side by side on mobile */}
+            <div class="flex space-x-2 flex-1 sm:flex-initial sm:w-auto">
+              <div class="flex-1 sm:w-40">
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  class="block w-full pl-3 pr-8 py-2.5 sm:py-2 text-sm border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 rounded-md"
+                >
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                </select>
+              </div>
+              
+              {/* New Quotation button for user role - same width as filter */}
+              {(user?.role === 'user' || user?.data?.role === 'user') && (
+                <div class="flex-1 sm:w-40">
+                  <button 
+                    class="btn btn-primary flex items-center justify-center w-full py-2.5 text-sm whitespace-nowrap"
+                    onClick={() => setIsFormModalOpen(true)}
+                  >
+                    <svg class="h-4 w-4 mr-1 sm:mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="hidden sm:inline">New Quotation</span>
+                    <span class="sm:hidden">New</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Actions */}
-          <div class="flex space-x-3">
+          {/* Actions - Side by side with filters on mobile */}
+          <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
             {/* Only show Export CSV button for admin users */}
             {user?.role === 'admin' && (
               <button 
-                class="btn btn-outline flex items-center"
+                class="btn btn-outline flex items-center justify-center w-full sm:w-auto text-sm py-2.5"
                 onClick={() => exportAllQuotationsToCSV(filteredQuotations)}
               >
-                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg class="h-4 w-4 sm:h-5 sm:w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
                 </svg>
-                Export CSV
-              </button>
-            )}
-            {/* Show New Quotation button for user and admin roles (for testing) */}
-            {(user?.role === 'user' || user?.data?.role === 'user') && (
-              <button 
-                class="btn btn-primary flex items-center"
-                onClick={() => setIsFormModalOpen(true)}
-              >
-                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                </svg>
-                New Quotation
+                <span class="hidden sm:inline">Export CSV</span>
+                <span class="sm:hidden">Export</span>
               </button>
             )}
           </div>
@@ -871,20 +881,21 @@ const QuotationsPage = () => {
 
       {/* Tabs */}
       <div class="border-b border-gray-200 mb-6">
-        <nav class="-mb-px flex space-x-8">
+        <nav class="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
           <button
             onClick={() => setActiveTab('all')}
-            class={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+            class={`whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm ${
               activeTab === 'all'
                 ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            All Quotations
+            <span class="hidden sm:inline">All Quotations</span>
+            <span class="sm:hidden">All</span>
           </button>
           <button
             onClick={() => setActiveTab('pending')}
-            class={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+            class={`whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm ${
               activeTab === 'pending'
                 ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -894,7 +905,7 @@ const QuotationsPage = () => {
           </button>
           <button
             onClick={() => setActiveTab('approved')}
-            class={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+            class={`whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm ${
               activeTab === 'approved'
                 ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -904,7 +915,7 @@ const QuotationsPage = () => {
           </button>
           <button
             onClick={() => setActiveTab('rejected')}
-            class={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+            class={`whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm ${
               activeTab === 'rejected'
                 ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -915,8 +926,8 @@ const QuotationsPage = () => {
         </nav>
       </div>
 
-      {/* Quotations Table */}
-      <div class="bg-white shadow rounded-lg overflow-hidden">
+      {/* Quotations Table - Desktop */}
+      <div class="hidden lg:block bg-white shadow rounded-lg overflow-hidden">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
@@ -972,7 +983,7 @@ const QuotationsPage = () => {
                     </td>
                   )}
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ${(quotation.total || 0).toFixed(2)}
+                    {`${process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}${(quotation.total || 0).toFixed(2)}`}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(quotation.createdAt).toLocaleDateString()}
@@ -1105,6 +1116,153 @@ const QuotationsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Mobile Card Layout */}
+      <div class="lg:hidden space-y-4">
+        {filteredQuotations.length === 0 ? (
+          <div class="bg-white rounded-lg shadow p-6 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-300 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <p class="text-gray-500 text-sm">No quotations found</p>
+          </div>
+        ) : (
+          filteredQuotations.map((quotation) => (
+            <div key={quotation._id} class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              {/* Header */}
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex-1 min-w-0">
+                  <h3 class="text-sm font-medium text-primary-600 truncate">
+                    {quotation.quotationNumber}
+                  </h3>
+                  <p class="text-xs text-gray-500 mt-1">
+                    {new Date(quotation.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <span class={`px-2 py-1 text-xs font-semibold rounded-full ${
+                  quotation.status === 'approved' || quotation.status === 'accepted' || quotation.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                  quotation.status === 'rejected' ? 'bg-red-100 text-red-800' : 
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {quotation.status === 'pending' || quotation.status === 'draft' ? 'Pending' :
+                   quotation.status === 'approved' || quotation.status === 'accepted' ? 'Approved' :
+                   quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1)}
+                </span>
+              </div>
+
+              {/* Content */}
+              <div class="space-y-2 mb-4">
+                <div class="flex justify-between items-center">
+                  <span class="text-xs text-gray-500">
+                    {user?.role === 'user' ? 'Assigned Delivery' : 'Customer'}
+                  </span>
+                  <span class="text-sm text-gray-900 font-medium">
+                    {user?.role === 'user' 
+                      ? (quotation.assignedDelivery 
+                          ? (typeof quotation.assignedDelivery === 'string' 
+                              ? quotation.assignedDelivery 
+                              : quotation.assignedDelivery?.name || 'Delivery Personnel')
+                          : 'Not Assigned')
+                      : getCustomerDisplayName(quotation.customer)
+                    }
+                  </span>
+                </div>
+                
+                {user?.role === 'admin' && quotation.assignedDelivery && (
+                  <div class="flex justify-between items-center">
+                    <span class="text-xs text-gray-500">Assigned Delivery</span>
+                    <span class="text-sm text-gray-900">
+                      {typeof quotation.assignedDelivery === 'string' 
+                        ? quotation.assignedDelivery 
+                        : quotation.assignedDelivery?.name || 'Delivery Personnel'}
+                    </span>
+                  </div>
+                )}
+                
+                <div class="flex justify-between items-center">
+                  <span class="text-xs text-gray-500">Amount</span>
+                  <span class="text-sm font-semibold text-gray-900">
+                    {process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}{(quotation.total || 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div class="flex flex-wrap gap-2">
+                <button 
+                  class="flex-1 inline-flex items-center justify-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  onClick={() => {
+                    setSelectedQuotation(quotation);
+                    setIsViewModalOpen(true);
+                  }}
+                >
+                  <svg class="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                  </svg>
+                  View
+                </button>
+                
+                {/* Edit button only for pending status */}
+                {user && (quotation.status === 'pending' || quotation.status === 'draft') && (
+                  <button 
+                    class="flex-1 inline-flex items-center justify-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                    onClick={() => {
+                      setSelectedQuotation(quotation);
+                      setIsEditModalOpen(true);
+                    }}
+                  >
+                    <svg class="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                    Edit
+                  </button>
+                )}
+                
+                {/* Show Approve button only for admin role and when quotation is pending */}
+                {user && (user.role === 'admin' || user?.data?.role === 'admin') && (quotation.status === 'pending' || quotation.status === 'draft') && (
+                  <button 
+                    class="flex-1 inline-flex items-center justify-center px-3 py-2 border border-blue-300 shadow-sm text-xs font-medium rounded text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    onClick={() => handleApproveQuotation(quotation)}
+                  >
+                    <svg class="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    Approve
+                  </button>
+                )}
+                
+                {/* Show Delivered button for delivery users when quotation is approved and assigned to them */}
+                {user && user.role === 'delivery' && quotation.status === 'approved' && (
+                  <button 
+                    class="flex-1 inline-flex items-center justify-center px-3 py-2 border border-green-300 shadow-sm text-xs font-medium rounded text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    onClick={() => handleMarkAsDelivered(quotation)}
+                  >
+                    <svg class="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    Delivered
+                  </button>
+                )}
+
+                {/* Show Reject button only for admin role and when quotation is pending */}
+                {user && user.role === 'admin' && (quotation.status === 'pending' || quotation.status === 'draft') && (
+                  <button 
+                    class="flex-1 inline-flex items-center justify-center px-3 py-2 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    onClick={() => handleRejectQuotation(quotation)}
+                  >
+                    <svg class="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                    </svg>
+                    Reject
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       {/* New Quotation Modal */}
       <Modal
         isOpen={isFormModalOpen}
@@ -1148,39 +1306,36 @@ const QuotationsPage = () => {
       >
         {selectedQuotation && (
           <div className="space-y-6">
-            {/* Basic Information */}
-            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-              <div className="px-4 py-5 sm:px-6 bg-gray-50">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">Quotation Information</h3>
+            {/* Basic Information - Mobile optimized */}
+            <div className="bg-white shadow overflow-hidden rounded-lg">
+              <div className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 bg-gray-50">
+                <h3 className="text-sm sm:text-base lg:text-lg leading-6 font-medium text-gray-900">Quotation Information</h3>
               </div>
-              <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
-                <dl className="sm:divide-y sm:divide-gray-200">
-                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt className="text-sm font-medium text-gray-500">Quotation Number</dt>
-                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{selectedQuotation.quotationNumber}</dd>
+              <div className="border-t border-gray-200 px-3 py-3 sm:px-4 sm:py-4 lg:p-0">
+                <dl className="space-y-2 sm:space-y-0 sm:divide-y sm:divide-gray-200">
+                  <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                    <dt className="text-xs sm:text-xs font-medium text-gray-500">Quotation Number</dt>
+                    <dd className="text-xs sm:text-xs text-gray-900 font-medium sm:mt-0 sm:col-span-2">{selectedQuotation.quotationNumber}</dd>
                   </div>
-                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt className="text-sm font-medium text-gray-500">Customer</dt>
-                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                      {getCustomerDisplayName(selectedQuotation.customer)}
-                    </dd>
-                  </div>
-                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt className="text-sm font-medium text-gray-500">Date</dt>
-                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                  {/* Hide customer details for user role */}
+                  {(user?.role === 'admin' || user?.data?.role === 'admin') && (
+                    <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                      <dt className="text-xs sm:text-xs font-medium text-gray-500">Customer</dt>
+                      <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">
+                        {getCustomerDisplayName(selectedQuotation.customer)}
+                      </dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                    <dt className="text-xs sm:text-xs font-medium text-gray-500">Date</dt>
+                    <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">
                       {new Date(selectedQuotation.createdAt).toLocaleDateString()}
                     </dd>
                   </div>
-                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt className="text-sm font-medium text-gray-500">Valid Until</dt>
-                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                      {new Date(selectedQuotation.validUntil).toLocaleDateString()}
-                    </dd>
-                  </div>
-                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt className="text-sm font-medium text-gray-500">Status</dt>
-                    <dd className="mt-1 text-sm sm:mt-0 sm:col-span-2">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                  <div className="flex justify-between items-center py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                    <dt className="text-xs sm:text-xs font-medium text-gray-500">Status</dt>
+                    <dd className="sm:mt-0 sm:col-span-2">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${
                         selectedQuotation.status === 'completed' ? 'bg-green-100 text-green-800' : 
                         selectedQuotation.status === 'rejected' ? 'bg-red-100 text-red-800' : 
                         'bg-yellow-100 text-yellow-800'
@@ -1189,16 +1344,16 @@ const QuotationsPage = () => {
                       </span>
                     </dd>
                   </div>
-                  <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt className="text-sm font-medium text-gray-500">Total Amount</dt>
-                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                      ${(selectedQuotation.total || 0).toFixed(2)}
+                  <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                    <dt className="text-xs sm:text-xs font-medium text-gray-500">Total Amount</dt>
+                    <dd className="text-xs sm:text-xs font-semibold text-gray-900 sm:mt-0 sm:col-span-2">
+                    {`${process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}${(selectedQuotation.total || 0).toFixed(2)}`}
                     </dd>
                   </div>
                   {selectedQuotation.assignedDelivery && (
-                    <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                      <dt className="text-sm font-medium text-gray-500">Assigned Delivery</dt>
-                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                      <dt className="text-xs sm:text-xs font-medium text-gray-500">Assigned Delivery</dt>
+                      <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">
                         {typeof selectedQuotation.assignedDelivery === 'string' 
                           ? selectedQuotation.assignedDelivery 
                           : selectedQuotation.assignedDelivery?.name || 'Delivery Personnel'}
@@ -1206,44 +1361,44 @@ const QuotationsPage = () => {
                     </div>
                   )}
                   {selectedQuotation.notes && (
-                    <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                      <dt className="text-sm font-medium text-gray-500">Notes</dt>
-                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{selectedQuotation.notes}</dd>
+                    <div className="py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                      <dt className="text-xs sm:text-xs font-medium text-gray-500 mb-1 sm:mb-0">Notes</dt>
+                      <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">{selectedQuotation.notes}</dd>
                     </div>
                   )}
                   {selectedQuotation.terms && (
-                    <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                      <dt className="text-sm font-medium text-gray-500">Terms & Conditions</dt>
-                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{selectedQuotation.terms}</dd>
+                    <div className="py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                      <dt className="text-xs sm:text-xs font-medium text-gray-500 mb-1 sm:mb-0">Terms & Conditions</dt>
+                      <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">{selectedQuotation.terms}</dd>
                     </div>
                   )}
                 </dl>
               </div>
             </div>
 
-            {/* Items Table */}
-            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-              <div className="px-4 py-5 sm:px-6 bg-gray-50">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">Quotation Items</h3>
+            {/* Items Table - Desktop */}
+            <div className="hidden sm:block bg-white shadow overflow-hidden rounded-lg">
+              <div className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 bg-gray-50">
+                <h3 className="text-sm sm:text-base lg:text-lg leading-6 font-medium text-gray-900">Quotation Items</h3>
               </div>
               <div className="border-t border-gray-200">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Description
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Quantity
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Unit Price
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Total
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Notes
                         </th>
                       </tr>
@@ -1252,19 +1407,19 @@ const QuotationsPage = () => {
                       {selectedQuotation.items && selectedQuotation.items.length > 0 ? (
                         selectedQuotation.items.map((item, index) => (
                           <tr key={index}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <td className="px-3 py-2 sm:px-6 sm:py-4 text-xs sm:text-sm font-medium text-gray-900">
                               {item.description}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-3 py-2 sm:px-6 sm:py-4 text-xs sm:text-sm text-gray-500">
                               {item.quantity}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              ${parseFloat(item.unitPrice).toFixed(2)}
+                            <td className="px-3 py-2 sm:px-6 sm:py-4 text-xs sm:text-sm text-gray-500">
+                              {`${process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}${parseFloat(item.unitPrice).toFixed(2)}`}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              ${parseFloat(item.total).toFixed(2)}
+                            <td className="px-3 py-2 sm:px-6 sm:py-4 text-xs sm:text-sm text-gray-500">
+                              {`${process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}${parseFloat(item.total).toFixed(2)}`}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-500">
+                            <td className="px-3 py-2 sm:px-6 sm:py-4 text-xs sm:text-sm text-gray-500">
                               {item.notes ? (
                                 <span className="text-xs bg-yellow-50 text-yellow-800 px-2 py-1 rounded">
                                   {item.notes}
@@ -1277,7 +1432,7 @@ const QuotationsPage = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
+                          <td colSpan="5" className="px-3 py-4 sm:px-6 text-center text-xs sm:text-sm text-gray-500">
                             No items in this quotation
                           </td>
                         </tr>
@@ -1285,10 +1440,10 @@ const QuotationsPage = () => {
                     </tbody>
                     <tfoot className="bg-gray-50">
                       <tr>
-                        <td colSpan="4" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
+                        <td colSpan="4" className="px-3 py-2 sm:px-6 text-right text-xs sm:text-sm font-medium text-gray-900">
                           Total:
                         </td>
-                        <td className="px-6 py-2 text-sm font-bold text-gray-900">
+                        <td className="px-3 py-2 sm:px-6 text-xs sm:text-sm font-bold text-gray-900">
                           ${(selectedQuotation.total || 0).toFixed(2)}
                         </td>
                       </tr>
@@ -1298,12 +1453,68 @@ const QuotationsPage = () => {
               </div>
             </div>
 
+            {/* Items List - Mobile */}
+            <div className="sm:hidden bg-white shadow overflow-hidden rounded-lg">
+              <div className="px-3 py-3 bg-gray-50">
+                <h3 className="text-sm font-medium text-gray-900">Quotation Items</h3>
+              </div>
+              <div className="border-t border-gray-200 p-3">
+                {selectedQuotation.items && selectedQuotation.items.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedQuotation.items.map((item, index) => (
+                      <div key={index} className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="text-xs font-medium text-gray-900 flex-1 pr-2">
+                            {item.description}
+                          </h4>
+                          <span className="text-xs font-semibold text-gray-900">
+                            ${parseFloat(item.total).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Qty:</span>
+                            <span className="text-gray-900">{item.quantity}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Unit Price:</span>
+                            <span className="text-gray-900">${parseFloat(item.unitPrice).toFixed(2)}</span>
+                          </div>
+                        </div>
+                        {item.notes && (
+                          <div className="mt-2">
+                            <span className="text-xs bg-yellow-50 text-yellow-800 px-2 py-1 rounded">
+                              {item.notes}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {/* Total - Mobile */}
+                    <div className="bg-primary-50 rounded-lg p-3 border border-primary-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-primary-900">Total:</span>
+                        <span className="text-lg font-bold text-primary-900">${(selectedQuotation.total || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-xs text-gray-500">No items in this quotation</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Actions */}
             <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                className="btn btn-outline flex items-center"
-                onClick={() => {
+              {/* Only show Print Preview button for admin users */}
+              {(user?.role === 'admin' || user?.data?.role === 'admin') && (
+                <button
+                  type="button"
+                  className="btn btn-outline flex items-center"
+                  onClick={() => {
                   // Create a new window for printing
                   const printWindow = window.open('', '_blank', 'width=800,height=600');
                   if (printWindow) {
@@ -1453,10 +1664,10 @@ const QuotationsPage = () => {
                                       <tr>
                                         <td>${item.description}</td>
                                         <td class="text-center">${item.quantity}</td>
-                                        <td class="text-right">$${(item.unitPrice || 0).toFixed(2)}</td>
+                                        <td class="text-right">₱${(item.unitPrice || 0).toFixed(2)}</td>
                                         <td class="text-right">${item.discount || 0}%</td>
                                         <td class="text-right">${item.tax || 0}%</td>
-                                        <td class="text-right">$${(item.total || 0).toFixed(2)}</td>
+                                        <td class="text-right">₱${(item.total || 0).toFixed(2)}</td>
                                       </tr>
                                     `).join('') : 
                                     `<tr><td colspan="6" class="text-center text-gray-500">No items in this quotation</td></tr>`
@@ -1469,7 +1680,7 @@ const QuotationsPage = () => {
                             <div class="mb-3 border-t">
                               <div class="flex font-bold">
                                 <span>Total:</span>
-                                <span>$${(selectedQuotation.total || 0).toFixed(2)}</span>
+                                <span>₱${(selectedQuotation.total || 0).toFixed(2)}</span>
                               </div>
                             </div>
 
@@ -1523,6 +1734,7 @@ const QuotationsPage = () => {
                 </svg>
                 Print Preview
               </button>
+              )}
               <button
                 type="button"
                 className="btn btn-secondary"

@@ -327,10 +327,10 @@ const QuotationReceipt = ({ quotation, onClose, onPrint }) => {
                       <tr>
                         <td>${item.description}</td>
                         <td class="text-center">${item.quantity}</td>
-                        <td class="text-right">$${(item.unitPrice || 0).toFixed(2)}</td>
+                        <td class="text-right">₱${(item.unitPrice || 0).toFixed(2)}</td>
                         <td class="text-right">${item.discount || 0}%</td>
                         <td class="text-right">${item.tax || 0}%</td>
-                        <td class="text-right">$${(item.total || 0).toFixed(2)}</td>
+                        <td class="text-right">₱${(item.total || 0).toFixed(2)}</td>
                       </tr>
                     `).join('') : 
                     `<tr><td colspan="6" class="text-center text-gray-500">No items in this quotation</td></tr>`
@@ -343,7 +343,7 @@ const QuotationReceipt = ({ quotation, onClose, onPrint }) => {
             <div class="mb-3 border-t">
               <div class="flex font-bold">
                 <span>Total:</span>
-                <span>$${(quotation.total || 0).toFixed(2)}</span>
+                <span>₱${(quotation.total || 0).toFixed(2)}</span>
               </div>
             </div>
 
@@ -444,10 +444,10 @@ const QuotationReceipt = ({ quotation, onClose, onPrint }) => {
                   <tr key={index} className="border-b border-gray-200">
                     <td className="py-1">{item.description}</td>
                     <td className="text-center py-1">{item.quantity}</td>
-                    <td className="text-right py-1">${(item.unitPrice || 0).toFixed(2)}</td>
+                    <td className="text-right py-1">₱{(item.unitPrice || 0).toFixed(2)}</td>
                     <td className="text-right py-1">{item.discount || 0}%</td>
                     <td className="text-right py-1">{item.tax || 0}%</td>
-                    <td className="text-right py-1">${(item.total || 0).toFixed(2)}</td>
+                    <td className="text-right py-1">₱{(item.total || 0).toFixed(2)}</td>
                   </tr>
                 ))
               ) : (
@@ -463,22 +463,22 @@ const QuotationReceipt = ({ quotation, onClose, onPrint }) => {
         <div className="mb-3 border-t border-gray-300 pt-2">
           <div className="flex justify-between text-sm">
             <span>Subtotal:</span>
-            <span>${(quotation.subtotal || 0).toFixed(2)}</span>
+            <span>₱{(quotation.subtotal || 0).toFixed(2)}</span>
           </div>
           
           <div className="flex justify-between text-sm">
             <span>Discount:</span>
-            <span>${(quotation.discountAmount || 0).toFixed(2)}</span>
+            <span>₱{(quotation.discountAmount || 0).toFixed(2)}</span>
           </div>
           
           <div className="flex justify-between text-sm">
             <span>Tax:</span>
-            <span>${(quotation.taxAmount || 0).toFixed(2)}</span>
+            <span>₱{(quotation.taxAmount || 0).toFixed(2)}</span>
           </div>
           
           <div className="flex justify-between text-sm font-bold border-t border-gray-300 mt-1 pt-1">
             <span>Total:</span>
-            <span>${(quotation.total || 0).toFixed(2)}</span>
+            <span>₱{(quotation.total || 0).toFixed(2)}</span>
           </div>
         </div>
 

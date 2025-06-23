@@ -355,7 +355,7 @@ const SalesPage = () => {
                       {getCustomerDisplayName(sale.customer)}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${(sale.total || 0).toFixed(2)}
+                      ₱{(sale.total || 0).toFixed(2)}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(sale.createdAt)}
@@ -604,7 +604,7 @@ const SalesPage = () => {
                   <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt className="text-sm font-medium text-gray-500">Total Amount</dt>
                     <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                      ${(selectedSale.total || 0).toFixed(2)}
+                      ₱{(selectedSale.total || 0).toFixed(2)}
                     </dd>
                   </div>
                   <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -658,10 +658,10 @@ const SalesPage = () => {
                               {item.quantity}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              ${parseFloat(item.unitPrice).toFixed(2)}
+                              ₱{parseFloat(item.unitPrice).toFixed(2)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              ${parseFloat(item.total).toFixed(2)}
+                              ₱{parseFloat(item.total).toFixed(2)}
                             </td>
                           </tr>
                         ))
@@ -679,7 +679,7 @@ const SalesPage = () => {
                           Total:
                         </td>
                         <td className="px-6 py-2 text-sm font-bold text-gray-900">
-                          ${(selectedSale.total || 0).toFixed(2)}
+                          ₱{(selectedSale.total || 0).toFixed(2)}
                         </td>
                       </tr>
                     </tfoot>

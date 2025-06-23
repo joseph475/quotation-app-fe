@@ -39,7 +39,7 @@ const Card = ({
         <div class={headerClasses}>
           <div class="flex justify-between items-center">
             {title && (
-              <h3 class="text-lg leading-6 font-medium text-gray-900">
+              <h3 class="text-sm sm:text-lg leading-6 font-medium text-gray-900">
                 {title}
               </h3>
             )}

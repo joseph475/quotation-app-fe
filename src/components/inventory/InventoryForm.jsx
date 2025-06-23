@@ -90,10 +90,10 @@ const InventoryForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
     onSave(inventoryData);
   };
 
-  // Common input classes for consistency
-  const inputClasses = "block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-2 px-3 sm:text-sm";
-  const labelClasses = "block text-sm font-medium text-gray-700 mb-1";
-  const errorClasses = "mt-2 text-sm text-red-600";
+  // Common input classes for consistency - mobile responsive
+  const inputClasses = "block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-1.5 px-2 sm:py-2 sm:px-3 text-xs sm:text-sm";
+  const labelClasses = "block text-xs sm:text-sm font-medium text-gray-700 mb-1";
+  const errorClasses = "mt-1 text-xs sm:text-sm text-red-600";
 
   return (
     <div ref={formRef}>
@@ -110,7 +110,7 @@ const InventoryForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                     <label class={labelClasses}>
                       Item Code
                     </label>
-                    <div class="bg-gray-50 border border-gray-300 rounded-md py-2 px-3 text-sm text-gray-700">
+                    <div class="bg-gray-50 border border-gray-300 rounded-md py-1.5 px-2 sm:py-2 sm:px-3 text-xs sm:text-sm text-gray-700">
                       {initialData.itemcode}
                     </div>
                     <p class="mt-1 text-xs text-gray-500">
@@ -192,22 +192,18 @@ const InventoryForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                   <label for="cost" class={labelClasses}>
                     Cost <span class="text-red-500">*</span>
                   </label>
-                  <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span class="text-gray-500">$</span>
-                    </div>
-                    <input
-                      type="number"
-                      id="cost"
-                      name="cost"
-                      min="0"
-                      step="0.01"
-                      value={formData.cost}
-                      onInput={handleChange}
-                      class={`${inputClasses} ${errors.cost ? 'border-red-300' : ''} pl-7`}
-                      required
-                    />
-                  </div>
+                  <input
+                    type="number"
+                    id="cost"
+                    name="cost"
+                    min="0"
+                    step="0.01"
+                    value={formData.cost}
+                    onInput={handleChange}
+                    class={`${inputClasses} ${errors.cost ? 'border-red-300' : ''}`}
+                    placeholder="0.00"
+                    required
+                  />
                   {errors.cost && (
                     <p class={errorClasses}>{errors.cost}</p>
                   )}
@@ -218,22 +214,18 @@ const InventoryForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                   <label for="price" class={labelClasses}>
                     Price <span class="text-red-500">*</span>
                   </label>
-                  <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span class="text-gray-500">$</span>
-                    </div>
-                    <input
-                      type="number"
-                      id="price"
-                      name="price"
-                      min="0"
-                      step="0.01"
-                      value={formData.price}
-                      onInput={handleChange}
-                      class={`${inputClasses} ${errors.price ? 'border-red-300' : ''} pl-7`}
-                      required
-                    />
-                  </div>
+                  <input
+                    type="number"
+                    id="price"
+                    name="price"
+                    min="0"
+                    step="0.01"
+                    value={formData.price}
+                    onInput={handleChange}
+                    class={`${inputClasses} ${errors.price ? 'border-red-300' : ''}`}
+                    placeholder="0.00"
+                    required
+                  />
                   {errors.price && (
                     <p class={errorClasses}>{errors.price}</p>
                   )}
@@ -245,8 +237,8 @@ const InventoryForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                     <label class={labelClasses}>
                       Profit Margin
                     </label>
-                    <div class="bg-gray-50 border border-gray-300 rounded-md py-2 px-3 text-sm text-gray-700">
-                      ${(formData.price - formData.cost).toFixed(2)} ({(((formData.price - formData.cost) / formData.cost) * 100).toFixed(1)}%)
+                    <div class="bg-gray-50 border border-gray-300 rounded-md py-1.5 px-2 sm:py-2 sm:px-3 text-xs sm:text-sm text-gray-700">
+                      {process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}{(formData.price - formData.cost).toFixed(2)} ({(((formData.price - formData.cost) / formData.cost) * 100).toFixed(1)}%)
                     </div>
                   </div>
                 )}
@@ -256,29 +248,32 @@ const InventoryForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
         </div>
 
         {/* Form Actions */}
-        <div class="flex justify-end space-x-4 mt-8">
-          <Button
+        <div class="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-4 mt-6 sm:mt-8">
+          <button
             type="button"
-            variant="outline"
             onClick={onCancel}
-            size="lg"
+            class="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500 px-3 py-1.5 text-xs sm:px-6 sm:py-3 sm:text-base"
           >
             Cancel
-          </Button>
-          <Button
+          </button>
+          <button
             type="submit"
-            variant="primary"
-            size="lg"
-            isLoading={isLoading}
             disabled={isLoading}
-            leftIcon={!isLoading && (
-              <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            class={`inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 border border-transparent px-3 py-1.5 text-xs sm:px-6 sm:py-3 sm:text-base ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {isLoading && (
+              <svg class="animate-spin -ml-1 mr-2 h-3 w-3 sm:h-4 sm:w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            )}
+            {!isLoading && (
+              <svg class="h-3 w-3 sm:h-5 sm:w-5 mr-1 sm:mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
               </svg>
             )}
-          >
             {isLoading ? 'Saving...' : 'Save Item'}
-          </Button>
+          </button>
         </div>
       </form>
     </div>
