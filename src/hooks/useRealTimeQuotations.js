@@ -14,8 +14,8 @@ import api from '../services/api';
 const useRealTimeQuotations = (options = {}) => {
   const {
     cacheTimeout = 2 * 60 * 1000, // 2 minutes cache
-    enableRealTime = false, // Temporarily disable real-time to fix Safari issue
-    fallbackToPolling = false, // Disable polling as well
+    enableRealTime = process.env.NODE_ENV !== 'production', // Enable real-time only in development
+    fallbackToPolling = true, // Enable polling fallback for production
     pollingInterval = 30000 // 30 seconds
   } = options;
 

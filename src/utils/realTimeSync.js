@@ -25,6 +25,13 @@ class RealTimeSync {
    * Initialize WebSocket connection
    */
   connect() {
+    // Disable WebSocket in production since Vercel doesn't support persistent connections
+    if (process.env.NODE_ENV === 'production') {
+      console.log('WebSocket disabled in production environment (Vercel limitation)');
+      this.notifyListeners('connection', { status: 'polling_fallback' });
+      return;
+    }
+
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       console.log('WebSocket already connected');
       return;
@@ -37,10 +44,8 @@ class RealTimeSync {
     }
 
     try {
-      // Determine WebSocket URL based on environment
-      const wsUrl = process.env.NODE_ENV === 'production'
-        ? 'wss://quotation-backend-api.vercel.app/ws'
-        : 'ws://localhost:8000/ws';
+      // Only use WebSocket in development
+      const wsUrl = 'ws://localhost:8000/ws';
 
       console.log('Connecting to WebSocket:', wsUrl);
       
