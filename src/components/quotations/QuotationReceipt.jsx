@@ -289,10 +289,13 @@ const QuotationReceipt = ({ quotation, onClose, onPrint }) => {
               <div>
                 <p class="text-sm"><span class="font-medium">Quotation #:</span> ${quotation.quotationNumber}</p>
                 <p class="text-sm"><span class="font-medium">Branch:</span> ${branchName}</p>
+                ${quotation.assignedDelivery && quotation.assignedDelivery.name ? 
+                  `<p class="text-sm"><span class="font-medium">Assigned Delivery:</span> ${quotation.assignedDelivery.name}</p>` : 
+                  ''
+                }
               </div>
               <div class="text-right">
                 <p class="text-sm"><span class="font-medium">Date:</span> ${formatDate(quotation.createdAt)}</p>
-                <p class="text-sm"><span class="font-medium">Valid Until:</span> ${formatDate(quotation.validUntil)}</p>
               </div>
             </div>
 
@@ -338,22 +341,7 @@ const QuotationReceipt = ({ quotation, onClose, onPrint }) => {
 
             <!-- Totals -->
             <div class="mb-3 border-t">
-              <div class="flex">
-                <span>Subtotal:</span>
-                <span>$${(quotation.subtotal || 0).toFixed(2)}</span>
-              </div>
-              
-              <div class="flex">
-                <span>Discount:</span>
-                <span>$${(quotation.discountAmount || 0).toFixed(2)}</span>
-              </div>
-              
-              <div class="flex">
-                <span>Tax:</span>
-                <span>$${(quotation.taxAmount || 0).toFixed(2)}</span>
-              </div>
-              
-              <div class="flex font-bold border-t">
+              <div class="flex font-bold">
                 <span>Total:</span>
                 <span>$${(quotation.total || 0).toFixed(2)}</span>
               </div>

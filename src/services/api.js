@@ -315,6 +315,7 @@ const api = {
     getSummary: () => request('/dashboard/summary'),
     getRecentSales: () => request('/dashboard/recent-sales'),
     getLowStockItems: () => request('/dashboard/low-stock'),
+    getTopSellingItems: () => request('/dashboard/top-selling'),
   },
   
   // Supplier endpoints

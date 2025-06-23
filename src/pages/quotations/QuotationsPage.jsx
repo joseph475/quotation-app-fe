@@ -1407,10 +1407,13 @@ const QuotationsPage = () => {
                             <div class="flex mb-3">
                               <div>
                                 <p class="text-sm"><span class="font-medium">Quotation #:</span> ${selectedQuotation.quotationNumber}</p>
-                                </div>
+                                ${selectedQuotation.assignedDelivery && selectedQuotation.assignedDelivery.name ? 
+                                  `<p class="text-sm"><span class="font-medium">Assigned Delivery:</span> ${selectedQuotation.assignedDelivery.name}</p>` : 
+                                  ''
+                                }
+                              </div>
                               <div class="text-right">
                                 <p class="text-sm"><span class="font-medium">Date:</span> ${new Date(selectedQuotation.createdAt).toLocaleDateString()}</p>
-                                <p class="text-sm"><span class="font-medium">Valid Until:</span> ${new Date(selectedQuotation.validUntil).toLocaleDateString()}</p>
                               </div>
                             </div>
 
@@ -1454,22 +1457,7 @@ const QuotationsPage = () => {
 
                             <!-- Totals -->
                             <div class="mb-3 border-t">
-                              <div class="flex">
-                                <span>Subtotal:</span>
-                                <span>$${(selectedQuotation.subtotal || 0).toFixed(2)}</span>
-                              </div>
-                              
-                              <div class="flex">
-                                <span>Discount:</span>
-                                <span>$${(selectedQuotation.discountAmount || 0).toFixed(2)}</span>
-                              </div>
-                              
-                              <div class="flex">
-                                <span>Tax:</span>
-                                <span>$${(selectedQuotation.taxAmount || 0).toFixed(2)}</span>
-                              </div>
-                              
-                              <div class="flex font-bold border-t">
+                              <div class="flex font-bold">
                                 <span>Total:</span>
                                 <span>$${(selectedQuotation.total || 0).toFixed(2)}</span>
                               </div>

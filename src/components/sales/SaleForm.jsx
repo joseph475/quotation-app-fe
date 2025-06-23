@@ -135,57 +135,60 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
   
   // Get data from local storage
   useEffect(() => {
-    setLoading(prev => ({ ...prev, customers: true, inventory: true }));
+    let isMounted = true;
     
-    try {
-      // Get users (customers) from local storage or API
-      const storedUsers = getFromStorage('users');
-      if (storedUsers && Array.isArray(storedUsers)) {
-        // Filter users to only include those who can be customers (user role)
-        const customerUsers = storedUsers.filter(user => user.role === 'user');
-        setCustomers(customerUsers);
-      } else {
-        // Fallback to API if not in local storage
-        const fetchCustomers = async () => {
-          try {
-            const response = await api.users.getAll();
-            if (response && response.success) {
-              // Filter users to only include those who can be customers (user role)
-              const customerUsers = (response.data || []).filter(user => user.role === 'user');
-              setCustomers(customerUsers);
-            }
-          } catch (error) {
-            console.error('Error fetching users:', error);
-          }
-        };
-        fetchCustomers();
-      }
+    const loadData = async () => {
+      if (!isMounted) return;
       
-      // Get inventory items from local storage
-      const storedInventory = getFromStorage('inventory');
-      if (storedInventory && Array.isArray(storedInventory)) {
-        setInventoryItems(storedInventory);
-      } else {
-        // Fallback to API if not in local storage
-        const fetchInventory = async () => {
-          try {
-            const response = await api.inventory.getAll();
-            
-            if (response && response.success) {
-              setInventoryItems(response.data || []);
-            }
-          } catch (error) {
-            console.error('Error fetching inventory:', error);
+      setLoading(prev => ({ ...prev, customers: true, inventory: true }));
+      
+      try {
+        // Get users (customers) from local storage only
+        const storedUsers = getFromStorage('users');
+        if (storedUsers && Array.isArray(storedUsers)) {
+          // Filter users to only include those who can be customers (user role)
+          const customerUsers = storedUsers.filter(user => user.role === 'user');
+          if (isMounted) {
+            setCustomers(customerUsers);
           }
-        };
-        fetchInventory();
+        } else {
+          // Set empty array if no users in local storage
+          if (isMounted) {
+            setCustomers([]);
+          }
+        }
+        
+        // Get inventory items from local storage only
+        const storedInventory = getFromStorage('inventory');
+        if (storedInventory && Array.isArray(storedInventory)) {
+          if (isMounted) {
+            setInventoryItems(storedInventory);
+          }
+        } else {
+          // Set empty array if no inventory in local storage
+          if (isMounted) {
+            setInventoryItems([]);
+          }
+        }
+      } catch (error) {
+        console.error('Error getting data from local storage:', error);
+        if (isMounted) {
+          setCustomers([]);
+          setInventoryItems([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(prev => ({ ...prev, customers: false, inventory: false }));
+        }
       }
-    } catch (error) {
-      console.error('Error getting data from local storage:', error);
-    } finally {
-      setLoading(prev => ({ ...prev, customers: false, inventory: false }));
-    }
-  }, [user]);
+    };
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Remove user dependency to prevent re-runs
 
   // Initialize form with data if editing
   useEffect(() => {
@@ -212,7 +215,7 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
         saleNumber: `S-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
       }));
     }
-  }, [initialData]);
+  }, [initialData?._id]); // Only depend on the ID to prevent infinite loops
 
   // Handle form field changes
   const handleChange = (e) => {

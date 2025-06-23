@@ -58,7 +58,32 @@ const ReportsPage = () => {
         }
         
         if (response && response.success) {
-          setReportData(response.data);
+          // Ensure the data structure matches what the components expect
+          let formattedData = response.data;
+          
+          // For sales report, ensure we have the right structure
+          if (activeReport === 'sales') {
+            formattedData = {
+              sales: response.data.sales || [],
+              totalSales: response.data.totalSales || 0,
+              totalRevenue: response.data.totalRevenue || 0,
+              averageSale: response.data.averageSale || 0
+            };
+          }
+          
+          // For customer report, ensure we have the right structure
+          if (activeReport === 'customers') {
+            formattedData = {
+              customers: response.data.customers || [],
+              sales: response.data.sales || [],
+              totalCustomers: response.data.totalCustomers || 0,
+              newCustomers: response.data.newCustomers || 0,
+              totalSales: response.data.totalSales || 0,
+              totalRevenue: response.data.totalRevenue || 0
+            };
+          }
+          
+          setReportData(formattedData);
         } else {
           throw new Error(response.message || 'Failed to generate report');
         }
@@ -884,32 +909,6 @@ const ReportsPage = () => {
                 }`}
               >
                 Sales Report
-              </button>
-              <button
-                onClick={() => {
-                  setActiveReport('inventory');
-                  setReportData(null); // Clear report data when changing report type
-                }}
-                class={`px-4 py-2 rounded-md text-sm font-medium ${
-                  activeReport === 'inventory'
-                    ? 'bg-primary-100 text-primary-700 border border-primary-300'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Inventory Report
-              </button>
-              <button
-                onClick={() => {
-                  setActiveReport('purchases');
-                  setReportData(null); // Clear report data when changing report type
-                }}
-                class={`px-4 py-2 rounded-md text-sm font-medium ${
-                  activeReport === 'purchases'
-                    ? 'bg-primary-100 text-primary-700 border border-primary-300'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Purchase Report
               </button>
               <button
                 onClick={() => {

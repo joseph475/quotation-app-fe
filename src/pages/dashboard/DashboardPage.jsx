@@ -18,7 +18,7 @@ const DashboardPage = () => {
       { name: 'Active Customers', value: '0', change: '0%', changeType: 'neutral' },
     ],
     recentSales: [],
-    lowStockItems: []
+    topSellingItems: []
   });
 
   // Format currency
@@ -51,8 +51,8 @@ const DashboardPage = () => {
           // Fetch recent sales
           const recentSalesResponse = await api.dashboard.getRecentSales();
           
-          // Fetch low stock items
-          const lowStockResponse = await api.dashboard.getLowStockItems();
+          // Fetch top selling items
+          const topSellingResponse = await api.dashboard.getTopSellingItems();
           
           // Get change percentages from API or use zeros if not available
           const changes = summaryResponse.data.changes || {
@@ -112,20 +112,23 @@ const DashboardPage = () => {
             };
           });
 
-          // Format the low stock items to ensure they have the right structure
-          const formattedLowStockItems = lowStockResponse.data.map(item => {
+          // Format the top selling items to ensure they have the right structure
+          const formattedTopSellingItems = topSellingResponse.data.map(item => {
             return {
               id: item._id,
               name: item.name,
-              quantity: item.quantity,
-              reorderLevel: item.reorderLevel
+              itemCode: item.itemCode,
+              currentStock: item.currentStock,
+              totalQuantitySold: item.totalQuantitySold,
+              totalRevenue: item.totalRevenue,
+              salesCount: item.salesCount
             };
           });
 
           setDashboardData({
             stats,
             recentSales: formattedSales,
-            lowStockItems: formattedLowStockItems
+            topSellingItems: formattedTopSellingItems
           });
           
           console.log('Dashboard data loaded from API successfully');
@@ -179,7 +182,7 @@ const DashboardPage = () => {
   const filteredSales = dashboardData.recentSales
     .filter(sale => matchesSearch(sale, searchQuery));
 
-  const filteredLowStockItems = dashboardData.lowStockItems
+  const filteredTopSellingItems = dashboardData.topSellingItems
     .filter(item => matchesSearch(item, searchQuery));
 
   // Extract data for rendering
@@ -316,39 +319,39 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Low Stock Items */}
+      {/* Top Selling Items */}
       <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
-          <h3 class="text-lg leading-6 font-medium text-gray-900">Low Stock Items</h3>
+          <h3 class="text-lg leading-6 font-medium text-gray-900">Top Selling Items</h3>
         </div>
         {loading ? (
-          <div class="p-6 text-center">Loading low stock items...</div>
+          <div class="p-6 text-center">Loading top selling items...</div>
         ) : error ? (
           <div class="p-6 text-center text-red-500">{error}</div>
-        ) : filteredLowStockItems.length === 0 ? (
-          <div class="p-6 text-center text-gray-500">No low stock items found</div>
+        ) : filteredTopSellingItems.length === 0 ? (
+          <div class="p-6 text-center text-gray-500">No top selling items found</div>
         ) : (
           <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min Stock</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty Sold</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales Count</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                {filteredLowStockItems.map((item) => (
+                {filteredTopSellingItems.map((item) => (
                   <tr key={item.id}>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.quantity}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.reorderLevel}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.totalQuantitySold}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(item.totalRevenue)}</td>
                     <td class="px-6 py-4 whitespace-nowrap">
                       <div class="flex items-center">
-                        <div class={`h-2.5 w-2.5 rounded-full mr-2 ${item.quantity < item.reorderLevel / 2 ? 'bg-red-500' : 'bg-yellow-500'}`}></div>
+                        <div class="h-2.5 w-2.5 rounded-full mr-2 bg-green-500"></div>
                         <span class="text-sm text-gray-500">
-                          {item.quantity < item.reorderLevel / 2 ? 'Critical' : 'Low'}
+                          {item.salesCount} sales
                         </span>
                       </div>
                     </td>
