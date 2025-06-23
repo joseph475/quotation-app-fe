@@ -4,7 +4,7 @@ import Modal from '../../components/common/Modal';
 import SaleForm from '../../components/sales/SaleForm';
 import SaleReceipt from '../../components/sales/SaleReceipt';
 import api from '../../services/api';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 import { hasPermission } from '../../utils/pageHelpers';
 import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
@@ -488,8 +488,8 @@ const SalesPage = () => {
                             Edit
                           </button>
                         ) : null}
-                        {/* Only show delete button for admin users */}
-                        {user && user.role !== 'user' && (
+                        {/* Delete button hidden for now */}
+                        {/* {user && user.role !== 'user' && (
                           <button 
                             class="inline-flex items-center px-2.5 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                             onClick={() => handleDeleteSale(sale)}
@@ -499,7 +499,7 @@ const SalesPage = () => {
                             </svg>
                             Delete
                           </button>
-                        )}
+                        )} */}
                       </div>
                     </td>
                   </tr>
@@ -641,12 +641,6 @@ const SalesPage = () => {
                           Unit Price
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Discount
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tax
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Total
                         </th>
                       </tr>
@@ -665,19 +659,13 @@ const SalesPage = () => {
                               ${parseFloat(item.unitPrice).toFixed(2)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {item.discount}%
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {item.tax}%
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               ${parseFloat(item.total).toFixed(2)}
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
+                          <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">
                             No items in this sale
                           </td>
                         </tr>
@@ -685,7 +673,7 @@ const SalesPage = () => {
                     </tbody>
                     <tfoot className="bg-gray-50">
                       <tr>
-                        <td colSpan="5" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
+                        <td colSpan="3" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
                           Total:
                         </td>
                         <td className="px-6 py-2 text-sm font-bold text-gray-900">

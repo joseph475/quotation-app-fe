@@ -4,7 +4,7 @@ import Modal from '../../components/common/Modal';
 import PurchaseOrderForm from '../../components/purchases/PurchaseOrderForm';
 import PurchaseOrderDetails from '../../components/purchases/PurchaseOrderDetails';
 import api from '../../services/api';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { useConfirmModal } from '../../contexts/ModalContext';
 import { hasPermission } from '../../utils/pageHelpers';
 

@@ -5,6 +5,8 @@
  * when connecting to a backend service.
  */
 import { useErrorModal } from '../contexts/ModalContext';
+import { deduplicateRequest } from '../utils/requestDeduplication';
+import { getAuthToken } from '../utils/authHelpers';
 
 // Base API URL - connects to our MongoDB backend
 const API_BASE_URL = process.env.REACT_APP_API_URL || 
@@ -38,7 +40,7 @@ async function request(endpoint, options = {}) {
   };
 
   // Add auth token if available
-  const token = localStorage.getItem('authToken');
+  const token = getAuthToken();
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
@@ -202,12 +204,13 @@ const api = {
     },
     logout: () => request('/auth/logout', {
       method: 'POST',
+      showErrorModal: false, // Don't show error modal for logout failures
     }),
     register: (userData) => request('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     }),
-    getProfile: () => request('/auth/me'),
+    getProfile: () => deduplicateRequest('auth-profile', () => request('/auth/me')),
     updateProfile: (userData) => request('/auth/updatedetails', {
       method: 'PUT',
       body: JSON.stringify(userData),
@@ -275,9 +278,14 @@ const api = {
     reject: (id) => request(`/quotations/${id}/reject`, {
       method: 'POST',
     }),
-    approve: (id) => request(`/quotations/${id}/approve`, {
+    approve: (id, data = {}) => request(`/quotations/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    markAsDelivered: (id) => request(`/quotations/${id}/deliver`, {
       method: 'POST',
     }),
+    getDeliveryUsers: () => request('/quotations/delivery-users'),
   },
   
   // Sales endpoints

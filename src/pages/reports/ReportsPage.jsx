@@ -1,7 +1,7 @@
 import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import { RoleProtectedRoute } from '../../utils/pageHelpers';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import Modal from '../../components/common/Modal';
 import SalesReportComponent from '../../components/reports/SalesReportComponent';

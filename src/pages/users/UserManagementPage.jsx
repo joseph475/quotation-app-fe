@@ -3,7 +3,7 @@ import { useState, useEffect } from 'preact/hooks';
 import UserManagementForm from '../../components/users/UserManagementForm';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 
 const UserManagementPage = () => {
@@ -14,6 +14,7 @@ const UserManagementPage = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [activeTab, setActiveTab] = useState('user');
   // Fetch users on component mount
   useEffect(() => {
     fetchUsers();
@@ -28,17 +29,18 @@ const UserManagementPage = () => {
       const response = await api.users.getAll();
       
       if (response && response.success) {
-        // Filter users to only show those with role 'user'
-        const filteredUsers = response.data.filter(user => user.role === 'user');
+        // Show all users regardless of role
+        const allUsers = response.data;
         
         // Map the response to match our component's expected format
-        const formattedUsers = filteredUsers.map(user => ({
+        const formattedUsers = allUsers.map(user => ({
           id: user._id,
           name: user.name,
           email: user.email,
           phone: user.phone || 'No phone number',
           role: user.role,
           department: user.department || 'No department',
+          address: user.address || '',
           isActive: user.isActive !== undefined ? user.isActive : true,
         }));
         
@@ -62,8 +64,8 @@ const UserManagementPage = () => {
     setSuccessMessage('');
 
     try {
-      // Always set role to 'user' for new users created in user management
-      const userData = { ...formData, role: 'user' };
+      // Use the role from the form data
+      const userData = { ...formData };
       
       if (selectedUser) {
         // Update existing user
@@ -78,6 +80,7 @@ const UserManagementPage = () => {
               email: userData.email,
               phone: userData.phone || 'No phone number',
               department: userData.department || 'No department',
+              address: userData.address || '',
               isActive: userData.isActive !== undefined ? userData.isActive : true
             } : user
           );
@@ -99,6 +102,7 @@ const UserManagementPage = () => {
             phone: response.data.phone || 'No phone number',
             role: response.data.role,
             department: response.data.department || 'No department',
+            address: response.data.address || '',
             isActive: response.data.isActive !== undefined ? response.data.isActive : true,
           };
           setUsers([...users, newUser]);
@@ -257,6 +261,34 @@ const UserManagementPage = () => {
         </div>
       )}
 
+      {/* Tabs */}
+      {!showForm && (
+        <div class="border-b border-gray-200 mb-6">
+          <nav class="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('user')}
+              class={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'user'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              User Accounts ({users.filter(user => user.role === 'user').length})
+            </button>
+            <button
+              onClick={() => setActiveTab('delivery')}
+              class={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'delivery'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Delivery Accounts ({users.filter(user => user.role === 'delivery').length})
+            </button>
+          </nav>
+        </div>
+      )}
+
       {/* Users List */}
       {!showForm && (
         <div>
@@ -292,7 +324,16 @@ const UserManagementPage = () => {
           ) : (
             <div class="bg-white shadow overflow-hidden sm:rounded-md">
               <ul class="divide-y divide-gray-200">
-                {users.map((user) => (
+                {users
+                  .filter(user => {
+                    // Exclude admin and superadmin accounts from display
+                    if (user.role === 'admin' || user.role === 'superadmin') {
+                      return false;
+                    }
+                    // Filter by active tab
+                    return user.role === activeTab;
+                  })
+                  .map((user) => (
                   <li key={user.id}>
                     <div class="px-4 py-4 sm:px-6">
                       <div class="flex items-center justify-between">

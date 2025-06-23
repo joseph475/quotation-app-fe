@@ -9,7 +9,7 @@ import useDataLoader from '../../hooks/useDataLoader';
 import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 import { hasPermission } from '../../utils/pageHelpers';
 import { storeInStorage } from '../../utils/localStorageHelpers';
-import { syncAfterQuotationConversion } from '../../utils/dataSync';
+import { syncAfterQuotationConversion, syncAfterQuotationStatusUpdate } from '../../utils/dataSync';
 import { getCustomerDisplayName } from '../../utils/customerHelpers';
 
 const QuotationsPage = () => {
@@ -160,6 +160,9 @@ const QuotationsPage = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
+  const [deliveryUsers, setDeliveryUsers] = useState([]);
+  const [selectedDeliveryUser, setSelectedDeliveryUser] = useState('');
 
   const [successMessage, setSuccessMessage] = useState('');
   
@@ -176,16 +179,47 @@ const QuotationsPage = () => {
   // Get current user from auth context
   const { user } = useAuth();
   
-  // Use optimized data loader for quotations
+  // Use optimized data loader for quotations with role-based cache key
+  const userRole = user?.role || user?.data?.role || 'guest';
+  const userId = user?._id || user?.data?._id || 'anonymous';
+  const cacheKey = `quotations-${userRole}-${userId}`;
+  
   const {
     data: quotations = [],
     loading,
     error,
     refresh: refreshQuotations,
-    isStale
-  } = useDataLoader('quotations', api.quotations.getAll, {
+    isStale,
+    loadData
+  } = useDataLoader(cacheKey, api.quotations.getAll, {
     cacheTimeout: 2 * 60 * 1000, // 2 minutes cache for quotations
-    autoLoad: true
+    autoLoad: true // Enable auto-load
+  });
+  
+  // Force refresh on first visit after login - only run once when user changes
+  useEffect(() => {
+    if (user && userId !== 'anonymous') {
+      const sessionKey = `quotations-visited-${userId}`;
+      const hasVisitedThisSession = sessionStorage.getItem(sessionKey);
+      
+      if (!hasVisitedThisSession) {
+        // First visit this session - force fresh data
+        console.log('First visit to quotations page this session - forcing fresh data fetch');
+        sessionStorage.setItem(sessionKey, 'true');
+        // Clear any cached data to force fresh fetch
+        localStorage.removeItem(`quotations-${userRole}-${userId}`);
+        localStorage.removeItem(`quotations-${userRole}-${userId}_timestamp`);
+      }
+    }
+  }, [user, userId, userRole]);
+  
+  // Debug logging
+  console.log('QuotationsPage Debug:', {
+    user,
+    quotations,
+    quotationsLength: quotations?.length,
+    loading,
+    error
   });
   
   // Get modal contexts
@@ -196,29 +230,99 @@ const QuotationsPage = () => {
   const handleApproveQuotation = async (quotation) => {
     if (!quotation) return;
     
+    // Set the selected quotation and open delivery assignment modal
+    setSelectedQuotation(quotation);
+    
+    // Load delivery users
+    try {
+      const response = await api.quotations.getDeliveryUsers();
+      if (response && response.success) {
+        setDeliveryUsers(response.data || []);
+      } else {
+        setDeliveryUsers([]);
+      }
+    } catch (err) {
+      console.error('Error loading delivery users:', err);
+      setDeliveryUsers([]);
+    }
+    
+    setIsDeliveryModalOpen(true);
+  };
+  
+  // Handle delivery assignment and approval
+  const handleDeliveryAssignment = async () => {
+    if (!selectedQuotation) return;
+    
+    // Validate that a delivery user is selected
+    if (!selectedDeliveryUser) {
+      alert('Please select a delivery personnel before approving the quotation.');
+      return;
+    }
+    
+    try {
+      // Prepare approval data
+      const approvalData = {
+        assignedDelivery: selectedDeliveryUser
+      };
+      
+      // Call API to approve quotation with delivery assignment
+      const response = await api.quotations.approve(selectedQuotation._id, approvalData);
+      
+      if (response && response.success) {
+        // Sync data across all users
+        await syncAfterQuotationStatusUpdate(selectedQuotation._id, { status: 'approved', assignedDelivery: selectedDeliveryUser });
+        
+        // Refresh quotations using the data loader
+        await refreshQuotations();
+        
+        // Close modal and reset state
+        setIsDeliveryModalOpen(false);
+        setSelectedQuotation(null);
+        setSelectedDeliveryUser('');
+        
+        // Show success message
+        const deliveryUserName = deliveryUsers.find(user => user._id === selectedDeliveryUser)?.name;
+        const successMsg = `Quotation approved and assigned to ${deliveryUserName}!`;
+        showSuccess(successMsg);
+      } else {
+        throw new Error(response.message || 'Failed to approve quotation');
+      }
+    } catch (err) {
+      console.error('Error approving quotation:', err);
+      showError('Failed to approve quotation', err.message);
+    }
+  };
+
+  // Handle marking quotation as delivered (delivery users only)
+  const handleMarkAsDelivered = async (quotation) => {
+    if (!quotation) return;
+    
     // Show confirmation dialog
     showConfirm({
-      title: 'Approve Quotation',
-      message: `Are you sure you want to approve quotation ${quotation.quotationNumber}?`,
-      confirmText: 'Approve',
+      title: 'Mark as Delivered',
+      message: `Are you sure you want to mark quotation ${quotation.quotationNumber} as delivered?`,
+      confirmText: 'Mark as Delivered',
       cancelText: 'Cancel',
       onConfirm: async () => {
         try {
-          // Call API to approve quotation
-          const response = await api.quotations.approve(quotation._id);
+          // Call API to mark quotation as delivered
+          const response = await api.quotations.markAsDelivered(quotation._id);
           
           if (response && response.success) {
+            // Sync data across all users
+            await syncAfterQuotationStatusUpdate(quotation._id, { status: 'completed' });
+            
             // Refresh quotations using the data loader
             await refreshQuotations();
             
             // Show success message
-            showSuccess('Quotation successfully approved!');
+            showSuccess('Quotation marked as delivered and converted to sale!');
           } else {
-            throw new Error(response.message || 'Failed to approve quotation');
+            throw new Error(response.message || 'Failed to mark quotation as delivered');
           }
         } catch (err) {
-          console.error('Error approving quotation:', err);
-          showError('Failed to approve quotation', err.message);
+          console.error('Error marking quotation as delivered:', err);
+          showError('Failed to mark quotation as delivered', err.message);
         }
       }
     });
@@ -275,6 +379,9 @@ const QuotationsPage = () => {
           const response = await api.quotations.reject(quotation._id);
           
           if (response && response.success) {
+            // Sync data across all users
+            await syncAfterQuotationStatusUpdate(quotation._id, { status: 'rejected' });
+            
             // Refresh quotations using the data loader
             await refreshQuotations();
             
@@ -291,12 +398,9 @@ const QuotationsPage = () => {
     });
   };
 
-  // Filter quotations based on active tab, search term, date filter, and user role
+  // Filter quotations based on active tab, search term, and date filter
+  // Note: Role-based filtering is already handled by the backend API
   const filteredQuotations = (quotations || []).filter(quotation => {
-    // Role-based filtering: users with 'user' role can only see quotations they created
-    const matchesUserRole = user?.role === 'admin' || 
-                           (user?.role === 'user' && quotation.createdBy === user._id);
-    
     const matchesTab = activeTab === 'all' || 
                       (activeTab === 'pending' && (quotation.status === 'draft' || quotation.status === 'pending')) ||
                       (activeTab === 'approved' && (quotation.status === 'accepted' || quotation.status === 'approved')) ||
@@ -328,7 +432,7 @@ const QuotationsPage = () => {
       matchesDate = quotationDate >= monthAgo && quotationDate <= today;
     }
     
-    return matchesUserRole && matchesTab && matchesSearch && matchesDate;
+    return matchesTab && matchesSearch && matchesDate;
   });
 
   // Calculate total quotation amount
@@ -605,8 +709,9 @@ const QuotationsPage = () => {
         </div>
       )}
 
-      {/* Quotation Summary Cards */}
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      {/* Quotation Summary Cards - Only show for admin users */}
+      {(user?.role === 'admin' || user?.data?.role === 'admin') && (
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
           <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="px-4 py-5 sm:p-6">
               <div class="flex items-center">
@@ -621,10 +726,7 @@ const QuotationsPage = () => {
                       {user?.role === 'user' ? 'My Quotations' : 'Total Quotations'}
                     </dt>
                     <dd class="text-lg font-medium text-gray-900">
-                      {(quotations || []).filter(quotation => 
-                        user?.role === 'admin' || 
-                        (user?.role === 'user' && quotation.createdBy === user._id)
-                      ).length}
+                      {(quotations || []).length}
                     </dd>
                   </dl>
                 </div>
@@ -663,9 +765,7 @@ const QuotationsPage = () => {
                     <dt class="text-sm font-medium text-gray-500 truncate">Approved</dt>
                     <dd class="text-lg font-medium text-gray-900">
                       {(quotations || []).filter(quotation => 
-                        (quotation.status === 'accepted' || quotation.status === 'approved') && 
-                        (user?.role === 'admin' || 
-                        (user?.role === 'user' && quotation.createdBy === user._id))
+                        quotation.status === 'accepted' || quotation.status === 'approved'
                       ).length}
                     </dd>
                   </dl>
@@ -687,9 +787,7 @@ const QuotationsPage = () => {
                     <dt class="text-sm font-medium text-gray-500 truncate">Pending</dt>
                     <dd class="text-lg font-medium text-gray-900">
                       {(quotations || []).filter(quotation => 
-                        (quotation.status === 'draft' || quotation.status === 'pending') && 
-                        (user?.role === 'admin' || 
-                        (user?.role === 'user' && quotation.createdBy === user._id))
+                        quotation.status === 'draft' || quotation.status === 'pending'
                       ).length}
                     </dd>
                   </dl>
@@ -698,6 +796,7 @@ const QuotationsPage = () => {
             </div>
           </div>
         </div>
+      )}
 
       {/* Filters and Actions */}
       <div class="bg-white shadow rounded-lg mb-6">
@@ -748,8 +847,8 @@ const QuotationsPage = () => {
                 Export CSV
               </button>
             )}
-            {/* Only show New Quotation button for non-admin users */}
-            {hasPermission('quotations-create', user) && (
+            {/* Show New Quotation button for user and admin roles (for testing) */}
+            {(user?.role === 'user' || user?.data?.role === 'user') && (
               <button 
                 class="btn btn-primary flex items-center"
                 onClick={() => setIsFormModalOpen(true)}
@@ -820,16 +919,18 @@ const QuotationsPage = () => {
                   Quotation ID
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Customer
+                  {user?.role === 'user' ? 'Assigned Delivery' : 'Customer'}
                 </th>
+                {user?.role === 'admin' && (
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Assigned Delivery
+                  </th>
+                )}
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Amount
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
-                </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Valid Until
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
@@ -846,16 +947,29 @@ const QuotationsPage = () => {
                     {quotation.quotationNumber}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {getCustomerDisplayName(quotation.customer)}
+                    {user?.role === 'user' 
+                      ? (quotation.assignedDelivery 
+                          ? (typeof quotation.assignedDelivery === 'string' 
+                              ? quotation.assignedDelivery 
+                              : quotation.assignedDelivery?.name || 'Delivery Personnel')
+                          : 'Not Assigned')
+                      : getCustomerDisplayName(quotation.customer)
+                    }
                   </td>
+                  {user?.role === 'admin' && (
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {quotation.assignedDelivery 
+                        ? (typeof quotation.assignedDelivery === 'string' 
+                            ? quotation.assignedDelivery 
+                            : quotation.assignedDelivery?.name || 'Delivery Personnel')
+                        : 'Not Assigned'}
+                    </td>
+                  )}
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     ${(quotation.total || 0).toFixed(2)}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(quotation.createdAt).toLocaleDateString()}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(quotation.validUntil).toLocaleDateString()}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -884,8 +998,8 @@ const QuotationsPage = () => {
                         View
                       </button>
                       
-                      {/* Edit button only for user role and when quotation is not approved */}
-                      {user && user.role === 'user' && quotation.status !== 'approved' && (
+                      {/* Edit button only for pending status */}
+                      {user && (quotation.status === 'pending' || quotation.status === 'draft') && (
                         <button 
                           class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                           onClick={() => {
@@ -901,7 +1015,7 @@ const QuotationsPage = () => {
                       )}
                       
                       {/* Show Approve button only for admin role and when quotation is pending */}
-                      {user && user.role === 'admin' && (quotation.status === 'pending' || quotation.status === 'draft') && (
+                      {user && (user.role === 'admin' || user?.data?.role === 'admin') && (quotation.status === 'pending' || quotation.status === 'draft') && (
                         <button 
                           class="inline-flex items-center px-2.5 py-1.5 border border-blue-300 shadow-sm text-xs font-medium rounded text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                           onClick={() => handleApproveQuotation(quotation)}
@@ -913,18 +1027,19 @@ const QuotationsPage = () => {
                         </button>
                       )}
                       
-                      {/* Show Delivered button only for user role and when quotation is approved */}
-                      {user && user.role === 'user' && quotation.status === 'approved' && (
+                      {/* Show Delivered button for delivery users when quotation is approved and assigned to them */}
+                      {user && user.role === 'delivery' && quotation.status === 'approved' && (
                         <button 
                           class="inline-flex items-center px-2.5 py-1.5 border border-green-300 shadow-sm text-xs font-medium rounded text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                          onClick={() => handleConvertToSale(quotation)}
+                          onClick={() => handleMarkAsDelivered(quotation)}
                         >
                           <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M5 12a1 1 0 102 0V6.414l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L5 6.414V12zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" clip-rule="evenodd" />
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                           </svg>
                           Delivered
                         </button>
                       )}
+
                       
                       {/* Show Reject button only for admin role and when quotation is pending */}
                       {user && user.role === 'admin' && (quotation.status === 'pending' || quotation.status === 'draft') && (
@@ -1070,6 +1185,16 @@ const QuotationsPage = () => {
                       ${(selectedQuotation.total || 0).toFixed(2)}
                     </dd>
                   </div>
+                  {selectedQuotation.assignedDelivery && (
+                    <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm font-medium text-gray-500">Assigned Delivery</dt>
+                      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {typeof selectedQuotation.assignedDelivery === 'string' 
+                          ? selectedQuotation.assignedDelivery 
+                          : selectedQuotation.assignedDelivery?.name || 'Delivery Personnel'}
+                      </dd>
+                    </div>
+                  )}
                   {selectedQuotation.notes && (
                     <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                       <dt className="text-sm font-medium text-gray-500">Notes</dt>
@@ -1106,13 +1231,10 @@ const QuotationsPage = () => {
                           Unit Price
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Discount
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tax
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Total
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Notes
                         </th>
                       </tr>
                     </thead>
@@ -1130,13 +1252,16 @@ const QuotationsPage = () => {
                               ${parseFloat(item.unitPrice).toFixed(2)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {item.discount}%
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {item.tax}%
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               ${parseFloat(item.total).toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500">
+                              {item.notes ? (
+                                <span className="text-xs bg-yellow-50 text-yellow-800 px-2 py-1 rounded">
+                                  {item.notes}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 text-xs">-</span>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -1150,7 +1275,7 @@ const QuotationsPage = () => {
                     </tbody>
                     <tfoot className="bg-gray-50">
                       <tr>
-                        <td colSpan="5" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
+                        <td colSpan="4" className="px-6 py-2 text-right text-sm font-medium text-gray-900">
                           Total:
                         </td>
                         <td className="px-6 py-2 text-sm font-bold text-gray-900">
@@ -1407,8 +1532,11 @@ const QuotationsPage = () => {
               >
                 Close
               </button>
-              {/* Edit button only for user role and when quotation is not approved */}
-              {user && user.role === 'user' && selectedQuotation.status !== 'approved' && (
+              {/* Edit button for user role (when not approved) and admin role (when pending) */}
+              {user && (
+                (user.role === 'user' && selectedQuotation.status !== 'approved') ||
+                (user.role === 'admin' && (selectedQuotation.status === 'pending' || selectedQuotation.status === 'draft'))
+              ) && (
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -1438,16 +1566,44 @@ const QuotationsPage = () => {
             onCancel={() => setIsEditModalOpen(false)}
             onSave={async (quotationData) => {
               try {
-                const response = await api.quotations.update(selectedQuotation._id, quotationData);
+                let response;
                 
-                if (response && response.success) {
-                  // Refresh quotations using the data loader
-                  await refreshQuotations();
+                if (quotationData.shouldApprove) {
+                  // Handle update and approve in one action
+                  response = await api.quotations.update(selectedQuotation._id, quotationData);
                   
-                  setIsEditModalOpen(false);
-                  showSuccess('Quotation updated successfully!');
+                  if (response && response.success) {
+                    // Now approve the quotation
+                    const approvalResponse = await api.quotations.approve(selectedQuotation._id, {});
+                    
+                    if (approvalResponse && approvalResponse.success) {
+                      // Sync data across all users
+                      await syncAfterQuotationStatusUpdate(selectedQuotation._id, { status: 'approved' });
+                      
+                      // Refresh quotations using the data loader
+                      await refreshQuotations();
+                      
+                      setIsEditModalOpen(false);
+                      showSuccess('Quotation updated and approved successfully!');
+                    } else {
+                      throw new Error(approvalResponse.message || 'Failed to approve quotation after update');
+                    }
+                  } else {
+                    throw new Error(response.message || 'Failed to update quotation');
+                  }
                 } else {
-                  throw new Error(response.message || 'Failed to update quotation');
+                  // Regular update
+                  response = await api.quotations.update(selectedQuotation._id, quotationData);
+                  
+                  if (response && response.success) {
+                    // Refresh quotations using the data loader
+                    await refreshQuotations();
+                    
+                    setIsEditModalOpen(false);
+                    showSuccess('Quotation updated successfully!');
+                  } else {
+                    throw new Error(response.message || 'Failed to update quotation');
+                  }
                 }
               } catch (err) {
                 console.error('Error updating quotation:', err);
@@ -1458,7 +1614,96 @@ const QuotationsPage = () => {
         )}
       </Modal>
 
-      {/* No longer needed - Print Preview is now directly embedded in the View modal */}
+      {/* Delivery Assignment Modal */}
+      <Modal
+        isOpen={isDeliveryModalOpen}
+        onClose={() => {
+          setIsDeliveryModalOpen(false);
+          setSelectedQuotation(null);
+          setSelectedDeliveryUser('');
+        }}
+        title={`Approve Quotation: ${selectedQuotation?.quotationNumber || ''}`}
+        size="md"
+      >
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Assign Delivery Personnel
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Please select a delivery person to assign to this quotation. A delivery assignment is required before approval.
+            </p>
+          </div>
+
+          {/* Delivery User Selection */}
+          <div>
+            <label htmlFor="deliveryUser" className="block text-sm font-medium text-gray-700 mb-2">
+              Delivery Personnel (Optional)
+            </label>
+            <select
+              id="deliveryUser"
+              value={selectedDeliveryUser}
+              onChange={(e) => setSelectedDeliveryUser(e.target.value)}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-2 px-3 sm:text-sm"
+            >
+              <option value="">No delivery assignment</option>
+              {deliveryUsers.map(user => (
+                <option key={user._id} value={user._id}>
+                  {user.name} ({user.email})
+                </option>
+              ))}
+            </select>
+            {deliveryUsers.length === 0 && (
+              <p className="mt-2 text-sm text-gray-500">
+                No delivery personnel available. You can still approve the quotation.
+              </p>
+            )}
+          </div>
+
+          {/* Quotation Summary */}
+          {selectedQuotation && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">Quotation Summary</h4>
+              <div className="space-y-1 text-sm text-gray-600">
+                <div className="flex justify-between">
+                  <span>Customer:</span>
+                  <span>{getCustomerDisplayName(selectedQuotation.customer)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Amount:</span>
+                  <span className="font-medium">${(selectedQuotation.total || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Items:</span>
+                  <span>{selectedQuotation.items?.length || 0} items</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setIsDeliveryModalOpen(false);
+                setSelectedQuotation(null);
+                setSelectedDeliveryUser('');
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleDeliveryAssignment}
+            >
+              Approve Quotation
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

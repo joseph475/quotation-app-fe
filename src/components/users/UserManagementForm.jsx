@@ -23,6 +23,7 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
     phone: '',
     role: 'user',
     department: '',
+    address: '',
     isActive: true,
     password: '',
     confirmPassword: ''
@@ -41,6 +42,7 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
         phone: user.phone || '',
         role: user.role || 'user',
         department: user.department || '',
+        address: user.address || '',
         isActive: user.isActive !== undefined ? user.isActive : true,
         password: '',
         confirmPassword: ''
@@ -75,6 +77,7 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
     const newErrors = {};
     if (!formData.name) newErrors.name = 'Name is required';
     if (!formData.email) newErrors.email = 'Email is required';
+    if (formData.role === 'user' && !formData.address) newErrors.address = 'Address is required for user accounts';
     if (!user && !formData.password) newErrors.password = 'Password is required for new users';
     if (formData.password && formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
@@ -231,13 +234,32 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
                 class="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
               >
                 <option value="user">User</option>
-                <option value="admin">Admin</option>
+                <option value="delivery">Delivery</option>
               </select>
             </div>
             {errors.role && (
               <p class="mt-1 text-sm text-red-600">{errors.role}</p>
             )}
           </div>
+
+          {/* Address Input - Only show for user role */}
+          {formData.role === 'user' && (
+            <Input
+              id="address"
+              name="address"
+              type="text"
+              label="Address"
+              placeholder="Enter user's address"
+              value={formData.address}
+              onChange={handleChange}
+              error={errors.address}
+              leftIcon={
+                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                </svg>
+              }
+            />
+          )}
 
           {/* Active Status */}
           <div class="flex items-center">

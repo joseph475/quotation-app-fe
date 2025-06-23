@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'preact/hooks';
 import { getFromStorage, storeInStorage } from '../utils/localStorageHelpers';
+import { deduplicateRequest } from '../utils/requestDeduplication';
 import api from '../services/api';
 
 /**
@@ -55,9 +56,11 @@ const useDataLoader = (key, fetchFunction, options = {}) => {
         setIsStale(true);
       }
 
-      // Fetch from API
+      // Fetch from API with deduplication (bypass deduplication for force refresh)
       console.log(`Fetching fresh data for ${key}...`);
-      const response = await fetchFunction();
+      const response = forceRefresh 
+        ? await fetchFunction()
+        : await deduplicateRequest(`dataloader-${key}`, fetchFunction);
 
       if (response && response.success) {
         const freshData = response.data || [];

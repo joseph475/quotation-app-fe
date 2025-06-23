@@ -1,32 +1,19 @@
 /**
- * Local Storage Helper Functions
+ * Simple Local Storage Helper Functions
  * 
- * These functions provide a standardized way to interact with localStorage
- * for storing and retrieving data with optional expiration.
+ * Simplified version that focuses on basic localStorage operations
+ * without complex caching mechanisms.
  */
 
-import api from '../services/api';
-
 /**
- * Store data in localStorage with optional expiration
+ * Store data in localStorage
  * 
  * @param {string} key - The key to store the data under
  * @param {any} data - The data to store
- * @param {number} expirationMinutes - Optional expiration time in minutes
  */
-export const storeInStorage = (key, data, expirationMinutes = null) => {
+export const storeInStorage = (key, data) => {
   try {
-    const item = {
-      data,
-      timestamp: new Date().getTime()
-    };
-    
-    // Add expiration if provided
-    if (expirationMinutes) {
-      item.expiration = expirationMinutes * 60 * 1000; // Convert to milliseconds
-    }
-    
-    localStorage.setItem(key, JSON.stringify(item));
+    localStorage.setItem(key, JSON.stringify(data));
     return true;
   } catch (error) {
     console.error(`Error storing data in localStorage for key "${key}":`, error);
@@ -35,31 +22,20 @@ export const storeInStorage = (key, data, expirationMinutes = null) => {
 };
 
 /**
- * Get data from localStorage, checking for expiration if applicable
+ * Get data from localStorage
  * 
  * @param {string} key - The key to retrieve data from
- * @returns {any|null} - The stored data or null if not found or expired
+ * @returns {any|null} - The stored data or null if not found
  */
 export const getFromStorage = (key) => {
   try {
     const itemStr = localStorage.getItem(key);
     
-    // Return null if the item doesn't exist
     if (!itemStr) {
       return null;
     }
     
-    const item = JSON.parse(itemStr);
-    const now = new Date().getTime();
-    
-    // Check for expiration
-    if (item.expiration && now > item.timestamp + item.expiration) {
-      // Item has expired, remove it from localStorage
-      localStorage.removeItem(key);
-      return null;
-    }
-    
-    return item.data;
+    return JSON.parse(itemStr);
   } catch (error) {
     console.error(`Error retrieving data from localStorage for key "${key}":`, error);
     return null;
@@ -95,38 +71,6 @@ export const clearStorage = () => {
 };
 
 /**
- * Check if a key exists in localStorage and is not expired
- * 
- * @param {string} key - The key to check
- * @returns {boolean} - True if the key exists and is not expired
- */
-export const hasValidStorage = (key) => {
-  return getFromStorage(key) !== null;
-};
-
-/**
- * Get the timestamp of when data was stored
- * 
- * @param {string} key - The key to check
- * @returns {number|null} - Timestamp in milliseconds or null if not found
- */
-export const getStorageTimestamp = (key) => {
-  try {
-    const itemStr = localStorage.getItem(key);
-    
-    if (!itemStr) {
-      return null;
-    }
-    
-    const item = JSON.parse(itemStr);
-    return item.timestamp;
-  } catch (error) {
-    console.error(`Error getting timestamp from localStorage for key "${key}":`, error);
-    return null;
-  }
-};
-
-/**
  * Store authenticated user data in localStorage
  * 
  * @param {Object} userData - User data to store
@@ -149,74 +93,4 @@ export const getAuthUser = () => {
  */
 export const clearAuthUser = () => {
   removeFromStorage('authUser');
-};
-
-/**
- * Initialize app data by fetching from API and storing in localStorage
- * 
- * @param {boolean} forceRefresh - Whether to force refresh data from API
- */
-export const initializeAppData = async (forceRefresh = false) => {
-  try {
-    console.log('Initializing essential app data...');
-    
-    // Only fetch essential data - removed stock transfers, purchase orders, and purchase receiving
-    // These will be loaded on-demand when their respective pages are accessed
-    
-    // Fetch suppliers (needed for forms)
-    await fetchAndStoreData('suppliers', api.suppliers.getAll, forceRefresh);
-    
-    // Fetch customers (needed for quotations and sales)
-    await fetchAndStoreData('customers', api.customers.getAll, forceRefresh);
-    
-    // Fetch inventory (needed for quotations and sales)
-    await fetchAndStoreData('inventory', api.inventory.getAll, forceRefresh);
-    
-    // Fetch sales (core business data)
-    await fetchAndStoreData('sales', api.sales.getAll, forceRefresh);
-    
-    // Fetch quotations (core business data)
-    await fetchAndStoreData('quotations', api.quotations.getAll, forceRefresh);
-    
-    console.log('Essential app data initialization complete');
-  } catch (error) {
-    console.error('Error initializing app data:', error);
-    throw error;
-  }
-};
-
-/**
- * Fetch data from API and store in localStorage
- * 
- * @param {string} key - The key to store the data under
- * @param {Function} fetchFunction - The API function to call
- * @param {boolean} forceRefresh - Whether to force refresh data from API
- * @param {number} expirationMinutes - Optional expiration time in minutes
- */
-export const fetchAndStoreData = async (key, fetchFunction, forceRefresh = false, expirationMinutes = null) => {
-  try {
-    // Check if data exists in localStorage and is not expired
-    const existingData = getFromStorage(key);
-    
-    if (!forceRefresh && existingData) {
-      console.log(`Using cached data for ${key}`);
-      return existingData;
-    }
-    
-    console.log(`Fetching ${key} data from API...`);
-    const response = await fetchFunction();
-    
-    if (response && response.success) {
-      const data = response.data || [];
-      storeInStorage(key, data, expirationMinutes);
-      console.log(`${key} data stored in localStorage`);
-      return data;
-    } else {
-      console.error(`Failed to fetch ${key} data:`, response?.message || 'Unknown error');
-      throw new Error(response?.message || `Failed to fetch ${key} data`);
-    }
-  } catch (error) {
-    console.error(`Error fetching and storing ${key} data:`, error);
-    throw error;
-  }
 };

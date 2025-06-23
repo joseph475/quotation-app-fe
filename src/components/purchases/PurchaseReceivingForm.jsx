@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'preact/hooks';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import api from '../../services/api';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { getFromStorage } from '../../utils/localStorageHelpers';
 
 /**

@@ -3,8 +3,7 @@ import { useState, useEffect } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import { FilterSelect } from '../../components/common';
 import InventoryForm from '../../components/inventory/InventoryForm';
-import AddStockForm from '../../components/inventory/AddStockForm';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import { hasPermission } from '../../utils/pageHelpers';
 import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
@@ -12,6 +11,7 @@ import { getItemStatus } from '../../utils/lowStockHelpers';
 import { createCostHistoryRecord, saveCostHistory } from '../../utils/costHistoryHelpers';
 import { createInventoryHistoryRecord, saveInventoryHistory } from '../../utils/inventoryHistoryHelpers';
 import { useConfirmModal } from '../../contexts/ModalContext';
+import { deduplicateRequest } from '../../utils/requestDeduplication';
 
 const InventoryPage = () => {
   // Get user data from auth context
@@ -25,10 +25,6 @@ const InventoryPage = () => {
   // Form state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState(null);
-  
-  // Add Stock modal state
-  const [isAddStockOpen, setIsAddStockOpen] = useState(false);
-  const [stockItem, setStockItem] = useState(null);
 
   // Inventory state
   const [inventoryItems, setInventoryItems] = useState([]);
@@ -37,12 +33,16 @@ const InventoryPage = () => {
   
   // Fetch inventory items from local storage or API
   const fetchData = async () => {
+    if (loading) return; // Prevent multiple simultaneous requests
+    
     setLoading(true);
+    setError(null);
+    
     try {
-      // Try to get inventory items from local storage
+      // Try to get inventory items from local storage first
       const storedInventory = getFromStorage('inventory');
       
-      if (storedInventory && Array.isArray(storedInventory)) {
+      if (storedInventory && Array.isArray(storedInventory) && storedInventory.length > 0) {
         // Add status field based on quantity and unit using new low stock logic
         const itemsWithStatus = storedInventory.map(item => {
           const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
@@ -50,27 +50,34 @@ const InventoryPage = () => {
         });
         
         setInventoryItems(itemsWithStatus);
-        setError(null);
-      } else {
-        // Fallback to API if not in local storage
-        const inventoryResponse = await api.inventory.getAll();
+        setLoading(false);
+        return;
+      }
+      
+      // Fallback to API if not in local storage using deduplication
+      const inventoryResponse = await deduplicateRequest('inventory-fetch', () => 
+        api.inventory.getAll()
+      );
+      
+      if (inventoryResponse && inventoryResponse.success) {
+        // Store in local storage for future use
+        storeInStorage('inventory', inventoryResponse.data || []);
         
-        if (inventoryResponse && inventoryResponse.success) {
-          // Add status field based on quantity and unit using new low stock logic
-          const itemsWithStatus = (inventoryResponse.data || []).map(item => {
-            const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
-            return { ...item, status };
-          });
-          
-          setInventoryItems(itemsWithStatus);
-          setError(null);
-        } else {
-          throw new Error(inventoryResponse.message || 'Failed to fetch inventory items');
-        }
+        // Add status field based on quantity and unit using new low stock logic
+        const itemsWithStatus = (inventoryResponse.data || []).map(item => {
+          const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
+          return { ...item, status };
+        });
+        
+        setInventoryItems(itemsWithStatus);
+      } else {
+        throw new Error(inventoryResponse?.message || 'Failed to fetch inventory items');
       }
     } catch (err) {
-      console.error('Error fetching data:', err);
-      setError('Failed to load data. Please try again.');
+      console.error('Error fetching inventory data:', err);
+      setError(err.message || 'Failed to load inventory data. Please try again.');
+      // Set empty array to stop loading state
+      setInventoryItems([]);
     } finally {
       setLoading(false);
     }
@@ -78,7 +85,9 @@ const InventoryPage = () => {
   
   // Initial data fetch
   useEffect(() => {
-    fetchData();
+    if (user) {
+      fetchData();
+    }
   }, [user]);
 
   // Apply client-side filtering for search term
@@ -221,6 +230,20 @@ const InventoryPage = () => {
           <div class="flex space-x-3">
             <button 
               class="btn btn-outline flex items-center"
+              onClick={() => {
+                // Clear local storage and refetch from API
+                localStorage.removeItem('inventory');
+                fetchData();
+              }}
+              disabled={loading}
+            >
+              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+              </svg>
+              Refresh
+            </button>
+            <button 
+              class="btn btn-outline flex items-center"
               onClick={() => exportToCSV(filteredItems)}
             >
               <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -278,90 +301,77 @@ const InventoryPage = () => {
       {/* Inventory Table */}
       {!loading && (
         <div class="bg-white shadow rounded-lg overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('itemcode')}>
-                      Item Code
-                      {getSortIcon('itemcode')}
-                    </div>
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Barcode
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('name')}>
-                      Name
-                      {getSortIcon('name')}
-                    </div>
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Unit
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('cost')}>
-                      Cost
-                      {getSortIcon('cost')}
-                    </div>
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div class="flex items-center cursor-pointer" onClick={() => handleSort('price')}>
-                      Price
-                      {getSortIcon('price')}
-                    </div>
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                {filteredItems.map((item) => (
-                  <tr key={item._id || item.id}>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.itemcode}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.barcode}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="flex items-center">
-                        <div class="h-10 w-10 flex-shrink-0 bg-gray-100 rounded-md flex items-center justify-center text-gray-500">
-                          {item.name.charAt(0)}
-                        </div>
-                        <div class="ml-4">
-                          <div class="text-sm font-medium text-gray-900">{item.name}</div>
-                        </div>
+          {filteredItems.length > 0 ? (
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <div class="flex items-center cursor-pointer" onClick={() => handleSort('itemcode')}>
+                        Item Code
+                        {getSortIcon('itemcode')}
                       </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.unit}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      ${item.cost ? item.cost.toFixed(2) : '0.00'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      ${item.price ? item.price.toFixed(2) : '0.00'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div class="flex justify-end space-x-2">
-                        {hasPermission('inventory-edit', user) && (
-                          <>
-                            <button 
-                              class="inline-flex items-center px-2.5 py-1.5 border border-green-300 shadow-sm text-xs font-medium rounded text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                              onClick={() => {
-                                setStockItem(item);
-                                setIsAddStockOpen(true);
-                              }}
-                              title="Add Stock"
-                            >
-                              <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                              </svg>
-                              Stock
-                            </button>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Barcode
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <div class="flex items-center cursor-pointer" onClick={() => handleSort('name')}>
+                        Name
+                        {getSortIcon('name')}
+                      </div>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Unit
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <div class="flex items-center cursor-pointer" onClick={() => handleSort('cost')}>
+                        Cost
+                        {getSortIcon('cost')}
+                      </div>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <div class="flex items-center cursor-pointer" onClick={() => handleSort('price')}>
+                        Price
+                        {getSortIcon('price')}
+                      </div>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  {filteredItems.map((item) => (
+                    <tr key={item._id || item.id}>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.itemcode}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.barcode}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                          <div class="h-10 w-10 flex-shrink-0 bg-gray-100 rounded-md flex items-center justify-center text-gray-500">
+                            {item.name.charAt(0)}
+                          </div>
+                          <div class="ml-4">
+                            <div class="text-sm font-medium text-gray-900">{item.name}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.unit}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${item.cost ? item.cost.toFixed(2) : '0.00'}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${item.price ? item.price.toFixed(2) : '0.00'}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex justify-end space-x-2">
+                          {hasPermission('inventory-edit', user) && (
                             <button 
                               class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                               onClick={() => {
@@ -374,87 +384,113 @@ const InventoryPage = () => {
                               </svg>
                               Edit
                             </button>
-                          </>
-                        )}
-                        {hasPermission('inventory-delete', user) && (
-                          <button 
-                            class="inline-flex items-center px-2.5 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                            onClick={() => {
-                              confirmModal.showDeleteConfirm({
-                                itemName: 'inventory item',
-                                itemIdentifier: item.name,
-                                onConfirm: async () => {
-                                  try {
-                                    setLoading(true);
-                                    
-                                    const deleteHistoryRecord = createInventoryHistoryRecord({
-                                      itemId: item._id,
-                                      itemName: item.name,
-                                      itemCode: item.itemCode,
-                                      operation: 'delete_item',
-                                      beforeData: item,
-                                      afterData: {},
-                                      reason: 'Item deleted by user',
-                                      userId: user?._id || user?.id || 'unknown',
-                                      userName: user?.name || user?.email || 'Unknown User'
-                                    });
-                                    
-                                    // Save inventory history
-                                    saveInventoryHistory(deleteHistoryRecord);
-                                    
-                                    const response = await api.inventory.delete(item._id);
-                                    
-                                    if (response && response.success) {
-                                      // Get updated inventory list
-                                      const updatedInventoryResponse = await api.inventory.getAll();
+                          )}
+                          {hasPermission('inventory-delete', user) && (
+                            <button 
+                              class="inline-flex items-center px-2.5 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                              onClick={() => {
+                                confirmModal.showDeleteConfirm({
+                                  itemName: 'inventory item',
+                                  itemIdentifier: item.name,
+                                  onConfirm: async () => {
+                                    try {
+                                      setLoading(true);
                                       
-                                      if (updatedInventoryResponse && updatedInventoryResponse.success) {
-                                        // Update local storage with new inventory data
-                                        storeInStorage('inventory', updatedInventoryResponse.data || []);
+                                      const deleteHistoryRecord = createInventoryHistoryRecord({
+                                        itemId: item._id,
+                                        itemName: item.name,
+                                        itemCode: item.itemCode,
+                                        operation: 'delete_item',
+                                        beforeData: item,
+                                        afterData: {},
+                                        reason: 'Item deleted by user',
+                                        userId: user?._id || user?.id || 'unknown',
+                                        userName: user?.name || user?.email || 'Unknown User'
+                                      });
+                                      
+                                      // Save inventory history
+                                      saveInventoryHistory(deleteHistoryRecord);
+                                      
+                                      const response = await api.inventory.delete(item._id);
+                                      
+                                      if (response && response.success) {
+                                        // Get updated inventory list
+                                        const updatedInventoryResponse = await api.inventory.getAll();
                                         
-                                        // Add status field based on quantity using improved logic
-                                        const itemsWithStatus = (updatedInventoryResponse.data || []).map(item => {
-                                          const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
-                                          return { ...item, status };
-                                        });
+                                        if (updatedInventoryResponse && updatedInventoryResponse.success) {
+                                          // Update local storage with new inventory data
+                                          storeInStorage('inventory', updatedInventoryResponse.data || []);
+                                          
+                                          // Add status field based on quantity using improved logic
+                                          const itemsWithStatus = (updatedInventoryResponse.data || []).map(item => {
+                                            const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
+                                            return { ...item, status };
+                                          });
+                                          
+                                          // Update state
+                                          setInventoryItems(itemsWithStatus);
+                                        } else {
+                                          // If API call fails, just remove from local state
+                                          setInventoryItems(prev => prev.filter(i => i._id !== item._id));
+                                        }
                                         
-                                        // Update state
-                                        setInventoryItems(itemsWithStatus);
+                                        setError(null);
                                       } else {
-                                        // If API call fails, just remove from local state
-                                        setInventoryItems(prev => prev.filter(i => i._id !== item._id));
+                                        throw new Error(response.message || 'Failed to delete inventory item');
                                       }
-                                      
-                                      setError(null);
-                                    } else {
-                                      throw new Error(response.message || 'Failed to delete inventory item');
+                                    } catch (err) {
+                                      console.error('Error deleting inventory item:', err);
+                                      setError(err.message || 'Failed to delete inventory item. Please try again.');
+                                    } finally {
+                                      setLoading(false);
                                     }
-                                  } catch (err) {
-                                    console.error('Error deleting inventory item:', err);
-                                    setError(err.message || 'Failed to delete inventory item. Please try again.');
-                                  } finally {
-                                    setLoading(false);
                                   }
-                                }
-                              });
-                            }}
-                          >
-                            <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                            </svg>
-                            Delete
-                          </button>
-                        )}
-                        {!hasPermission('inventory-edit', user) && !hasPermission('inventory-delete', user) && (
-                          <span class="text-gray-400">View Only</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                                });
+                              }}
+                            >
+                              <svg class="h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                              </svg>
+                              Delete
+                            </button>
+                          )}
+                          {!hasPermission('inventory-edit', user) && !hasPermission('inventory-delete', user) && (
+                            <span class="text-gray-400">View Only</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div class="text-center py-12">
+              <svg class="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+              <h3 class="mt-2 text-sm font-medium text-gray-900">No inventory items</h3>
+              <p class="mt-1 text-sm text-gray-500">
+                {searchTerm ? 'No items match your search criteria.' : 'Get started by adding your first inventory item.'}
+              </p>
+              {hasPermission('inventory-create', user) && !searchTerm && (
+                <div class="mt-6">
+                  <button 
+                    class="btn btn-primary flex items-center mx-auto"
+                    onClick={() => {
+                      setCurrentItem(null);
+                      setIsFormOpen(true);
+                    }}
+                  >
+                    <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    Add First Item
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -466,12 +502,12 @@ const InventoryPage = () => {
         size="5xl"
       >
         <InventoryForm
+          key={currentItem ? currentItem._id : 'new-item'}
           initialData={currentItem}
           onCancel={() => setIsFormOpen(false)}
           onSave={async (itemData) => {
             try {
-              setLoading(true);
-              
+              // Don't set loading state while form is open to prevent form reset
               let response;
               if (currentItem) {
                 // Update existing item
@@ -482,8 +518,29 @@ const InventoryPage = () => {
               }
               
               if (response && response.success) {
-                // Refresh inventory data
-                await fetchData();
+                // Update local state directly instead of calling fetchData()
+                if (currentItem) {
+                  // Update existing item in the list
+                  setInventoryItems(prev => prev.map(item => 
+                    item._id === currentItem._id 
+                      ? { ...response.data, status: getItemStatus(response.data.quantity || 0, response.data.unit || 'pcs') }
+                      : item
+                  ));
+                } else {
+                  // Add new item to the list
+                  const newItemWithStatus = { 
+                    ...response.data, 
+                    status: getItemStatus(response.data.quantity || 0, response.data.unit || 'pcs') 
+                  };
+                  setInventoryItems(prev => [...prev, newItemWithStatus]);
+                }
+                
+                // Update local storage
+                const updatedItems = currentItem 
+                  ? inventoryItems.map(item => item._id === currentItem._id ? response.data : item)
+                  : [...inventoryItems, response.data];
+                storeInStorage('inventory', updatedItems);
+                
                 setIsFormOpen(false);
                 setCurrentItem(null);
                 setError(null);
@@ -493,41 +550,11 @@ const InventoryPage = () => {
             } catch (err) {
               console.error('Error saving inventory item:', err);
               setError(err.message || 'Failed to save inventory item. Please try again.');
-            } finally {
-              setLoading(false);
             }
           }}
         />
       </Modal>
 
-      {/* Add Stock Modal */}
-      <Modal
-        isOpen={isAddStockOpen}
-        onClose={() => setIsAddStockOpen(false)}
-        title="Add Stock"
-        size="lg"
-      >
-        <AddStockForm
-          item={stockItem}
-          onCancel={() => setIsAddStockOpen(false)}
-          onSave={async (stockData) => {
-            try {
-              setLoading(true);
-              
-              // Refresh inventory data after adding stock
-              await fetchData();
-              setIsAddStockOpen(false);
-              setStockItem(null);
-              setError(null);
-            } catch (err) {
-              console.error('Error adding stock:', err);
-              setError(err.message || 'Failed to add stock. Please try again.');
-            } finally {
-              setLoading(false);
-            }
-          }}
-        />
-      </Modal>
     </div>
   );
 };

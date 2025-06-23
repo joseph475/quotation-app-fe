@@ -2,7 +2,7 @@ import { h, Fragment } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import CustomerForm from '../../components/customers/CustomerForm';
 import api from '../../services/api';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { hasPermission } from '../../utils/pageHelpers';
 import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
 import { useConfirmModal } from '../../contexts/ModalContext';

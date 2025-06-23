@@ -1,7 +1,7 @@
 import { h } from 'preact';
 import { useState } from 'preact/hooks';
 import ProfileForm from '../../components/profile/ProfileForm';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ProfilePage = () => {
   const { user, updateProfile } = useAuth();

@@ -5,7 +5,7 @@ import PurchaseReceivingForm from '../../components/purchases/PurchaseReceivingF
 import PurchaseReceivingDetails from '../../components/purchases/PurchaseReceivingDetails';
 import api from '../../services/api';
 import { useConfirmModal } from '../../contexts/ModalContext';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { hasPermission } from '../../utils/pageHelpers';
 import { storeInStorage, getFromStorage } from '../../utils/localStorageHelpers';
 import { syncAfterPurchaseReceiving } from '../../utils/dataSync';

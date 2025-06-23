@@ -291,6 +291,66 @@ export const isDataStale = (dataType, maxAgeMinutes = 30) => {
 };
 
 /**
+ * Clear all quotation caches (for all users and roles)
+ * This should be called when quotations are updated by admins
+ */
+export const clearAllQuotationCaches = () => {
+  try {
+    console.log('Clearing all quotation caches...');
+    
+    // Get all localStorage keys
+    const keys = Object.keys(localStorage);
+    
+    // Find and remove all quotation-related cache keys
+    const quotationKeys = keys.filter(key => 
+      key.startsWith('quotations-') || 
+      key.includes('quotations') && (key.includes('_timestamp') || key.includes('-admin-') || key.includes('-user-') || key.includes('-delivery-'))
+    );
+    
+    quotationKeys.forEach(key => {
+      localStorage.removeItem(key);
+      console.log(`Removed cache key: ${key}`);
+    });
+    
+    // Also clear session storage for quotation visits
+    const sessionKeys = Object.keys(sessionStorage);
+    const quotationSessionKeys = sessionKeys.filter(key => key.startsWith('quotations-visited-'));
+    
+    quotationSessionKeys.forEach(key => {
+      sessionStorage.removeItem(key);
+      console.log(`Removed session key: ${key}`);
+    });
+    
+    console.log(`Cleared ${quotationKeys.length} cache keys and ${quotationSessionKeys.length} session keys`);
+    return true;
+  } catch (error) {
+    console.error('Error clearing quotation caches:', error);
+    return false;
+  }
+};
+
+/**
+ * Sync data after quotation status update (approval, rejection, etc.)
+ */
+export const syncAfterQuotationStatusUpdate = async (quotationId, updatedData) => {
+  try {
+    console.log('Syncing data after quotation status update...');
+    
+    // Clear all quotation caches to ensure all users see the update
+    clearAllQuotationCaches();
+    
+    // Update the specific quotation in any remaining localStorage
+    updateItemInStorage('quotations', quotationId, updatedData);
+    
+    console.log('Data sync completed after quotation status update');
+    return true;
+  } catch (error) {
+    console.error('Error syncing data after quotation status update:', error);
+    return false;
+  }
+};
+
+/**
  * Auto-refresh stale data
  */
 export const autoRefreshStaleData = async () => {

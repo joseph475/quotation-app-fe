@@ -4,7 +4,7 @@ import Modal from '../../components/common/Modal';
 import { FilterSelect } from '../../components/common';
 import StockTransferForm from '../../components/inventory/StockTransferForm';
 import api from '../../services/api';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { hasPermission } from '../../utils/pageHelpers';
 import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers';
 

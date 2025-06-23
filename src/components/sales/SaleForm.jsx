@@ -3,7 +3,7 @@ import { useState, useEffect } from 'preact/hooks';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import api from '../../services/api';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { getFromStorage } from '../../utils/localStorageHelpers';
 
 /**
@@ -21,7 +21,6 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
     customer: '',
     date: new Date().toISOString().split('T')[0], // Today's date
     status: 'paid',
-    paymentMethod: 'cash',
     items: [],
     notes: '',
     customerName: '', // Store customer name for display
@@ -139,20 +138,24 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
     setLoading(prev => ({ ...prev, customers: true, inventory: true }));
     
     try {
-      // Get customers from local storage
-      const storedCustomers = getFromStorage('customers');
-      if (storedCustomers && Array.isArray(storedCustomers)) {
-        setCustomers(storedCustomers);
+      // Get users (customers) from local storage or API
+      const storedUsers = getFromStorage('users');
+      if (storedUsers && Array.isArray(storedUsers)) {
+        // Filter users to only include those who can be customers (user role)
+        const customerUsers = storedUsers.filter(user => user.role === 'user');
+        setCustomers(customerUsers);
       } else {
         // Fallback to API if not in local storage
         const fetchCustomers = async () => {
           try {
-            const response = await api.customers.getAll();
+            const response = await api.users.getAll();
             if (response && response.success) {
-              setCustomers(response.data || []);
+              // Filter users to only include those who can be customers (user role)
+              const customerUsers = (response.data || []).filter(user => user.role === 'user');
+              setCustomers(customerUsers);
             }
           } catch (error) {
-            console.error('Error fetching customers:', error);
+            console.error('Error fetching users:', error);
           }
         };
         fetchCustomers();
@@ -518,83 +521,111 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-6">
-            {/* Customer Search */}
-            <div id="customerSearchContainer" className="relative flex-1">
-              <label htmlFor="customerSearch" className={labelClasses}>
+            {/* Customer Field - Editable for new sales, Read-only for editing */}
+            <div className="relative flex-1">
+              <label htmlFor="customer" className={labelClasses}>
                 Customer <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  id="customerSearch"
-                  placeholder="Search for customers..."
-                  value={customerSearch}
-                  onChange={handleCustomerSearch}
-                  className={`${inputClasses} ${errors.customer ? 'border-red-300 ring-1 ring-red-300' : ''} pl-10 ${formData.customerName ? 'pr-32' : ''}`}
-                  onFocus={() => {
-                    if (customerSearch) {
-                      setShowCustomerResults(true);
-                    }
-                  }}
-                  onClick={() => {
-                    setShowCustomerResults(true);
-                  }}
-                />
-                {formData.customerName && (
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                    <span className="text-sm text-primary-600 bg-primary-50 px-2 py-1 rounded-full font-medium">
-                      {formData.customerName}
-                    </span>
-                  </div>
-                )}
-              </div>
               
-              {/* Search Results */}
-              {showCustomerResults && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
-                  {loading.customers ? (
-                    <div className="px-4 py-3 text-sm text-gray-500 flex items-center">
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              {initialData ? (
+                /* Read-only customer display for editing existing sales */
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    id="customer"
+                    value={formData.customerName || 'Customer'}
+                    className={`${inputClasses} pl-10 bg-gray-50 cursor-not-allowed`}
+                    disabled
+                    readOnly
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+              ) : (
+                /* Editable customer search for new sales */
+                <div id="customerSearchContainer" className="relative">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                       </svg>
-                      Loading customers...
                     </div>
-                  ) : filteredCustomers.length > 0 ? (
-                    <ul className="py-1">
-                      {filteredCustomers.map(customer => (
-                        <li 
-                          key={customer._id}
-                          className="px-3 py-2 hover:bg-primary-50 cursor-pointer flex justify-between items-center text-sm transition-colors duration-150"
-                          onClick={() => handleCustomerSelect(customer)}
-                        >
-                          <div className="flex items-center">
-                            <div className="h-8 w-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center mr-2 text-sm font-medium">
-                              {customer.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="font-medium">{customer.name}</div>
-                              {customer.email && (
-                                <div className="text-xs text-gray-500">
-                                  {customer.email}
+                    <input
+                      type="text"
+                      id="customerSearch"
+                      placeholder="Search for customers..."
+                      value={customerSearch}
+                      onChange={handleCustomerSearch}
+                      className={`${inputClasses} ${errors.customer ? 'border-red-300 ring-1 ring-red-300' : ''} pl-10 ${formData.customerName ? 'pr-32' : ''}`}
+                      onFocus={() => {
+                        if (customerSearch) {
+                          setShowCustomerResults(true);
+                        }
+                      }}
+                      onClick={() => {
+                        setShowCustomerResults(true);
+                      }}
+                    />
+                    {formData.customerName && (
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                        <span className="text-sm text-primary-600 bg-primary-50 px-2 py-1 rounded-full font-medium">
+                          {formData.customerName}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Search Results */}
+                  {showCustomerResults && (
+                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
+                      {loading.customers ? (
+                        <div className="px-4 py-3 text-sm text-gray-500 flex items-center">
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Loading customers...
+                        </div>
+                      ) : filteredCustomers.length > 0 ? (
+                        <ul className="py-1">
+                          {filteredCustomers.map(customer => (
+                            <li 
+                              key={customer._id}
+                              className="px-3 py-2 hover:bg-primary-50 cursor-pointer flex justify-between items-center text-sm transition-colors duration-150"
+                              onClick={() => handleCustomerSelect(customer)}
+                            >
+                              <div className="flex items-center">
+                                <div className="h-8 w-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center mr-2 text-sm font-medium">
+                                  {customer.name.charAt(0).toUpperCase()}
                                 </div>
+                                <div>
+                                  <div className="font-medium">{customer.name}</div>
+                                  {customer.email && (
+                                    <div className="text-xs text-gray-500">
+                                      {customer.email}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              {customer.phone && (
+                                <span className="text-gray-600 text-xs">{customer.phone}</span>
                               )}
-                            </div>
-                          </div>
-                          {customer.phone && (
-                            <span className="text-gray-600 text-xs">{customer.phone}</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="px-4 py-3 text-sm text-gray-500">
-                      {customerSearch ? 'No customers found.' : 'Type to search customers'}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="px-4 py-3 text-sm text-gray-500">
+                          {customerSearch ? 'No customers found.' : 'Type to search customers'}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -604,9 +635,7 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
                 <p className={errorClasses}>{errors.customer}</p>
               )}
             </div>
-          </div>
 
-          <div className="flex flex-col sm:flex-row gap-6">
             {/* Status */}
             <div className="flex-1">
               <label htmlFor="status" className={labelClasses}>
@@ -644,39 +673,6 @@ const SaleForm = ({ initialData, onCancel, onSave }) => {
                     formData.status === 'cancelled' ? 'bg-red-500' :
                     formData.status === 'refunded' ? 'bg-purple-500' : 'bg-gray-500'
                   }`}></span>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Method */}
-            <div className="flex-1">
-              <label htmlFor="paymentMethod" className={labelClasses}>
-                Payment Method
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-                    <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <select
-                  id="paymentMethod"
-                  name="paymentMethod"
-                  value={formData.paymentMethod}
-                  onChange={handleChange}
-                  className={`${inputClasses} appearance-none pl-10 pr-10`}
-                >
-                  <option value="cash">Cash</option>
-                  <option value="check">Check</option>
-                  <option value="credit_card">Credit Card</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="online_payment">Online Payment</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
                 </div>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import { h } from 'preact';
 import { useState } from 'preact/hooks';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -83,7 +83,7 @@ const Header = () => {
                 >
                   <span class="sr-only">Open user menu</span>
                   <div class="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-medium">
-                    {user ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+                    {user && user.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
                   </div>
                 </button>
               </div>
@@ -99,8 +99,8 @@ const Header = () => {
                 >
                   {user && (
                     <div class="px-4 py-3 border-b border-gray-100">
-                      <p class="text-sm font-medium text-gray-900">{user.name}</p>
-                      <p class="text-xs text-gray-500">{user.email}</p>
+                      <p class="text-sm font-medium text-gray-900">{user.name || 'User'}</p>
+                      <p class="text-xs text-gray-500">{user.email || 'No email'}</p>
                       
                     </div>
                   )}
