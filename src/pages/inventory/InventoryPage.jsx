@@ -21,6 +21,7 @@ const InventoryPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [allItems, setAllItems] = useState([]); // Store all items for searching
 
   // Form state
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -32,6 +33,7 @@ const InventoryPage = () => {
   const [error, setError] = useState(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState('');
+  const [importProgress, setImportProgress] = useState(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,18 +42,17 @@ const InventoryPage = () => {
   const [pagination, setPagination] = useState({});
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   
-  // Fetch inventory items with pagination
-  const fetchData = async (page = currentPage, limit = itemsPerPage, useCache = true) => {
+  // Fetch ALL inventory items for client-side search
+  const fetchAllItems = async (useCache = true) => {
     if (loading) return; // Prevent multiple simultaneous requests
     
     setLoading(true);
     setError(null);
     
     try {
-      // For pagination, we need to fetch from API directly
-      // Only use cache for the first page if useCache is true, but always get total count from API
-      if (useCache && page === 1) {
-        const storedInventory = getFromStorage('inventory');
+      // Check cache first if useCache is true
+      if (useCache) {
+        const storedInventory = getFromStorage('allInventory');
         
         if (storedInventory && Array.isArray(storedInventory) && storedInventory.length > 0) {
           // Add status field based on quantity and unit using new low stock logic
@@ -60,34 +61,18 @@ const InventoryPage = () => {
             return { ...item, status };
           });
           
-          setInventoryItems(itemsWithStatus);
-          
-          // Still fetch total count from API even when using cached data
-          try {
-            const countResponse = await api.inventory.getAll({ page: 1, limit: 1 });
-            if (countResponse && countResponse.success) {
-              setTotalItems(countResponse.total || countResponse.count || 0);
-              setPagination(countResponse.pagination || {});
-            }
-          } catch (err) {
-            console.error('Error fetching total count:', err);
-            // Fallback to cached items length if API fails
-            setTotalItems(storedInventory.length);
-          }
-          
+          setAllItems(itemsWithStatus);
+          setTotalItems(itemsWithStatus.length);
           setLoading(false);
           return;
         }
       }
       
-      // Fetch from API with pagination parameters
-      const params = {
-        page: page,
-        limit: limit,
-        sort: sortOrder === 'desc' ? `-${sortBy}` : sortBy
-      };
-      
-      const inventoryResponse = await api.inventory.getAll(params);
+      // Fetch ALL items from API (no pagination)
+      const inventoryResponse = await api.inventory.getAll({ 
+        limit: 10000, // Large limit to get all items
+        sort: 'name' // Default sort by name
+      });
       
       if (inventoryResponse && inventoryResponse.success) {
         // Add status field based on quantity and unit using new low stock logic
@@ -96,42 +81,31 @@ const InventoryPage = () => {
           return { ...item, status };
         });
         
-        setInventoryItems(itemsWithStatus);
-        setPagination(inventoryResponse.pagination || {});
-        setTotalItems(inventoryResponse.total || inventoryResponse.count || 0);
+        setAllItems(itemsWithStatus);
+        setTotalItems(itemsWithStatus.length);
         
-        // Store in local storage only for first page
-        if (page === 1) {
-          storeInStorage('inventory', inventoryResponse.data || []);
-        }
+        // Store ALL items in local storage for fast searching
+        storeInStorage('allInventory', inventoryResponse.data || []);
       } else {
         throw new Error(inventoryResponse?.message || 'Failed to fetch inventory items');
       }
     } catch (err) {
       console.error('Error fetching inventory data:', err);
       setError(err.message || 'Failed to load inventory data. Please try again.');
-      // Set empty array to stop loading state
-      setInventoryItems([]);
+      setAllItems([]);
     } finally {
       setLoading(false);
     }
   };
   
-  // Initial data fetch
+  // Initial data fetch - load ALL items for client-side search
   useEffect(() => {
     if (user && !hasInitiallyLoaded) {
-      fetchData().then(() => {
+      fetchAllItems().then(() => {
         setHasInitiallyLoaded(true);
       });
     }
   }, [user, hasInitiallyLoaded]);
-
-  // Refetch when pagination or sorting changes (but not on initial load)
-  useEffect(() => {
-    if (user && hasInitiallyLoaded) {
-      fetchData(currentPage, itemsPerPage, false);
-    }
-  }, [currentPage, itemsPerPage, sortBy, sortOrder]);
 
   // Handle page change
   const handlePageChange = (page) => {
@@ -144,15 +118,17 @@ const InventoryPage = () => {
     setCurrentPage(1); // Reset to first page
   };
 
-  // Apply client-side filtering for search term
-  const filteredItems = inventoryItems
+  // Client-side search and filtering
+  const filteredItems = allItems
     .filter(item => {
-      const matchesSearch = searchTerm === '' || 
-                           item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           (item.barcode && item.barcode.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                           (item.itemcode && item.itemcode.toString().includes(searchTerm));
+      if (!searchTerm || searchTerm.trim() === '') return true;
       
-      return matchesSearch;
+      const query = searchTerm.toLowerCase();
+      return (
+        item.name.toLowerCase().includes(query) ||
+        (item.barcode && item.barcode.toLowerCase().includes(query)) ||
+        (item.itemcode && item.itemcode.toString().includes(query))
+      );
     })
     .sort((a, b) => {
       let comparison = 0;
@@ -167,6 +143,17 @@ const InventoryPage = () => {
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
+
+  // Pagination for filtered items
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = filteredItems.slice(startIndex, endIndex);
+  
+  // Update pagination info based on filtered results
+  const filteredTotal = filteredItems.length;
+  const totalPages = Math.ceil(filteredTotal / itemsPerPage);
+  const hasPrev = currentPage > 1;
+  const hasNext = currentPage < totalPages;
 
   // Handle sorting
   const handleSort = (field) => {
@@ -261,7 +248,7 @@ const InventoryPage = () => {
     );
   };
   
-  // Handle Excel file import
+  // Handle Excel file import with batch processing and progress
   const handleExcelImport = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -295,28 +282,33 @@ const InventoryPage = () => {
     setIsImporting(true);
     setError(null);
     setImportSuccess('');
+    setImportProgress({ message: 'Starting import...', type: 'info' });
 
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await api.inventory.importExcel(formData);
-
-      if (response && response.success) {
-        // Clear local storage to force fresh data fetch
-        localStorage.removeItem('inventory');
+      // Use batch import with progress updates
+      const response = await api.inventory.importExcelBatch(formData, (progressData) => {
+        setImportProgress(progressData);
         
-        // Refresh inventory data and reset to first page
-        setCurrentPage(1);
-        await fetchData(1, itemsPerPage, false);
+        // Log progress for debugging
+        console.log('Import progress:', progressData);
+      });
+
+      if (response && response.type === 'complete') {
+        // Clear local storage to force fresh data fetch
+        localStorage.removeItem('allInventory');
+        
+        // Refresh inventory data
+        await fetchAllItems(false);
         
         // Handle response data structure safely
-        const data = response.data || response;
-        const importData = data.data || data;
+        const importData = response.data || {};
         
         const successMessage = `Successfully processed ${importData.imported || 0} items from Excel file! ` +
           `(${importData.created || 0} new items created, ${importData.updated || 0} items updated)` +
-          `${importData.errors ? ` - ${importData.errors.length} errors encountered` : ''}` +
+          `${importData.errors && importData.errors.length > 0 ? ` - ${importData.errors.length} errors encountered` : ''}` +
           `${importData.beforeCount !== undefined ? ` | Database: ${importData.beforeCount} → ${importData.afterCount} total items` : ''}`;
         
         setImportSuccess(successMessage);
@@ -326,7 +318,7 @@ const InventoryPage = () => {
           setImportSuccess('');
         }, 5000);
       } else {
-        throw new Error(response.message || 'Failed to import Excel file');
+        throw new Error(response?.message || 'Failed to import Excel file');
       }
     } catch (err) {
       console.error('Error importing Excel file:', err);
@@ -337,20 +329,18 @@ const InventoryPage = () => {
         errorMessage = 'File size too large. Please reduce the file size or split it into smaller files.';
       } else if (err.message.includes('Server error')) {
         errorMessage = err.message;
+      } else if (err.message.includes('Connection error')) {
+        errorMessage = 'Connection error during import. Please try again.';
       }
       
       setError(errorMessage);
     } finally {
       setIsImporting(false);
+      setImportProgress(null);
       event.target.value = ''; // Reset file input
     }
   };
 
-  // Calculate inventory statistics
-  const inventoryStats = {
-    totalItems: totalItems || filteredItems.length,
-    totalValue: filteredItems.reduce((sum, item) => sum + (item.cost || 0), 0).toFixed(2)
-  };
 
   return (
     <div>
@@ -359,17 +349,6 @@ const InventoryPage = () => {
         <p class="mt-1 text-sm text-gray-500">Manage your inventory items, stock levels, and pricing</p>
       </div>
       
-      {/* Inventory Statistics */}
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div class="bg-white shadow rounded-lg p-4 flex flex-col items-center justify-center">
-          <span class="text-sm font-medium text-gray-500">Total Items</span>
-          <span class="text-2xl font-bold text-gray-900">{inventoryStats.totalItems}</span>
-        </div>
-        <div class="bg-white shadow rounded-lg p-4 flex flex-col items-center justify-center">
-          <span class="text-sm font-medium text-gray-500">Total Cost Value</span>
-          <span class="text-2xl font-bold text-primary-600">${inventoryStats.totalValue}</span>
-        </div>
-      </div>
 
       {/* Filters and Actions */}
       <div class="bg-white shadow rounded-lg mb-6">
@@ -399,8 +378,8 @@ const InventoryPage = () => {
                 class="btn btn-outline flex items-center"
                 onClick={() => {
                   // Clear local storage and refetch from API
-                  localStorage.removeItem('inventory');
-                  fetchData();
+                  localStorage.removeItem('allInventory');
+                  fetchAllItems(false);
                 }}
                 disabled={loading}
               >
@@ -485,6 +464,33 @@ const InventoryPage = () => {
         </div>
       )}
 
+      {/* Import Progress - Simple Status Display */}
+      {importProgress && (
+        <div class="mb-6 bg-blue-50 border-l-4 border-blue-400 p-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-blue-400 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-blue-800">
+                {importProgress.message}
+              </p>
+              {importProgress.processed && importProgress.total && (
+                <p class="text-xs text-blue-600 mt-1">
+                  {importProgress.processed} / {importProgress.total} items processed
+                  {importProgress.created !== undefined && importProgress.updated !== undefined && (
+                    <span> • {importProgress.created} created, {importProgress.updated} updated</span>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error message */}
       {error && (
         <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4">
@@ -558,7 +564,7 @@ const InventoryPage = () => {
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                  {filteredItems.map((item) => (
+                  {paginatedItems.map((item) => (
                     <tr key={item._id || item.id}>
                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {item.itemcode}
@@ -630,25 +636,15 @@ const InventoryPage = () => {
                                       const response = await api.inventory.delete(item._id);
                                       
                                       if (response && response.success) {
-                                        // Get updated inventory list
-                                        const updatedInventoryResponse = await api.inventory.getAll();
+                                        // Remove item from allItems state immediately
+                                        setAllItems(prev => prev.filter(i => i._id !== item._id));
                                         
-                                        if (updatedInventoryResponse && updatedInventoryResponse.success) {
-                                          // Update local storage with new inventory data
-                                          storeInStorage('inventory', updatedInventoryResponse.data || []);
-                                          
-                                          // Add status field based on quantity using improved logic
-                                          const itemsWithStatus = (updatedInventoryResponse.data || []).map(item => {
-                                            const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
-                                            return { ...item, status };
-                                          });
-                                          
-                                          // Update state
-                                          setInventoryItems(itemsWithStatus);
-                                        } else {
-                                          // If API call fails, just remove from local state
-                                          setInventoryItems(prev => prev.filter(i => i._id !== item._id));
-                                        }
+                                        // Update total count
+                                        setTotalItems(prev => prev - 1);
+                                        
+                                        // Update local storage
+                                        const updatedItems = allItems.filter(i => i._id !== item._id);
+                                        storeInStorage('allInventory', updatedItems);
                                         
                                         setError(null);
                                       } else {
@@ -714,14 +710,14 @@ const InventoryPage = () => {
               <div class="flex-1 flex justify-between sm:hidden">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={!pagination.prev}
+                  disabled={!hasPrev}
                   class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={!pagination.next}
+                  disabled={!hasNext}
                   class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
@@ -837,28 +833,29 @@ const InventoryPage = () => {
               }
               
               if (response && response.success) {
-                // Update local state directly instead of calling fetchData()
+                const newItemWithStatus = { 
+                  ...response.data, 
+                  status: getItemStatus(response.data.quantity || 0, response.data.unit || 'pcs') 
+                };
+                
+                // Update allItems state (which is used for display)
                 if (currentItem) {
                   // Update existing item in the list
-                  setInventoryItems(prev => prev.map(item => 
-                    item._id === currentItem._id 
-                      ? { ...response.data, status: getItemStatus(response.data.quantity || 0, response.data.unit || 'pcs') }
-                      : item
+                  setAllItems(prev => prev.map(item => 
+                    item._id === currentItem._id ? newItemWithStatus : item
                   ));
                 } else {
-                  // Add new item to the list
-                  const newItemWithStatus = { 
-                    ...response.data, 
-                    status: getItemStatus(response.data.quantity || 0, response.data.unit || 'pcs') 
-                  };
-                  setInventoryItems(prev => [...prev, newItemWithStatus]);
+                  // Add new item to the START of the list
+                  setAllItems(prev => [newItemWithStatus, ...prev]);
+                  // Update total count
+                  setTotalItems(prev => prev + 1);
                 }
                 
                 // Update local storage
                 const updatedItems = currentItem 
-                  ? inventoryItems.map(item => item._id === currentItem._id ? response.data : item)
-                  : [...inventoryItems, response.data];
-                storeInStorage('inventory', updatedItems);
+                  ? allItems.map(item => item._id === currentItem._id ? response.data : item)
+                  : [response.data, ...allItems];
+                storeInStorage('allInventory', updatedItems);
                 
                 setIsFormOpen(false);
                 setCurrentItem(null);

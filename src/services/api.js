@@ -243,12 +243,73 @@ const api = {
     delete: (id) => request(`/inventory/${id}`, {
       method: 'DELETE',
     }),
-    search: (query) => request(`/inventory/search-items?query=${encodeURIComponent(query)}`),
+    search: (query) => request(`/inventory/search?query=${encodeURIComponent(query)}`),
     importExcel: (formData) => request('/inventory/import-excel', {
       method: 'POST',
       headers: {}, // Remove Content-Type header to let browser set it for FormData
       body: formData,
     }),
+    importExcelBatch: (formData, onProgress) => {
+      // Use regular fetch with streaming response
+      return new Promise(async (resolve, reject) => {
+        const token = getAuthToken();
+        const API_BASE_URL = process.env.REACT_APP_API_URL || 
+          (process.env.NODE_ENV === 'production' 
+            ? 'https://quotation-backend-api.vercel.app/api/v1' 
+            : 'http://localhost:8000/api/v1');
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/inventory/import-excel-batch`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+                  
+                  if (onProgress) {
+                    onProgress(data);
+                  }
+
+                  if (data.type === 'complete') {
+                    resolve(data);
+                    return;
+                  } else if (data.type === 'error') {
+                    reject(new Error(data.message));
+                    return;
+                  }
+                } catch (error) {
+                  console.error('Error parsing SSE data:', error);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Import error:', error);
+          reject(error);
+        }
+      });
+    },
   },
   
   // Customer endpoints
