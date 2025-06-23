@@ -493,6 +493,7 @@ export const getStatusColorClass = (status) => {
  * @returns {h.JSX.Element} - Protected component or redirect
  */
 export const RoleProtectedRoute = ({ component: Component, allowedRoles = [], ...rest }) => {
+  const [hasRedirected, setHasRedirected] = useState(false);
   const user = getAuthUser();
   const authenticated = isAuthenticated();
   
@@ -507,13 +508,24 @@ export const RoleProtectedRoute = ({ component: Component, allowedRoles = [], ..
     return allowedRoles.includes(user.role);
   };
   
-  // Redirect to login page if not authenticated, or dashboard if authenticated but not authorized
-  if (!hasAccess()) {
-    if (!authenticated) {
-      route('/login', true);
-    } else {
-      route('/', true);
+  // Use effect to handle redirects to prevent excessive calls
+  useEffect(() => {
+    if (!hasAccess() && !hasRedirected) {
+      setHasRedirected(true);
+      
+      // Use setTimeout to prevent immediate redirect loops
+      setTimeout(() => {
+        if (!authenticated) {
+          route('/login'); // Remove the 'true' parameter to use push instead of replace
+        } else {
+          route('/'); // Remove the 'true' parameter to use push instead of replace
+        }
+      }, 0);
     }
+  }, [authenticated, user, hasRedirected]);
+  
+  // Don't render anything if access is denied
+  if (!hasAccess()) {
     return null;
   }
   

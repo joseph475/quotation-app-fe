@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'preact/hooks';
+import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { getFromStorage, storeInStorage } from '../utils/localStorageHelpers';
 import { deduplicateRequest } from '../utils/requestDeduplication';
 import api from '../services/api';
@@ -22,6 +22,10 @@ const useDataLoader = (key, fetchFunction, options = {}) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isStale, setIsStale] = useState(false);
+  
+  // Add throttling to prevent excessive updates
+  const updateThrottleRef = useRef(null);
+  const lastUpdateRef = useRef(0);
 
   // Check if cached data is stale
   const isCacheStale = useCallback((timestamp) => {
@@ -94,10 +98,31 @@ const useDataLoader = (key, fetchFunction, options = {}) => {
     }
   }, [key, fetchFunction, isCacheStale]);
 
-  // Refresh data
+  // Refresh data with throttling
   const refresh = useCallback(() => {
+    const now = Date.now();
+    const timeSinceLastUpdate = now - lastUpdateRef.current;
+    
+    // Throttle refresh calls to prevent excessive updates (minimum 1 second between calls)
+    if (timeSinceLastUpdate < 1000) {
+      console.log(`Throttling refresh for ${key}, last update was ${timeSinceLastUpdate}ms ago`);
+      
+      // Clear existing timeout and set a new one
+      if (updateThrottleRef.current) {
+        clearTimeout(updateThrottleRef.current);
+      }
+      
+      return new Promise((resolve) => {
+        updateThrottleRef.current = setTimeout(() => {
+          lastUpdateRef.current = Date.now();
+          resolve(loadData(true));
+        }, 1000 - timeSinceLastUpdate);
+      });
+    }
+    
+    lastUpdateRef.current = now;
     return loadData(true);
-  }, [loadData]);
+  }, [loadData, key]);
 
   // Auto-load on mount and dependency changes
   useEffect(() => {

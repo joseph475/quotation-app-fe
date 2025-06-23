@@ -4,7 +4,7 @@ import Modal from '../../components/common/Modal';
 import QuotationForm from '../../components/quotations/QuotationForm';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import useDataLoader from '../../hooks/useDataLoader';
+import useRealTimeQuotations from '../../hooks/useRealTimeQuotations';
 import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 import { syncAfterQuotationConversion, syncAfterQuotationStatusUpdate } from '../../utils/dataSync';
 import { getCustomerDisplayName } from '../../utils/customerHelpers';
@@ -179,10 +179,9 @@ const QuotationsPage = () => {
   // Get current user from auth context
   const { user } = useAuth();
   
-  // Use optimized data loader for quotations with role-based cache key
+  // Use real-time quotations hook for admin users, regular data loader for others
   const userRole = user?.role || user?.data?.role || 'guest';
-  const userId = user?._id || user?.data?._id || 'anonymous';
-  const cacheKey = `quotations-${userRole}-${userId}`;
+  const isAdmin = userRole === 'admin';
   
   const {
     data: quotations = [],
@@ -190,11 +189,21 @@ const QuotationsPage = () => {
     error,
     refresh: refreshQuotations,
     isStale,
-    loadData
-  } = useDataLoader(cacheKey, api.quotations.getAll, {
+    loadData,
+    connectionStatus,
+    lastUpdateTime,
+    updateCount,
+    reconnect,
+    getDetailedStatus
+  } = useRealTimeQuotations({
     cacheTimeout: 2 * 60 * 1000, // 2 minutes cache for quotations
-    autoLoad: true // Enable auto-load
+    enableRealTime: isAdmin, // Only enable real-time for admin users
+    fallbackToPolling: true,
+    pollingInterval: 30000 // 30 seconds polling fallback
   });
+  
+  // Get user ID for session tracking
+  const userId = user?._id || user?.data?._id || 'anonymous';
   
   // Force refresh on first visit after login - only run once when user changes
   useEffect(() => {
@@ -684,8 +693,12 @@ const QuotationsPage = () => {
       {/* Only show header for admin users */}
       {(user?.role === 'admin' || user?.data?.role === 'admin') && (
         <div class="mb-6">
-          <h1 class="text-2xl font-bold text-gray-900">Quotation Management</h1>
-          <p class="mt-1 text-sm text-gray-500">Create and manage quotations for your customers</p>
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold text-gray-900">Quotation Management</h1>
+              <p class="mt-1 text-sm text-gray-500">Create and manage quotations for your customers</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -809,12 +822,13 @@ const QuotationsPage = () => {
 
       {/* Filters and Actions */}
       <div class="bg-white shadow rounded-lg mb-6">
-        <div class="p-3 sm:p-4 lg:p-6 flex flex-col space-y-4">
-          <div class="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4 w-full">
+        <div class="p-3 sm:p-4 lg:p-6">
+          {/* Desktop Layout - All in one row */}
+          <div class="hidden lg:flex lg:items-center lg:space-x-4">
             {/* Search */}
-            <div class="relative flex-1 sm:flex-initial sm:min-w-0 sm:w-64">
+            <div class="relative flex-1 max-w-md">
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
                 </svg>
               </div>
@@ -823,58 +837,119 @@ const QuotationsPage = () => {
                 placeholder="Search quotations..."
                 value={searchTerm}
                 onInput={(e) => setSearchTerm(e.target.value)}
-                class="block w-full pl-9 sm:pl-10 pr-3 py-2.5 sm:py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm"
               />
             </div>
 
-            {/* Date Filter and New Quotation Button - Side by side on mobile */}
-            <div class="flex space-x-2 flex-1 sm:flex-initial sm:w-auto">
-              <div class="flex-1 sm:w-40">
-                <select
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  class="block w-full pl-3 pr-8 py-2.5 sm:py-2 text-sm border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 rounded-md"
-                >
-                  <option value="all">All Time</option>
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                </select>
-              </div>
-              
-              {/* New Quotation button for user role - same width as filter */}
-              {(user?.role === 'user' || user?.data?.role === 'user') && (
-                <div class="flex-1 sm:w-40">
-                  <button 
-                    class="btn btn-primary flex items-center justify-center w-full py-2.5 text-sm whitespace-nowrap"
-                    onClick={() => setIsFormModalOpen(true)}
-                  >
-                    <svg class="h-4 w-4 mr-1 sm:mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                    </svg>
-                    <span class="hidden sm:inline">New Quotation</span>
-                    <span class="sm:hidden">New</span>
-                  </button>
-                </div>
-              )}
+            {/* Date Filter */}
+            <div class="w-40">
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                class="block w-full pl-3 pr-8 py-2 text-sm border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 rounded-md"
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+              </select>
             </div>
-          </div>
 
-          {/* Actions - Side by side with filters on mobile */}
-          <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
-            {/* Only show Export CSV button for admin users */}
+            {/* Export CSV button for admin users */}
             {user?.role === 'admin' && (
               <button 
-                class="btn btn-outline flex items-center justify-center w-full sm:w-auto text-sm py-2.5"
+                class="btn btn-outline flex items-center text-sm py-2 px-4 whitespace-nowrap"
                 onClick={() => exportAllQuotationsToCSV(filteredQuotations)}
               >
-                <svg class="h-4 w-4 sm:h-5 sm:w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
                 </svg>
-                <span class="hidden sm:inline">Export CSV</span>
-                <span class="sm:hidden">Export</span>
+                Export CSV
               </button>
             )}
+
+            {/* New Quotation button for user role */}
+            {(user?.role === 'user' || user?.data?.role === 'user') && (
+              <button 
+                class="btn btn-primary flex items-center text-sm py-2 px-4 whitespace-nowrap"
+                onClick={() => setIsFormModalOpen(true)}
+              >
+                <svg class="h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                New Quotation
+              </button>
+            )}
+          </div>
+
+          {/* Mobile/Tablet Layout - Stacked */}
+          <div class="lg:hidden flex flex-col space-y-4">
+            <div class="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4 w-full">
+              {/* Search */}
+              <div class="relative flex-1 sm:flex-initial sm:min-w-0 sm:w-64">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search quotations..."
+                  value={searchTerm}
+                  onInput={(e) => setSearchTerm(e.target.value)}
+                  class="block w-full pl-9 sm:pl-10 pr-3 py-2.5 sm:py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                />
+              </div>
+
+              {/* Date Filter and New Quotation Button - Side by side on mobile */}
+              <div class="flex space-x-2 flex-1 sm:flex-initial sm:w-auto">
+                <div class="flex-1 sm:w-40">
+                  <select
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    class="block w-full pl-3 pr-8 py-2.5 sm:py-2 text-sm border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 rounded-md"
+                  >
+                    <option value="all">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                  </select>
+                </div>
+                
+                {/* New Quotation button for user role - same width as filter */}
+                {(user?.role === 'user' || user?.data?.role === 'user') && (
+                  <div class="flex-1 sm:w-40">
+                    <button 
+                      class="btn btn-primary flex items-center justify-center w-full py-2.5 text-sm whitespace-nowrap"
+                      onClick={() => setIsFormModalOpen(true)}
+                    >
+                      <svg class="h-4 w-4 mr-1 sm:mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                      </svg>
+                      <span class="hidden sm:inline">New Quotation</span>
+                      <span class="sm:hidden">New</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Actions - Side by side with filters on mobile */}
+            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
+              {/* Only show Export CSV button for admin users */}
+              {user?.role === 'admin' && (
+                <button 
+                  class="btn btn-outline flex items-center justify-center w-full sm:w-auto text-sm py-2.5"
+                  onClick={() => exportAllQuotationsToCSV(filteredQuotations)}
+                >
+                  <svg class="h-4 w-4 sm:h-5 sm:w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                  <span class="hidden sm:inline">Export CSV</span>
+                  <span class="sm:hidden">Export</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

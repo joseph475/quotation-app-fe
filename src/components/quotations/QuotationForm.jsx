@@ -481,7 +481,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                     placeholder={currentItem.description ? "" : "Search for inventory items..."}
                     value={inventorySearch}
                     onInput={handleInventorySearch}
-                    className={`${inputClasses} ${itemErrors.inventory ? 'border-red-300' : ''} pl-10`}
+                    className={`${inputClasses} ${itemErrors.inventory ? 'border-red-300' : ''} pl-9 sm:pl-10`}
                     onFocus={() => {
                       if (inventorySearch) {
                         setShowInventoryResults(true);
@@ -561,8 +561,8 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                   Unit Price
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500">{process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}</span>
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                    <span className="text-gray-500 text-xs sm:text-sm">{process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}</span>
                   </div>
                   <input
                     type="number"
@@ -572,7 +572,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                     step="0.01"
                     value={currentItem.unitPrice || ''}
                     onInput={handleItemChange}
-                    className={`${inputClasses} ${itemErrors.unitPrice ? 'border-red-300' : ''} pl-8 bg-gray-50`}
+                    className={`${inputClasses} ${itemErrors.unitPrice ? 'border-red-300' : ''} pl-7 sm:pl-8 bg-gray-50`}
                     placeholder="0.00"
                     readOnly
                   />
@@ -944,7 +944,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                     placeholder={currentItem.description || "Search for inventory items..."}
                     value={inventorySearch}
                     onInput={handleInventorySearch}
-                    className={`${inputClasses} ${itemErrors.inventory ? 'border-red-300' : ''} pl-10`}
+                    className={`${inputClasses} ${itemErrors.inventory ? 'border-red-300' : ''} pl-9`}
                     onFocus={() => {
                       if (inventorySearch) {
                         setShowInventoryResults(true);
