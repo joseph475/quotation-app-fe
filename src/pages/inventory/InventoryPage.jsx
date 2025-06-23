@@ -38,6 +38,7 @@ const InventoryPage = () => {
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [totalItems, setTotalItems] = useState(0);
   const [pagination, setPagination] = useState({});
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   
   // Fetch inventory items with pagination
   const fetchData = async (page = currentPage, limit = itemsPerPage, useCache = true) => {
@@ -48,7 +49,7 @@ const InventoryPage = () => {
     
     try {
       // For pagination, we need to fetch from API directly
-      // Only use cache for the first page if useCache is true
+      // Only use cache for the first page if useCache is true, but always get total count from API
       if (useCache && page === 1) {
         const storedInventory = getFromStorage('inventory');
         
@@ -60,6 +61,20 @@ const InventoryPage = () => {
           });
           
           setInventoryItems(itemsWithStatus);
+          
+          // Still fetch total count from API even when using cached data
+          try {
+            const countResponse = await api.inventory.getAll({ page: 1, limit: 1 });
+            if (countResponse && countResponse.success) {
+              setTotalItems(countResponse.total || countResponse.count || 0);
+              setPagination(countResponse.pagination || {});
+            }
+          } catch (err) {
+            console.error('Error fetching total count:', err);
+            // Fallback to cached items length if API fails
+            setTotalItems(storedInventory.length);
+          }
+          
           setLoading(false);
           return;
         }
@@ -104,14 +119,16 @@ const InventoryPage = () => {
   
   // Initial data fetch
   useEffect(() => {
-    if (user) {
-      fetchData();
+    if (user && !hasInitiallyLoaded) {
+      fetchData().then(() => {
+        setHasInitiallyLoaded(true);
+      });
     }
-  }, [user]);
+  }, [user, hasInitiallyLoaded]);
 
-  // Refetch when pagination or sorting changes
+  // Refetch when pagination or sorting changes (but not on initial load)
   useEffect(() => {
-    if (user) {
+    if (user && hasInitiallyLoaded) {
       fetchData(currentPage, itemsPerPage, false);
     }
   }, [currentPage, itemsPerPage, sortBy, sortOrder]);
@@ -286,9 +303,23 @@ const InventoryPage = () => {
       const response = await api.inventory.importExcel(formData);
 
       if (response && response.success) {
-        // Refresh inventory data
-        await fetchData();
-        setImportSuccess(`Successfully imported ${response.data.imported || 0} items from Excel file!`);
+        // Clear local storage to force fresh data fetch
+        localStorage.removeItem('inventory');
+        
+        // Refresh inventory data and reset to first page
+        setCurrentPage(1);
+        await fetchData(1, itemsPerPage, false);
+        
+        // Handle response data structure safely
+        const data = response.data || response;
+        const importData = data.data || data;
+        
+        const successMessage = `Successfully processed ${importData.imported || 0} items from Excel file! ` +
+          `(${importData.created || 0} new items created, ${importData.updated || 0} items updated)` +
+          `${importData.errors ? ` - ${importData.errors.length} errors encountered` : ''}` +
+          `${importData.beforeCount !== undefined ? ` | Database: ${importData.beforeCount} → ${importData.afterCount} total items` : ''}`;
+        
+        setImportSuccess(successMessage);
         
         // Auto-hide success message after 5 seconds
         setTimeout(() => {
