@@ -25,21 +25,10 @@ variables = { NODE_ENV = "production" }
 
 ### 2. nixpacks.toml
 ```toml
-[phases.setup]
-nixPkgs = ["nodejs", "npm"]
-
-[phases.install]
-cmds = ["npm ci"]
-
-[phases.build]
-cmds = ["npm run build"]
-
-[phases.start]
-cmd = "npm start"
-
 [variables]
 NODE_ENV = "production"
 ```
+Note: Nixpacks will auto-detect Node.js and automatically run `npm install`, `npm run build`, and `npm start` based on your package.json.
 
 ### 3. package.json (start script)
 ```json
