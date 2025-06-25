@@ -21,11 +21,11 @@ This guide will help you deploy the Quotation App frontend to Render.
 
 Render will automatically detect your project settings, but verify these configurations:
 
-- **Build Command**: `npm ci --include=dev && npm run build`
+- **Build Command**: `npm install && npm run build`
 - **Publish Directory**: `dist`
 - **Environment**: `Static Site`
 
-**Note**: The `--include=dev` flag ensures that devDependencies (like webpack-cli) are installed during the build process.
+**Note**: This project has webpack and webpack-cli in the main dependencies to ensure they're always available during the build process.
 
 ### 3. Environment Variables
 
@@ -86,8 +86,9 @@ For faster builds, consider:
 ### Build Failures
 
 **Common Issue: "CLI for webpack must be installed"**
-- **Solution**: Use `npm ci --include=dev && npm run build` as your build command
-- **Reason**: Render needs to install devDependencies (like webpack-cli) for the build process
+- **Solution**: This project has been configured with webpack and webpack-cli in the main dependencies
+- **Alternative**: If you encounter this issue, you can move webpack-cli from devDependencies to dependencies in package.json
+- **Reason**: Render's default npm install doesn't include devDependencies
 
 **Other Build Issues:**
 1. Check build logs in Render dashboard

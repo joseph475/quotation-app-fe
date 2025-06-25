@@ -2,7 +2,7 @@ services:
   - type: web
     name: quotation-app-fe
     env: static
-    buildCommand: npm ci --include=dev && npm run build
+    buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     envVars:
       - key: NODE_ENV
