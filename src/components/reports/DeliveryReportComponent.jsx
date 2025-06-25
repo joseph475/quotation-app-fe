@@ -76,7 +76,7 @@ const DeliveryReportComponent = ({ data, dateRange }) => {
 
   // Helper function to format currency
   const formatCurrency = (amount) => {
-    return `$${(amount || 0).toFixed(2)}`;
+    return `₱${(amount || 0).toFixed(2)}`;
   };
 
   // Helper function to get status badge class

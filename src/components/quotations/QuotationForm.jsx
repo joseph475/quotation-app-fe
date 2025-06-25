@@ -60,10 +60,12 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
   // Data for dropdowns - initialize immediately
   const [customers, setCustomers] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
+  const [deliveryUsers, setDeliveryUsers] = useState([]);
   const [loading, setLoading] = useState({
     customers: false,
     inventory: false,
-    form: false
+    form: false,
+    delivery: false
   });
   
   // Search state
@@ -115,6 +117,24 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
             originalQtys[item.inventory || index] = item.quantity;
           });
           setOriginalQuantities(originalQtys);
+        }
+
+        // Load delivery users for admin when editing existing quotations
+        if (user && user.role === 'admin' && initialData) {
+          setLoading(prev => ({ ...prev, delivery: true }));
+          try {
+            const deliveryResponse = await api.users.getAll({ role: 'delivery' });
+            if (deliveryResponse && deliveryResponse.success && deliveryResponse.data) {
+              // Filter to ensure only delivery users are included (client-side backup)
+              const filteredDeliveryUsers = deliveryResponse.data.filter(user => user.role === 'delivery');
+              setDeliveryUsers(filteredDeliveryUsers);
+            }
+          } catch (error) {
+            console.error('Error loading delivery users:', error);
+            setDeliveryUsers([]);
+          } finally {
+            setLoading(prev => ({ ...prev, delivery: false }));
+          }
         }
       } catch (error) {
         console.error('Error getting data:', error);
@@ -238,6 +258,11 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
       return;
     }
     
+    // Ensure quantity is properly parsed as a number
+    const itemQuantity = parseFloat(currentItem.quantity) || 1;
+    const itemUnitPrice = parseFloat(currentItem.unitPrice) || 0;
+    const itemTotal = itemQuantity * itemUnitPrice;
+    
     // Check if item already exists in the quotation
     const existingItemIndex = formData.items.findIndex(item => item.inventory === currentItem.inventory);
     
@@ -247,7 +272,8 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
         ...prev,
         items: prev.items.map((item, index) => {
           if (index === existingItemIndex) {
-            const newQuantity = parseFloat(item.quantity) + parseFloat(currentItem.quantity);
+            const existingQuantity = parseFloat(item.quantity) || 0;
+            const newQuantity = existingQuantity + itemQuantity;
             const newTotal = newQuantity * parseFloat(item.unitPrice);
             return {
               ...item,
@@ -263,9 +289,12 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
       // Add new item with a unique ID and editing state
       const newItem = {
         ...currentItem,
+        quantity: itemQuantity, // Ensure quantity is a number
+        unitPrice: itemUnitPrice, // Ensure unit price is a number
+        total: itemTotal, // Ensure total is calculated correctly
         id: Date.now(), // Use timestamp as a simple unique ID
         isEditing: false,
-        editingQuantity: currentItem.quantity,
+        editingQuantity: itemQuantity,
         editingNotes: ''
       };
       
@@ -301,10 +330,11 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
       ...prev,
       items: prev.items.map(item => {
         if (item.id === itemId) {
+          console.log('Starting edit for item:', item.id, 'Current quantity:', item.quantity, 'Type:', typeof item.quantity);
           return {
             ...item,
             isEditing: true,
-            editingQuantity: item.quantity,
+            editingQuantity: String(item.quantity), // Ensure it's a string for the input
             editingNotes: item.notes || ''
           };
         }
@@ -342,15 +372,30 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
       const originalQty = originalQuantities[item.inventory] || item.quantity;
       const newQuantity = parseFloat(item.editingQuantity);
       
-      // Validate that notes are provided when quantity is changed
-      if (user && user.role === 'admin' && newQuantity !== originalQty && !item.editingNotes?.trim()) {
-        alert('Notes are required when changing quantities');
+      // Validate quantity is a valid number
+      if (isNaN(newQuantity) || newQuantity < 0) {
+        alert('Please enter a valid quantity (0 or greater)');
         return prev;
+      }
+      
+      // For admin users: allow quantity 0 but require notes for any change
+      if (user && user.role === 'admin') {
+        if (newQuantity !== originalQty && !item.editingNotes?.trim()) {
+          alert('Notes are required when changing quantities');
+          return prev;
+        }
+      } else {
+        // For non-admin users: quantity must be greater than 0
+        if (newQuantity <= 0) {
+          alert('Please enter a valid quantity greater than 0');
+          return prev;
+        }
       }
       
       const updatedItems = prev.items.map(currentItem => {
         if (currentItem.id === itemId) {
-          const newTotal = newQuantity * currentItem.unitPrice;
+          const unitPrice = parseFloat(currentItem.unitPrice) || 0;
+          const newTotal = newQuantity * unitPrice;
           return {
             ...currentItem,
             quantity: newQuantity,
@@ -373,22 +418,33 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
 
   // Handle editing item data changes
   const handleEditingItemChange = (itemId, field, value) => {
+    console.log('handleEditingItemChange called:', { itemId, field, value, type: typeof value });
     setFormData(prev => ({
       ...prev,
       items: prev.items.map(item => {
         if (item.id === itemId) {
-          return {
+          // For quantity field, store the raw value and let validation happen on save
+          const updatedItem = {
             ...item,
             [`editing${field.charAt(0).toUpperCase() + field.slice(1)}`]: value
           };
+          console.log('Updated item:', updatedItem);
+          return updatedItem;
         }
         return item;
       })
     }));
   };
 
-  // Calculate totals (simplified)
-  const totalAmount = formData.items.reduce((sum, item) => sum + item.total, 0);
+  // Calculate totals (simplified) - account for items being edited
+  const totalAmount = formData.items.reduce((sum, item) => {
+    if (item.isEditing) {
+      const editingQty = parseFloat(item.editingQuantity) || item.quantity;
+      const unitPrice = parseFloat(item.unitPrice) || 0;
+      return sum + (editingQty * unitPrice);
+    }
+    return sum + item.total;
+  }, 0);
 
   // Check if admin has changed quantities
   const hasQuantityChanges = () => {
@@ -408,6 +464,11 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
     const newErrors = {};
     if (formData.items.length === 0) newErrors.items = 'At least one item is required';
     
+    // For admin editing existing quotations, require delivery assignment
+    if (user && user.role === 'admin' && initialData && !formData.assignedDelivery) {
+      newErrors.assignedDelivery = 'Delivery personnel assignment is required';
+    }
+    
     // Get user ID for authentication check
     const userId = user?._id || user?.id || user?.data?._id || user?.data?.id;
     
@@ -424,10 +485,10 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
     const mappedItems = formData.items.map(item => ({
       inventory: item.inventory,
       description: item.description,
-      quantity: item.quantity,
+      quantity: item.isEditing ? parseFloat(item.editingQuantity) || item.quantity : item.quantity,
       unitPrice: item.unitPrice,
-      total: item.total,
-      notes: item.notes // Include notes in the mapped items
+      total: item.isEditing ? (parseFloat(item.editingQuantity) || item.quantity) * item.unitPrice : item.total,
+      notes: item.isEditing ? item.editingNotes || item.notes : item.notes // Include notes in the mapped items
     }));
     
     const quotationData = {
@@ -436,11 +497,14 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
       // For new quotations or non-admin users, use the current user
       customer: (user && user.role === 'admin' && initialData) ? formData.customer : userId,
       date: formData.date,
-      status: formData.status,
+      // For admin editing existing quotations, set status to approved
+      status: (user && user.role === 'admin' && initialData) ? 'approved' : formData.status,
       items: mappedItems,
       notes: formData.notes,
       total: totalAmount,
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      // Include delivery assignment if selected
+      ...(formData.assignedDelivery && { assignedDelivery: formData.assignedDelivery })
     };
     
     // Call the save handler
@@ -458,11 +522,11 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
 
         {/* Items - Desktop with Card, Mobile simplified */}
         <div className="hidden sm:block">
-          <Card title="Quotation Items">
+          <Card title="Order List">
             {/* Add Item Form - Hide for admin when editing existing quotations */}
             {!(user && user.role === 'admin' && initialData) && (
               <div className="mb-6 p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
-                <h4 className="text-base sm:text-lg font-medium text-gray-800 mb-4">Add Item to Quotation</h4>
+                <h4 className="text-base sm:text-lg font-medium text-gray-800 mb-4">Add Item to Orders</h4>
             <div className="space-y-2">
               {/* Label */}
               <label htmlFor="inventorySearch" className={labelClasses}>
@@ -598,7 +662,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                           <svg className="h-12 w-12 text-gray-300 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                           </svg>
-                          <p>No items added to this quotation yet</p>
+                          <p>No items added yet</p>
                           <p className="text-xs mt-1">Search for inventory items above</p>
                         </div>
                       </td>
@@ -611,104 +675,129 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {item.isEditing ? (
-                            <div className="flex items-center space-x-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newQty = Math.max(1, parseFloat(item.editingQuantity) - 1);
-                                  handleEditingItemChange(item.id, 'quantity', newQty.toString());
-                                }}
-                                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
-                                </svg>
-                              </button>
+                            user && user.role === 'admin' ? (
+                              // Admin: Only input field, no +/- buttons
                               <input
                                 type="number"
-                                min="1"
+                                min="0"
                                 step="1"
                                 value={item.editingQuantity}
                                 onChange={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
-                                onInput={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
                                 className="w-16 px-2 py-1 border border-gray-300 rounded text-sm text-center"
                                 autoFocus
                               />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newQty = parseFloat(item.editingQuantity) + 1;
-                                  handleEditingItemChange(item.id, 'quantity', newQty.toString());
-                                }}
-                                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
-                              >
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                </svg>
-                              </button>
-                            </div>
+                            ) : (
+                              // Non-admin: Input field with +/- buttons
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newQty = Math.max(1, parseFloat(item.editingQuantity) - 1);
+                                    handleEditingItemChange(item.id, 'quantity', newQty.toString());
+                                  }}
+                                  className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                                  </svg>
+                                </button>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  value={item.editingQuantity}
+                                  onChange={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
+                                  className="w-16 px-2 py-1 border border-gray-300 rounded text-sm text-center"
+                                  autoFocus
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newQty = parseFloat(item.editingQuantity) + 1;
+                                    handleEditingItemChange(item.id, 'quantity', newQty.toString());
+                                  }}
+                                  className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                  </svg>
+                                </button>
+                              </div>
+                            )
                           ) : (
-                            <div className="flex items-center space-x-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newQty = Math.max(1, parseFloat(item.quantity) - 1);
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    items: prev.items.map(currentItem => {
-                                      if (currentItem.id === item.id) {
-                                        const newTotal = newQty * currentItem.unitPrice;
-                                        return {
-                                          ...currentItem,
-                                          quantity: newQty,
-                                          total: newTotal,
-                                          editingQuantity: newQty
-                                        };
-                                      }
-                                      return currentItem;
-                                    })
-                                  }));
-                                }}
-                                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
-                              >
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => startEditingItem(item.id)}
-                                className="w-8 text-center font-medium bg-white border border-gray-300 rounded px-1 py-0.5 hover:border-primary-500 hover:bg-gray-50 transition-colors cursor-pointer text-sm"
-                              >
-                                {item.quantity}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newQty = parseFloat(item.quantity) + 1;
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    items: prev.items.map(currentItem => {
-                                      if (currentItem.id === item.id) {
-                                        const newTotal = newQty * currentItem.unitPrice;
-                                        return {
-                                          ...currentItem,
-                                          quantity: newQty,
-                                          total: newTotal,
-                                          editingQuantity: newQty
-                                        };
-                                      }
-                                      return currentItem;
-                                    })
-                                  }));
-                                }}
-                                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
-                              >
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                </svg>
-                              </button>
-                            </div>
+                            user && user.role === 'admin' ? (
+                              // Admin: Only show quantity, no +/- buttons
+                              <span className="text-sm font-medium text-gray-900">{item.quantity}</span>
+                            ) : (
+                              // Non-admin: Show +/- buttons
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const currentQty = parseFloat(item.quantity) || 1;
+                                    const newQty = Math.max(1, currentQty - 1);
+                                    const unitPrice = parseFloat(item.unitPrice) || 0;
+                                    const newTotal = newQty * unitPrice;
+                                    
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      items: prev.items.map(currentItem => {
+                                        if (currentItem.id === item.id) {
+                                          return {
+                                            ...currentItem,
+                                            quantity: newQty,
+                                            total: newTotal,
+                                            editingQuantity: newQty
+                                          };
+                                        }
+                                        return currentItem;
+                                      })
+                                    }));
+                                  }}
+                                  className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                                  </svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => startEditingItem(item.id)}
+                                  className="w-8 text-center font-medium bg-white border border-gray-300 rounded px-1 py-0.5 hover:border-primary-500 hover:bg-gray-50 transition-colors cursor-pointer text-sm"
+                                >
+                                  {item.quantity}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const currentQty = parseFloat(item.quantity) || 1;
+                                    const newQty = currentQty + 1;
+                                    const unitPrice = parseFloat(item.unitPrice) || 0;
+                                    const newTotal = newQty * unitPrice;
+                                    
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      items: prev.items.map(currentItem => {
+                                        if (currentItem.id === item.id) {
+                                          return {
+                                            ...currentItem,
+                                            quantity: newQty,
+                                            total: newTotal,
+                                            editingQuantity: newQty
+                                          };
+                                        }
+                                        return currentItem;
+                                      })
+                                    }));
+                                  }}
+                                  className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                  </svg>
+                                </button>
+                              </div>
+                            )
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -815,7 +904,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                 <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                 </svg>
-                <p className="text-gray-500 text-sm">No items added to this quotation yet</p>
+                <p className="text-gray-500 text-sm">No items added to this order yet</p>
                 <p className="text-gray-400 text-xs mt-1">Search for inventory items above</p>
               </div>
             ) : (
@@ -851,11 +940,10 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                           {item.isEditing ? (
                             <input
                               type="number"
-                              min="1"
+                              min={user && user.role === 'admin' ? "0" : "1"}
                               step="1"
                               value={item.editingQuantity}
                               onChange={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
-                              onInput={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
                               className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
                               autoFocus
                             />
@@ -961,6 +1049,56 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
           )}
         </Card>
         </div>
+
+        {/* Delivery Assignment - Only show for admin when editing existing quotations */}
+        {user && user.role === 'admin' && initialData && (
+          <div className="hidden sm:block">
+            <Card title="Delivery Assignment">
+              <div className="p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
+                <h4 className="text-base sm:text-lg font-medium text-gray-800 mb-4">Assign Delivery Personnel</h4>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="assignedDelivery" className={labelClasses}>
+                      Delivery Personnel (Required)
+                    </label>
+                    {loading.delivery ? (
+                      <div className="flex items-center justify-center py-3 px-4 border border-gray-300 rounded-md bg-gray-50">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="text-sm text-gray-500">Loading delivery personnel...</span>
+                      </div>
+                    ) : (
+                      <select
+                        id="assignedDelivery"
+                        name="assignedDelivery"
+                        value={formData.assignedDelivery || ''}
+                        onChange={handleChange}
+                        className={inputClasses}
+                      >
+                        <option value="">No delivery assignment</option>
+                        {deliveryUsers.map(user => (
+                          <option key={user._id} value={user._id}>
+                            {user.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {!loading.delivery && deliveryUsers.length === 0 && (
+                      <p className="mt-2 text-sm text-gray-500">
+                        No delivery personnel available.
+                      </p>
+                    )}
+                    {errors.assignedDelivery && (
+                      <p className={errorClasses}>{errors.assignedDelivery}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
 
         {/* Mobile simplified layout */}
         <div className="sm:hidden space-y-4">
@@ -1089,52 +1227,69 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                       <div className="flex items-center space-x-2">
                         <span className="text-xs text-gray-500">Qty:</span>
                         {item.isEditing ? (
-                          <div className="flex items-center space-x-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newQty = Math.max(1, parseFloat(item.editingQuantity) - 1);
-                                handleEditingItemChange(item.id, 'quantity', newQty.toString());
-                              }}
-                              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
-                            >
-                              <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
-                              </svg>
-                            </button>
+                          user && user.role === 'admin' ? (
+                            // Admin: Only input field, no +/- buttons
                             <input
                               type="number"
-                              min="1"
+                              min="0"
                               step="1"
                               value={item.editingQuantity}
                               onChange={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
                               className="w-12 px-1 py-0.5 border border-gray-300 rounded text-xs text-center"
                               autoFocus
                             />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newQty = parseFloat(item.editingQuantity) + 1;
-                                handleEditingItemChange(item.id, 'quantity', newQty.toString());
-                              }}
-                              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
-                            >
-                              <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                              </svg>
-                            </button>
-                          </div>
+                          ) : (
+                            // Non-admin: Input field with +/- buttons
+                            <div className="flex items-center space-x-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newQty = Math.max(1, parseFloat(item.editingQuantity) - 1);
+                                  handleEditingItemChange(item.id, 'quantity', newQty.toString());
+                                }}
+                                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                              >
+                                <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                                </svg>
+                              </button>
+                              <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={item.editingQuantity}
+                                onChange={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
+                                className="w-12 px-1 py-0.5 border border-gray-300 rounded text-xs text-center"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newQty = parseFloat(item.editingQuantity) + 1;
+                                  handleEditingItemChange(item.id, 'quantity', newQty.toString());
+                                }}
+                                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                              >
+                                <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                              </button>
+                            </div>
+                          )
                         ) : (
                           <div className="flex items-center space-x-1">
                             <button
                               type="button"
                               onClick={() => {
-                                const newQty = Math.max(1, parseFloat(item.quantity) - 1);
+                                const currentQty = parseFloat(item.quantity) || 1;
+                                const newQty = Math.max(1, currentQty - 1);
+                                const unitPrice = parseFloat(item.unitPrice) || 0;
+                                const newTotal = newQty * unitPrice;
+                                
                                 setFormData(prev => ({
                                   ...prev,
                                   items: prev.items.map(currentItem => {
                                     if (currentItem.id === item.id) {
-                                      const newTotal = newQty * currentItem.unitPrice;
                                       return {
                                         ...currentItem,
                                         quantity: newQty,
@@ -1162,12 +1317,15 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                             <button
                               type="button"
                               onClick={() => {
-                                const newQty = parseFloat(item.quantity) + 1;
+                                const currentQty = parseFloat(item.quantity) || 1;
+                                const newQty = currentQty + 1;
+                                const unitPrice = parseFloat(item.unitPrice) || 0;
+                                const newTotal = newQty * unitPrice;
+                                
                                 setFormData(prev => ({
                                   ...prev,
                                   items: prev.items.map(currentItem => {
                                     if (currentItem.id === item.id) {
-                                      const newTotal = newQty * currentItem.unitPrice;
                                       return {
                                         ...currentItem,
                                         quantity: newQty,
@@ -1266,6 +1424,52 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
           {errors.items && (
             <p className={errorClasses}>{errors.items}</p>
           )}
+
+          {/* Delivery Assignment - Mobile - Only show for admin when editing existing quotations */}
+          {user && user.role === 'admin' && initialData && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-gray-900">Delivery Assignment</h3>
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="space-y-3">
+                  <label htmlFor="assignedDeliveryMobile" className="block text-xs font-medium text-gray-700">
+                    Delivery Personnel (Required)
+                  </label>
+                  {loading.delivery ? (
+                    <div className="flex items-center justify-center py-3 px-4 border border-gray-300 rounded-md bg-gray-50">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span className="text-xs text-gray-500">Loading...</span>
+                    </div>
+                  ) : (
+                    <select
+                      id="assignedDeliveryMobile"
+                      name="assignedDelivery"
+                      value={formData.assignedDelivery || ''}
+                      onChange={handleChange}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-1.5 px-2 text-xs"
+                    >
+                      <option value="">No delivery assignment</option>
+                      {deliveryUsers.map(user => (
+                        <option key={user._id} value={user._id}>
+                          {user.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {!loading.delivery && deliveryUsers.length === 0 && (
+                    <p className="text-xs text-gray-500">
+                      No delivery personnel available. You can still approve the quotation.
+                    </p>
+                  )}
+                  {errors.assignedDelivery && (
+                    <p className="mt-1 text-xs text-red-600">{errors.assignedDelivery}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Form Actions - Desktop */}
@@ -1289,7 +1493,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             )}
-            {isLoading ? 'Saving...' : initialData ? 'Update Order' : 'Create Order'}
+            {isLoading ? 'Saving...' : (user && user.role === 'admin' && initialData) ? 'Update and Approve' : initialData ? 'Update Order' : 'Create Order'}
           </button>
         </div>
 
@@ -1315,7 +1519,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               )}
-              {isLoading ? 'Saving...' : initialData ? 'Update Order' : 'Create Order'}
+              {isLoading ? 'Saving...' : (user && user.role === 'admin' && initialData) ? 'Update and Approve' : initialData ? 'Update Order' : 'Create Order'}
             </button>
           </div>
         </div>

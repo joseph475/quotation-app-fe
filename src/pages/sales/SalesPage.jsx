@@ -31,24 +31,39 @@ const SalesPage = () => {
   const { user } = useAuth();
   
   // Fetch sales from local storage or API
-  const fetchSales = async () => {
+  const fetchSales = async (forceRefresh = false) => {
     setLoading(true);
     try {
-      // Try to get sales from local storage
-      const storedSales = getFromStorage('sales');
-      
-      if (storedSales && Array.isArray(storedSales)) {
-        setSales(storedSales);
-        setError(null);
-      } else {
-        // Fallback to API if not in local storage
+      if (forceRefresh) {
+        // Force fetch from API and update local storage
         const response = await api.sales.getAll();
         
         if (response && response.success) {
-          setSales(response.data || []);
+          const salesData = response.data || [];
+          setSales(salesData);
+          // Update local storage with fresh data
+          storeInStorage('sales', salesData);
           setError(null);
         } else {
           throw new Error(response.message || 'Failed to fetch sales');
+        }
+      } else {
+        // Try to get sales from local storage first
+        const storedSales = getFromStorage('sales');
+        
+        if (storedSales && Array.isArray(storedSales)) {
+          setSales(storedSales);
+          setError(null);
+        } else {
+          // Fallback to API if not in local storage
+          const response = await api.sales.getAll();
+          
+          if (response && response.success) {
+            setSales(response.data || []);
+            setError(null);
+          } else {
+            throw new Error(response.message || 'Failed to fetch sales');
+          }
         }
       }
     } catch (err) {
@@ -247,6 +262,18 @@ const SalesPage = () => {
 
           {/* Actions */}
           <div class="flex space-x-3">
+            {/* Refresh Button */}
+            <button 
+              class="btn btn-outline flex items-center"
+              onClick={() => fetchSales(true)}
+              disabled={loading}
+            >
+              <svg class={`h-5 w-5 mr-2 ${loading ? 'animate-spin' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+              </svg>
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+            
             {/* Only show New Sale button for non-admin users */}
             {hasPermission('sales-create', user) && (
               <button 

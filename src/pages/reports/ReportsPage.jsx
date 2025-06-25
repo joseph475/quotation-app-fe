@@ -94,53 +94,6 @@ const ReportsPage = () => {
       } catch (apiError) {
         console.error('API Error:', apiError);
         
-        // If the API call fails, generate mock data for demonstration
-        console.log('Generating mock data for demonstration');
-        
-        // Show a notification that we're using mock data
-        setError('Backend API endpoint not available. Using demo data for visualization purposes.');
-        
-        let mockData;
-        
-        switch (activeReport) {
-          case 'sales':
-            mockData = generateMockSalesData();
-            break;
-          case 'inventory':
-            mockData = generateMockInventoryData();
-            break;
-          case 'purchases':
-            mockData = generateMockPurchasesData();
-            break;
-          case 'customers':
-            mockData = generateMockCustomersData();
-            break;
-          case 'delivery':
-            mockData = generateMockDeliveryData();
-            break;
-          default:
-            throw new Error('Invalid report type');
-        }
-        
-        // Ensure the mock data structure matches what the components expect
-        if (activeReport === 'inventory') {
-          // Rename products to match what the component expects
-          mockData = { ...mockData, products: mockData.products };
-        } else if (activeReport === 'purchases') {
-          // Make sure purchase totals are properly calculated
-          mockData.purchases.forEach(purchase => {
-            // Recalculate total from items if needed
-            if (!purchase.totalAmount || purchase.totalAmount === 0) {
-              purchase.totalAmount = purchase.items.reduce((sum, item) => sum + item.total, 0);
-            }
-          });
-          
-          // Recalculate summary data
-          mockData.totalSpent = mockData.purchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0);
-          mockData.averagePurchase = mockData.purchases.length > 0 ? mockData.totalSpent / mockData.purchases.length : 0;
-        }
-        
-        setReportData(mockData);
       }
     } catch (err) {
       console.error('Error generating report:', err);
@@ -360,119 +313,6 @@ const ReportsPage = () => {
       newCustomers: customers.filter(c => new Date(c.createdAt) >= startDate).length,
       totalSales: sales.length,
       totalRevenue: sales.reduce((sum, sale) => sum + sale.total, 0)
-    };
-  };
-  
-  // Generate mock delivery data - focused on actual quotation assignments
-  const generateMockDeliveryData = () => {
-    const startDate = new Date(dateRange.startDate);
-    const endDate = new Date(dateRange.endDate);
-    const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-    
-    // Delivery personnel
-    const deliveryPersonnel = [
-      { name: 'John Doe', email: 'john.doe@company.com', phone: '555-0101' },
-      { name: 'Jane Smith', email: 'jane.smith@company.com', phone: '555-0102' },
-      { name: 'Mike Johnson', email: 'mike.johnson@company.com', phone: '555-0103' },
-      { name: 'Sarah Wilson', email: 'sarah.wilson@company.com', phone: '555-0104' },
-      { name: 'David Brown', email: 'david.brown@company.com', phone: '555-0105' }
-    ];
-    
-    // Generate delivery assignments (quotations assigned to delivery personnel)
-    const deliveries = [];
-    const statuses = ['approved', 'delivered', 'pending'];
-    const customers = [
-      'ABC Corporation', 'XYZ Industries', 'Tech Solutions Inc', 'Global Enterprises', 
-      'Local Business Co', 'Metro Services', 'City Hardware', 'Prime Logistics',
-      'Smart Systems', 'Digital Works', 'Modern Solutions', 'Elite Services'
-    ];
-    
-    // Generate assignments for each day in the date range
-    for (let day = 0; day < daysDiff; day++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + day);
-      
-      // Generate 3-8 delivery assignments per day
-      const dailyAssignments = Math.floor(Math.random() * 6) + 3;
-      
-      for (let i = 0; i < dailyAssignments; i++) {
-        const deliveryPerson = deliveryPersonnel[Math.floor(Math.random() * deliveryPersonnel.length)];
-        const customer = customers[Math.floor(Math.random() * customers.length)];
-        
-        // Determine status based on time of day and date
-        let status;
-        const hour = Math.floor(Math.random() * 16) + 8; // 8 AM to 11 PM
-        const assignmentTime = new Date(currentDate);
-        assignmentTime.setHours(hour, Math.floor(Math.random() * 60));
-        
-        // If it's today and assignment is in the future, it's pending
-        // If it's past, it could be delivered or still approved
-        const now = new Date();
-        if (assignmentTime > now) {
-          status = Math.random() > 0.3 ? 'approved' : 'pending';
-        } else {
-          // Past assignments are more likely to be delivered
-          const rand = Math.random();
-          if (rand > 0.8) status = 'approved';
-          else if (rand > 0.1) status = 'delivered';
-          else status = 'pending';
-        }
-        
-        // Generate realistic order amounts
-        const baseAmount = Math.floor(Math.random() * 800) + 100; // $100-$900
-        const amount = Math.round(baseAmount / 10) * 10; // Round to nearest $10
-        
-        deliveries.push({
-          _id: `quotation-${day}-${i}`,
-          quotationNumber: `QUO-${new Date().getFullYear()}-${String(day * 10 + i + 1001).padStart(4, '0')}`,
-          customer: { 
-            _id: `customer-${customer.replace(/\s+/g, '').toLowerCase()}`,
-            name: customer 
-          },
-          customerName: customer,
-          assignedDelivery: { 
-            _id: `delivery-${deliveryPerson.name.replace(/\s+/g, '').toLowerCase()}`,
-            name: deliveryPerson.name,
-            email: deliveryPerson.email,
-            phone: deliveryPerson.phone
-          },
-          deliveryPersonnel: deliveryPerson.name,
-          assignedDate: assignmentTime.toISOString(),
-          createdAt: assignmentTime.toISOString(),
-          status,
-          total: amount,
-          amount,
-          // Add some additional realistic fields
-          items: [
-            {
-              product: `Product ${Math.floor(Math.random() * 20) + 1}`,
-              quantity: Math.floor(Math.random() * 5) + 1,
-              price: Math.floor(amount / (Math.floor(Math.random() * 3) + 1))
-            }
-          ],
-          deliveryAddress: `${Math.floor(Math.random() * 9999) + 1} ${['Main St', 'Oak Ave', 'Pine Rd', 'Elm Dr', 'Maple Ln'][Math.floor(Math.random() * 5)]}, City`,
-          notes: Math.random() > 0.7 ? ['Handle with care', 'Fragile items', 'Call before delivery', 'Leave at front desk'][Math.floor(Math.random() * 4)] : null
-        });
-      }
-    }
-    
-    // Sort deliveries by assignment date (most recent first)
-    deliveries.sort((a, b) => new Date(b.assignedDate) - new Date(a.assignedDate));
-    
-    // Calculate summary statistics
-    const totalDeliveries = deliveries.length;
-    const completedDeliveries = deliveries.filter(d => d.status === 'delivered').length;
-    const pendingDeliveries = deliveries.filter(d => d.status === 'approved' || d.status === 'pending').length;
-    const totalDeliveryAccounts = deliveryPersonnel.length;
-    
-    return {
-      deliveries,
-      totalDeliveryAccounts,
-      totalDeliveries,
-      completedDeliveries,
-      pendingDeliveries,
-      // Include delivery personnel for filtering
-      deliveryPersonnel
     };
   };
   
@@ -806,7 +646,7 @@ const ReportsPage = () => {
         </div>
         <div class="card">
           <h3>Total Value</h3>
-          <p>$${(data.totalValue || 0).toFixed(2)}</p>
+          <p>₱${(data.totalValue || 0).toFixed(2)}</p>
         </div>
       </div>
       
@@ -878,7 +718,7 @@ const ReportsPage = () => {
               <td>${new Date(purchase.createdAt).toLocaleDateString()}</td>
               <td>${purchase.supplier?.name || 'Unknown Supplier'}</td>
               <td>${purchase.items?.length || 0}</td>
-              <td class="text-right">$${(purchase.totalAmount || 0).toFixed(2)}</td>
+              <td class="text-right">₱${(purchase.totalAmount || 0).toFixed(2)}</td>
               <td>${purchase.status || 'N/A'}</td>
             </tr>
           `).join('')}
@@ -904,7 +744,7 @@ const ReportsPage = () => {
         </div>
         <div class="card">
           <h3>Total Revenue</h3>
-          <p>$${(data.totalRevenue || 0).toFixed(2)}</p>
+          <p>₱${(data.totalRevenue || 0).toFixed(2)}</p>
         </div>
       </div>
       
@@ -935,7 +775,7 @@ const ReportsPage = () => {
                 <td>${customer.email || 'N/A'}</td>
                 <td>${customer.phone || 'N/A'}</td>
                 <td>${new Date(customer.createdAt).toLocaleDateString()}</td>
-                <td class="text-right">$${totalPurchases.toFixed(2)}</td>
+                <td class="text-right">₱${totalPurchases.toFixed(2)}</td>
               </tr>
             `;
           }).join('')}

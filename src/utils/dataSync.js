@@ -217,13 +217,35 @@ export const clearAllQuotationCaches = () => {
  */
 export const syncAfterQuotationStatusUpdate = async (quotationId, updatedData) => {
   try {
-    console.log('Syncing data after quotation status update...');
+    console.log('Syncing data after quotation status update...', { quotationId, updatedData });
     
     // Clear all quotation caches to ensure all users see the update
     clearAllQuotationCaches();
     
     // Update the specific quotation in any remaining localStorage
     updateItemInStorage('quotations', quotationId, updatedData);
+    
+    // Trigger real-time sync notification if available
+    if (typeof window !== 'undefined') {
+      try {
+        // Import realTimeSync dynamically to avoid circular dependencies
+        const { default: realTimeSync } = await import('./realTimeSync');
+        
+        // Send WebSocket message to notify other users
+        realTimeSync.sendMessage({
+          type: 'quotation_status_changed',
+          data: {
+            quotationId,
+            ...updatedData,
+            timestamp: new Date().toISOString()
+          }
+        });
+        
+        console.log('Real-time notification sent for quotation status update');
+      } catch (wsError) {
+        console.log('WebSocket not available, using cache clearing only:', wsError.message);
+      }
+    }
     
     console.log('Data sync completed after quotation status update');
     return true;

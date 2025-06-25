@@ -9,6 +9,7 @@ import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { syncAfterQuotationConversion, syncAfterQuotationStatusUpdate } from '../../utils/dataSync';
 import { getCustomerDisplayName } from '../../utils/customerHelpers';
+import realTimeSync from '../../utils/realTimeSync';
 
 const QuotationsPage = () => {
   // Export all filtered quotations to CSV
@@ -935,16 +936,19 @@ const QuotationsPage = () => {
             <span class="hidden sm:inline">All Orders</span>
             <span class="sm:hidden">All</span>
           </button>
-          <button
-            onClick={() => setActiveTab('pending')}
-            class={`whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm ${
-              activeTab === 'pending'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Pending
-          </button>
+          {/* Hide Pending tab for delivery users */}
+          {user?.role !== 'delivery' && (
+            <button
+              onClick={() => setActiveTab('pending')}
+              class={`whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm ${
+                activeTab === 'pending'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Pending
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('approved')}
             class={`whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm ${
@@ -965,16 +969,19 @@ const QuotationsPage = () => {
           >
             Completed
           </button>
-          <button
-            onClick={() => setActiveTab('rejected')}
-            class={`whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm ${
-              activeTab === 'rejected'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Rejected
-          </button>
+          {/* Hide Rejected tab for delivery users */}
+          {user?.role !== 'delivery' && (
+            <button
+              onClick={() => setActiveTab('rejected')}
+              class={`whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm ${
+                activeTab === 'rejected'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Rejected
+            </button>
+          )}
         </nav>
       </div>
 
@@ -1353,7 +1360,7 @@ const QuotationsPage = () => {
       <Modal
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
-        title={`Quotation Details: ${selectedQuotation?.quotationNumber || ''}`}
+        title={`Order Details: ${selectedQuotation?.quotationNumber || ''}`}
         size="4xl"
       >
         {selectedQuotation && (
@@ -1430,7 +1437,7 @@ const QuotationsPage = () => {
             {/* Items Table - Desktop */}
             <div className="hidden sm:block bg-white shadow overflow-hidden rounded-lg">
               <div className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 bg-gray-50">
-                <h3 className="text-sm sm:text-base lg:text-lg leading-6 font-medium text-gray-900">Quotation Items</h3>
+                <h3 className="text-sm sm:text-base lg:text-lg leading-6 font-medium text-gray-900">Order List</h3>
               </div>
               <div className="border-t border-gray-200">
                 <div className="overflow-x-auto">
@@ -1507,7 +1514,7 @@ const QuotationsPage = () => {
             {/* Items List - Mobile */}
             <div className="sm:hidden bg-white shadow overflow-hidden rounded-lg">
               <div className="px-3 py-3 bg-gray-50">
-                <h3 className="text-sm font-medium text-gray-900">Quotation Items</h3>
+                <h3 className="text-sm font-medium text-gray-900">Order List</h3>
               </div>
               <div className="border-t border-gray-200 p-3">
                 {selectedQuotation.items && selectedQuotation.items.length > 0 ? (
@@ -1558,8 +1565,8 @@ const QuotationsPage = () => {
               </div>
             </div>
 
-            {/* Driver Details - Only show for approved and completed quotations */}
-            {(selectedQuotation.status === 'approved' || selectedQuotation.status === 'accepted' || selectedQuotation.status === 'completed') && selectedQuotation.assignedDelivery && (
+            {/* Driver Details - Only show for approved and completed quotations and hide for delivery users */}
+            {user?.role !== 'delivery' && (selectedQuotation.status === 'approved' || selectedQuotation.status === 'accepted' || selectedQuotation.status === 'completed') && selectedQuotation.assignedDelivery && (
               <div className="bg-white shadow overflow-hidden rounded-lg">
                 <div className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5">
                   <button
@@ -1932,55 +1939,66 @@ const QuotationsPage = () => {
             initialData={selectedQuotation}
             isLoading={formLoading}
             onCancel={() => setIsEditModalOpen(false)}
-            onSave={async (quotationData) => {
-              try {
-                setFormLoading(true);
-                let response;
-                
-                if (quotationData.shouldApprove) {
-                  // Handle update and approve in one action
-                  response = await api.quotations.update(selectedQuotation._id, quotationData);
+              onSave={async (quotationData) => {
+                try {
+                  setFormLoading(true);
+                  let response;
                   
-                  if (response && response.success) {
-                    // Now approve the quotation
-                    const approvalResponse = await api.quotations.approve(selectedQuotation._id, {});
+                  // Check if this is an admin "Update and Approve" action
+                  const isAdminApproval = user && user.role === 'admin' && quotationData.status === 'approved';
+                  
+                  if (isAdminApproval) {
+                    // First update the quotation with the new data
+                    const updateData = { ...quotationData };
+                    delete updateData.status; // Remove status from update data
                     
-                    if (approvalResponse && approvalResponse.success) {
-                      // Sync data across all users
-                      await syncAfterQuotationStatusUpdate(selectedQuotation._id, { status: 'approved' });
+                    const updateResponse = await api.quotations.update(selectedQuotation._id, updateData);
+                    
+                    if (updateResponse && updateResponse.success) {
+                      // Then approve the quotation using the approve endpoint for proper WebSocket notification
+                      response = await api.quotations.approve(selectedQuotation._id, {
+                        assignedDelivery: quotationData.assignedDelivery
+                      });
                       
+                      if (response && response.success) {
+                        // Sync data across all users with the updated status and delivery assignment
+                        await syncAfterQuotationStatusUpdate(selectedQuotation._id, { 
+                          status: 'approved',
+                          assignedDelivery: quotationData.assignedDelivery 
+                        });
+                        
+                        // Refresh quotations using the data loader
+                        await refreshQuotations();
+                        
+                        setIsEditModalOpen(false);
+                        showSuccess('Quotation updated and approved successfully!');
+                      } else {
+                        throw new Error(response.message || 'Failed to approve quotation');
+                      }
+                    } else {
+                      throw new Error(updateResponse.message || 'Failed to update quotation');
+                    }
+                  } else {
+                    // Regular update
+                    response = await api.quotations.update(selectedQuotation._id, quotationData);
+                    
+                    if (response && response.success) {
                       // Refresh quotations using the data loader
                       await refreshQuotations();
                       
                       setIsEditModalOpen(false);
-                      showSuccess('Quotation updated and approved successfully!');
+                      showSuccess('Quotation updated successfully!');
                     } else {
-                      throw new Error(approvalResponse.message || 'Failed to approve quotation after update');
+                      throw new Error(response.message || 'Failed to update quotation');
                     }
-                  } else {
-                    throw new Error(response.message || 'Failed to update quotation');
                   }
-                } else {
-                  // Regular update
-                  response = await api.quotations.update(selectedQuotation._id, quotationData);
-                  
-                  if (response && response.success) {
-                    // Refresh quotations using the data loader
-                    await refreshQuotations();
-                    
-                    setIsEditModalOpen(false);
-                    showSuccess('Quotation updated successfully!');
-                  } else {
-                    throw new Error(response.message || 'Failed to update quotation');
-                  }
+                } catch (err) {
+                  console.error('Error updating quotation:', err);
+                  showError('Failed to update quotation', err.message);
+                } finally {
+                  setFormLoading(false);
                 }
-              } catch (err) {
-                console.error('Error updating quotation:', err);
-                showError('Failed to update quotation', err.message);
-              } finally {
-                setFormLoading(false);
-              }
-            }}
+              }}
           />
         )}
       </Modal>
