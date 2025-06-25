@@ -582,6 +582,12 @@ const api = {
         .join('&');
       return request(`/reports/customers${queryString ? `?${queryString}` : ''}`);
     },
+    getDeliveryReport: (params = {}) => {
+      const queryString = Object.entries(params)
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join('&');
+      return request(`/reports/delivery${queryString ? `?${queryString}` : ''}`);
+    },
   },
 
   // Device management endpoints

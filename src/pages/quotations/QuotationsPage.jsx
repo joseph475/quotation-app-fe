@@ -164,6 +164,7 @@ const QuotationsPage = () => {
   const [formLoading, setFormLoading] = useState(false);
   const [deliveryAssignmentLoading, setDeliveryAssignmentLoading] = useState(false);
   const [deliveryUsersLoading, setDeliveryUsersLoading] = useState(false);
+  const [isDriverDetailsOpen, setIsDriverDetailsOpen] = useState(false);
 
   const [successMessage, setSuccessMessage] = useState('');
   
@@ -420,6 +421,7 @@ const QuotationsPage = () => {
     const matchesTab = activeTab === 'all' || 
                       (activeTab === 'pending' && (quotation.status === 'draft' || quotation.status === 'pending')) ||
                       (activeTab === 'approved' && (quotation.status === 'accepted' || quotation.status === 'approved')) ||
+                      (activeTab === 'completed' && quotation.status === 'completed') ||
                       (activeTab === 'rejected' && quotation.status === 'rejected');
     
     // Handle customer which might be an object or string
@@ -835,25 +837,11 @@ const QuotationsPage = () => {
               </div>
               <input
                 type="text"
-                placeholder="Search quotations..."
+                placeholder="Search orders..."
                 value={searchTerm}
                 onInput={(e) => setSearchTerm(e.target.value)}
                 class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm"
               />
-            </div>
-
-            {/* Date Filter */}
-            <div class="w-40">
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                class="block w-full pl-3 pr-8 py-2 text-sm border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 rounded-md"
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-              </select>
             </div>
 
             {/* Export CSV button for admin users */}
@@ -884,70 +872,48 @@ const QuotationsPage = () => {
           </div>
 
           {/* Mobile/Tablet Layout - Stacked */}
-          <div class="lg:hidden flex flex-col space-y-4">
-            <div class="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4 w-full">
+          <div class="lg:hidden space-y-3">
+            {/* Search and New Button Row */}
+            <div class="flex gap-2">
               {/* Search */}
-              <div class="relative flex-1 sm:flex-initial sm:min-w-0 sm:w-64">
+              <div class="relative flex-1">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <svg class="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
                   </svg>
                 </div>
                 <input
                   type="text"
-                  placeholder="Search quotations..."
+                  placeholder="Search orders..."
                   value={searchTerm}
                   onInput={(e) => setSearchTerm(e.target.value)}
-                  class="block w-full pl-9 sm:pl-10 pr-3 py-2.5 sm:py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                  class="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm"
                 />
               </div>
 
-              {/* Date Filter and New Quotation Button - Side by side on mobile */}
-              <div class="flex space-x-2 flex-1 sm:flex-initial sm:w-auto">
-                <div class="flex-1 sm:w-40">
-                  <select
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    class="block w-full pl-3 pr-8 py-2.5 sm:py-2 text-sm border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 rounded-md"
-                  >
-                    <option value="all">All Time</option>
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                  </select>
-                </div>
-                
-                {/* New Quotation button for user role - same width as filter */}
-                {(user?.role === 'user' || user?.data?.role === 'user') && (
-                  <div class="flex-1 sm:w-40">
-                    <button 
-                      class="btn btn-primary flex items-center justify-center w-full py-2.5 text-sm whitespace-nowrap"
-                      onClick={() => setIsFormModalOpen(true)}
-                    >
-                      <svg class="h-4 w-4 mr-1 sm:mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                      </svg>
-                      <span class="hidden sm:inline">New Quotation</span>
-                      <span class="sm:hidden">New</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+              {/* New Quotation button for user role */}
+              {(user?.role === 'user' || user?.data?.role === 'user') && (
+                <button 
+                  class="inline-flex items-center justify-center px-3 py-2 border border-transparent shadow-sm text-xs font-medium rounded text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 whitespace-nowrap"
+                  onClick={() => setIsFormModalOpen(true)}
+                >
+                  <svg class="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                  </svg>
+                  New
+                </button>
+              )}
 
-            {/* Actions - Side by side with filters on mobile */}
-            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
-              {/* Only show Export CSV button for admin users */}
+              {/* Export CSV button for admin users */}
               {user?.role === 'admin' && (
                 <button 
-                  class="btn btn-outline flex items-center justify-center w-full sm:w-auto text-sm py-2.5"
+                  class="inline-flex items-center justify-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 whitespace-nowrap"
                   onClick={() => exportAllQuotationsToCSV(filteredQuotations)}
                 >
-                  <svg class="h-4 w-4 sm:h-5 sm:w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <svg class="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
                   </svg>
-                  <span class="hidden sm:inline">Export CSV</span>
-                  <span class="sm:hidden">Export</span>
+                  Export
                 </button>
               )}
             </div>
@@ -988,6 +954,16 @@ const QuotationsPage = () => {
             }`}
           >
             Approved
+          </button>
+          <button
+            onClick={() => setActiveTab('completed')}
+            class={`whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm ${
+              activeTab === 'completed'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Completed
           </button>
           <button
             onClick={() => setActiveTab('rejected')}
@@ -1343,7 +1319,7 @@ const QuotationsPage = () => {
       <Modal
         isOpen={isFormModalOpen}
         onClose={() => setIsFormModalOpen(false)}
-        title="Create New Quotation"
+        title="Create New Order"
         size="5xl"
       >
         <QuotationForm
@@ -1382,75 +1358,74 @@ const QuotationsPage = () => {
       >
         {selectedQuotation && (
           <div className="space-y-6">
-            {/* Basic Information - Mobile optimized */}
-            <div className="bg-white shadow overflow-hidden rounded-lg">
-              <div className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 bg-gray-50">
-                <h3 className="text-sm sm:text-base lg:text-lg leading-6 font-medium text-gray-900">Quotation Information</h3>
-              </div>
-              <div className="border-t border-gray-200 px-3 py-3 sm:px-4 sm:py-4 lg:p-0">
-                <dl className="space-y-2 sm:space-y-0 sm:divide-y sm:divide-gray-200">
-                  <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
-                    <dt className="text-xs sm:text-xs font-medium text-gray-500">Quotation Number</dt>
-                    <dd className="text-xs sm:text-xs text-gray-900 font-medium sm:mt-0 sm:col-span-2">{selectedQuotation.quotationNumber}</dd>
-                  </div>
-                  {/* Hide customer details for user role */}
-                  {(user?.role === 'admin' || user?.data?.role === 'admin') && (
+            {/* Basic Information - Only show for admin users */}
+            {(user?.role === 'admin' || user?.data?.role === 'admin') && (
+              <div className="bg-white shadow overflow-hidden rounded-lg">
+                <div className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 bg-gray-50">
+                  <h3 className="text-sm sm:text-base lg:text-lg leading-6 font-medium text-gray-900">Quotation Information</h3>
+                </div>
+                <div className="border-t border-gray-200 px-3 py-3 sm:px-4 sm:py-4 lg:p-0">
+                  <dl className="space-y-2 sm:space-y-0 sm:divide-y sm:divide-gray-200">
+                    <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                      <dt className="text-xs sm:text-xs font-medium text-gray-500">Quotation Number</dt>
+                      <dd className="text-xs sm:text-xs text-gray-900 font-medium sm:mt-0 sm:col-span-2">{selectedQuotation.quotationNumber}</dd>
+                    </div>
                     <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
                       <dt className="text-xs sm:text-xs font-medium text-gray-500">Customer</dt>
                       <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">
                         {getCustomerDisplayName(selectedQuotation.customer)}
                       </dd>
                     </div>
-                  )}
-                  <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
-                    <dt className="text-xs sm:text-xs font-medium text-gray-500">Date</dt>
-                    <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">
-                      {new Date(selectedQuotation.createdAt).toLocaleDateString()}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between items-center py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
-                    <dt className="text-xs sm:text-xs font-medium text-gray-500">Status</dt>
-                    <dd className="sm:mt-0 sm:col-span-2">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${
-                        selectedQuotation.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                        selectedQuotation.status === 'rejected' ? 'bg-red-100 text-red-800' : 
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {selectedQuotation.status.charAt(0).toUpperCase() + selectedQuotation.status.slice(1)}
-                      </span>
-                    </dd>
-                  </div>
-                  <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
-                    <dt className="text-xs sm:text-xs font-medium text-gray-500">Total Amount</dt>
-                    <dd className="text-xs sm:text-xs font-semibold text-gray-900 sm:mt-0 sm:col-span-2">
-                    {`${process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}${(selectedQuotation.total || 0).toFixed(2)}`}
-                    </dd>
-                  </div>
-                  {selectedQuotation.assignedDelivery && (
                     <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
-                      <dt className="text-xs sm:text-xs font-medium text-gray-500">Assigned Delivery</dt>
+                      <dt className="text-xs sm:text-xs font-medium text-gray-500">Date</dt>
                       <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">
-                        {typeof selectedQuotation.assignedDelivery === 'string' 
-                          ? selectedQuotation.assignedDelivery 
-                          : selectedQuotation.assignedDelivery?.name || 'Delivery Personnel'}
+                        {new Date(selectedQuotation.createdAt).toLocaleDateString()}
                       </dd>
                     </div>
-                  )}
-                  {selectedQuotation.notes && (
-                    <div className="py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
-                      <dt className="text-xs sm:text-xs font-medium text-gray-500 mb-1 sm:mb-0">Notes</dt>
-                      <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">{selectedQuotation.notes}</dd>
+                    <div className="flex justify-between items-center py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                      <dt className="text-xs sm:text-xs font-medium text-gray-500">Status</dt>
+                      <dd className="sm:mt-0 sm:col-span-2">
+                        <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${
+                          selectedQuotation.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                          selectedQuotation.status === 'rejected' ? 'bg-red-100 text-red-800' : 
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {selectedQuotation.status.charAt(0).toUpperCase() + selectedQuotation.status.slice(1)}
+                        </span>
+                      </dd>
                     </div>
-                  )}
-                  {selectedQuotation.terms && (
-                    <div className="py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
-                      <dt className="text-xs sm:text-xs font-medium text-gray-500 mb-1 sm:mb-0">Terms & Conditions</dt>
-                      <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">{selectedQuotation.terms}</dd>
+                    <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                      <dt className="text-xs sm:text-xs font-medium text-gray-500">Total Amount</dt>
+                      <dd className="text-xs sm:text-xs font-semibold text-gray-900 sm:mt-0 sm:col-span-2">
+                      {`${process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}${(selectedQuotation.total || 0).toFixed(2)}`}
+                      </dd>
                     </div>
-                  )}
-                </dl>
+                    {selectedQuotation.assignedDelivery && (
+                      <div className="flex justify-between py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                        <dt className="text-xs sm:text-xs font-medium text-gray-500">Assigned Delivery</dt>
+                        <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">
+                          {typeof selectedQuotation.assignedDelivery === 'string' 
+                            ? selectedQuotation.assignedDelivery 
+                            : selectedQuotation.assignedDelivery?.name || 'Delivery Personnel'}
+                        </dd>
+                      </div>
+                    )}
+                    {selectedQuotation.notes && (
+                      <div className="py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                        <dt className="text-xs sm:text-xs font-medium text-gray-500 mb-1 sm:mb-0">Notes</dt>
+                        <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">{selectedQuotation.notes}</dd>
+                      </div>
+                    )}
+                    {selectedQuotation.terms && (
+                      <div className="py-1 sm:py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3">
+                        <dt className="text-xs sm:text-xs font-medium text-gray-500 mb-1 sm:mb-0">Terms & Conditions</dt>
+                        <dd className="text-xs sm:text-xs text-gray-900 sm:mt-0 sm:col-span-2">{selectedQuotation.terms}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Items Table - Desktop */}
             <div className="hidden sm:block bg-white shadow overflow-hidden rounded-lg">
@@ -1583,8 +1558,101 @@ const QuotationsPage = () => {
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex justify-end space-x-3">
+            {/* Driver Details - Only show for approved and completed quotations */}
+            {(selectedQuotation.status === 'approved' || selectedQuotation.status === 'accepted' || selectedQuotation.status === 'completed') && selectedQuotation.assignedDelivery && (
+              <div className="bg-white shadow overflow-hidden rounded-lg">
+                <div className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5">
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between text-left focus:outline-none"
+                    onClick={() => setIsDriverDetailsOpen(!isDriverDetailsOpen)}
+                  >
+                    <h3 className="text-sm sm:text-base lg:text-lg leading-6 font-medium text-gray-900">
+                      Driver Details
+                    </h3>
+                    <svg
+                      className={`h-5 w-5 text-gray-500 transform transition-transform duration-200 ${
+                        isDriverDetailsOpen ? 'rotate-180' : ''
+                      }`}
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
+                  
+                  {isDriverDetailsOpen && (
+                    <div className="mt-4 border-t border-gray-200 pt-4">
+                      <dl className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <dt className="text-sm font-medium text-gray-500">Driver Name</dt>
+                          <dd className="text-sm text-gray-900">
+                            {typeof selectedQuotation.assignedDelivery === 'string' 
+                              ? selectedQuotation.assignedDelivery 
+                              : selectedQuotation.assignedDelivery?.name || 'Delivery Personnel'}
+                          </dd>
+                        </div>
+                        
+                        {selectedQuotation.assignedDelivery?.email && (
+                          <div className="flex justify-between items-center">
+                            <dt className="text-sm font-medium text-gray-500">Contact Email</dt>
+                            <dd className="text-sm text-gray-900">
+                              <a 
+                                href={`mailto:${selectedQuotation.assignedDelivery.email}`}
+                                className="text-primary-600 hover:text-primary-500"
+                              >
+                                {selectedQuotation.assignedDelivery.email}
+                              </a>
+                            </dd>
+                          </div>
+                        )}
+                        
+                        {selectedQuotation.assignedDelivery?.phone && (
+                          <div className="flex justify-between items-center">
+                            <dt className="text-sm font-medium text-gray-500">Contact Phone</dt>
+                            <dd className="text-sm text-gray-900">
+                              <a 
+                                href={`tel:${selectedQuotation.assignedDelivery.phone}`}
+                                className="text-primary-600 hover:text-primary-500"
+                              >
+                                {selectedQuotation.assignedDelivery.phone}
+                              </a>
+                            </dd>
+                          </div>
+                        )}
+                        
+                        <div className="flex justify-between items-center">
+                          <dt className="text-sm font-medium text-gray-500">Assignment Date</dt>
+                          <dd className="text-sm text-gray-900">
+                            {new Date(selectedQuotation.updatedAt || selectedQuotation.createdAt).toLocaleDateString()}
+                          </dd>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <dt className="text-sm font-medium text-gray-500">Status</dt>
+                          <dd className="text-sm">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              <svg className="w-2 h-2 mr-1" fill="currentColor" viewBox="0 0 8 8">
+                                <circle cx="4" cy="4" r="3" />
+                              </svg>
+                              Assigned
+                            </span>
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Actions - Desktop */}
+            <div className="hidden lg:flex lg:justify-end lg:space-x-3">
               {/* Only show Print Preview button for admin users */}
               {(user?.role === 'admin' || user?.data?.role === 'admin') && (
                 <button
@@ -1595,13 +1663,13 @@ const QuotationsPage = () => {
                   const printWindow = window.open('', '_blank', 'width=800,height=600');
                   if (printWindow) {
                     // Set the document title
-                    printWindow.document.title = `Quotation - ${selectedQuotation?.quotationNumber || 'Quotation'}`;
+                    printWindow.document.title = `Order - ${selectedQuotation?.quotationNumber || 'Order'}`;
                     
                     // Add styles and content to the new window
                     printWindow.document.write(`
                       <html>
                         <head>
-                          <title>Quotation - ${selectedQuotation?.quotationNumber || 'Quotation'}</title>
+                          <title>Quotation - ${selectedQuotation?.quotationNumber || 'Order'}</title>
                           <style>
                             body {
                               font-family: Arial, sans-serif;
@@ -1694,43 +1762,29 @@ const QuotationsPage = () => {
                         </head>
                         <body>
                           <div class="receipt-container">
-                            <!-- Header -->
-                            <div class="text-center mb-3">
-                              <h1>QUOTATION</h1>
-                              <p class="text-gray-600 text-sm">Thank you for your interest in our products/services!</p>
-                            </div>
-
-                            <!-- Quotation Info -->
-                            <div class="flex mb-3">
-                              <div>
-                                <p class="text-sm"><span class="font-medium">Quotation #:</span> ${selectedQuotation.quotationNumber}</p>
+                            <!-- Order Info -->
+                            <div class="text-left">
+                                <p class="text-sm mb-0"><span class="font-medium">Order #:</span> ${selectedQuotation.quotationNumber}</span>
                                 ${selectedQuotation.assignedDelivery && selectedQuotation.assignedDelivery.name ? 
-                                  `<p class="text-sm"><span class="font-medium">Assigned Delivery:</span> ${selectedQuotation.assignedDelivery.name}</p>` : 
+                                  `<span class="text-sm"><span class="font-medium">Assigned Delivery:</span> ${selectedQuotation.assignedDelivery.name}</p>` : 
                                   ''
                                 }
-                              </div>
-                              <div class="text-right">
-                                <p class="text-sm"><span class="font-medium">Date:</span> ${new Date(selectedQuotation.createdAt).toLocaleDateString()}</p>
-                              </div>
                             </div>
 
                             <!-- Customer Info -->
                             <div class="mb-3">
-                              <p class="text-sm font-medium">Customer:</p>
-                              <p class="text-sm">${typeof selectedQuotation.customer === 'string' ? selectedQuotation.customer : (selectedQuotation.customer?.name || 'Customer')}</p>
+                              <span class="text-sm font-medium">Customer: </span>
+                              <span class="text-sm">${typeof selectedQuotation.customer === 'string' ? selectedQuotation.customer : (selectedQuotation.customer?.name || 'Customer')}</span>
                             </div>
 
                             <!-- Items Table -->
                             <div class="mb-3">
-                              <p class="text-sm font-medium mb-1">Quoted Items:</p>
                               <table class="w-full text-sm">
                                 <thead>
                                   <tr>
                                     <th>Description</th>
                                     <th class="text-center">Qty</th>
                                     <th class="text-right">Unit Price</th>
-                                    <th class="text-right">Discount</th>
-                                    <th class="text-right">Tax</th>
                                     <th class="text-right">Total</th>
                                   </tr>
                                 </thead>
@@ -1738,11 +1792,9 @@ const QuotationsPage = () => {
                                   ${selectedQuotation.items && selectedQuotation.items.length > 0 ? 
                                     selectedQuotation.items.map(item => `
                                       <tr>
-                                        <td>${item.description}</td>
+                                        <td class="font-bold">${item.description}</td>
                                         <td class="text-center">${item.quantity}</td>
                                         <td class="text-right">₱${(item.unitPrice || 0).toFixed(2)}</td>
-                                        <td class="text-right">${item.discount || 0}%</td>
-                                        <td class="text-right">${item.tax || 0}%</td>
                                         <td class="text-right">₱${(item.total || 0).toFixed(2)}</td>
                                       </tr>
                                     `).join('') : 
@@ -1818,8 +1870,8 @@ const QuotationsPage = () => {
               >
                 Close
               </button>
-              {/* Edit button for user role (when not approved) and admin role (when pending) */}
-              {user && (
+              {/* Edit button - exclude completed status */}
+              {user && selectedQuotation.status !== 'completed' && (
                 (user.role === 'user' && selectedQuotation.status !== 'approved') ||
                 (user.role === 'admin' && (selectedQuotation.status === 'pending' || selectedQuotation.status === 'draft'))
               ) && (
@@ -1834,6 +1886,35 @@ const QuotationsPage = () => {
                   Edit
                 </button>
               )}
+            </div>
+
+            {/* Fixed Footer Actions - Mobile */}
+            <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
+              <div className="flex space-x-3">
+                <button
+                  type="button"
+                  className="flex-1 btn btn-secondary"
+                  onClick={() => setIsViewModalOpen(false)}
+                >
+                  Close
+                </button>
+                {/* Edit button - exclude completed status */}
+                {user && selectedQuotation.status !== 'completed' && (
+                  (user.role === 'user' && selectedQuotation.status !== 'approved') ||
+                  (user.role === 'admin' && (selectedQuotation.status === 'pending' || selectedQuotation.status === 'draft'))
+                ) && (
+                  <button
+                    type="button"
+                    className="flex-1 btn btn-primary"
+                    onClick={() => {
+                      setIsViewModalOpen(false);
+                      setIsEditModalOpen(true);
+                    }}
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}

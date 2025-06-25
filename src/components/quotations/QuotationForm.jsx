@@ -463,146 +463,102 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
             {!(user && user.role === 'admin' && initialData) && (
               <div className="mb-6 p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
                 <h4 className="text-base sm:text-lg font-medium text-gray-800 mb-4">Add Item to Quotation</h4>
-            <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Inventory Search */}
-              <div id="inventorySearchContainer" className="relative sm:col-span-2">
-                <label htmlFor="inventorySearch" className={labelClasses}>
-                  Search Inventory
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    id="inventorySearch"
-                    placeholder={currentItem.description ? "" : "Search for inventory items..."}
-                    value={inventorySearch}
-                    onInput={handleInventorySearch}
-                    className={`${inputClasses} ${itemErrors.inventory ? 'border-red-300' : ''} pl-9 sm:pl-10`}
-                    onFocus={() => {
-                      if (inventorySearch) {
-                        setShowInventoryResults(true);
-                      }
-                    }}
-                    onClick={() => {
-                      setShowInventoryResults(true);
-                    }}
-                  />
-                  {currentItem.description && (
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                      <span className="text-sm text-primary-600 bg-primary-50 px-2 py-1 rounded-full">
-                        {currentItem.description}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Search Results */}
-                {showInventoryResults && (
-                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
-                    {loading.inventory ? (
-                      <div className="px-4 py-3 text-sm text-gray-500">
-                        Loading inventory...
+            <div className="space-y-2">
+              {/* Label */}
+              <label htmlFor="inventorySearch" className={labelClasses}>
+                Search Inventory
+              </label>
+              
+              {/* Search field and Add button in same row - Force side by side */}
+              <div className="flex gap-1 items-center">
+                {/* Inventory Search */}
+                <div id="inventorySearchContainer" className="relative" style="flex: 1; min-width: 0;">
+                  <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
+                        <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                        </svg>
                       </div>
-                    ) : filteredInventory.length > 0 ? (
-                      <ul className="py-1">
-                        {filteredInventory.map(item => (
-                          <li 
-                            key={item._id}
-                            className="px-3 py-1 hover:bg-gray-100 cursor-pointer flex justify-between items-center text-xs"
-                            onClick={() => handleInventorySelect(item)}
-                          >
-                            <span>
-                              {item.name} {item.barcode && `(${item.barcode})`}
-                            </span>
-                            <span className="text-primary-600 font-medium">{process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}{(item.price || 0).toFixed(2)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="px-4 py-3 text-sm text-gray-500">
-                        {inventorySearch ? 'No inventory items found.' : 'Type to search inventory'}
+                      <input
+                        type="text"
+                        id="inventorySearch"
+                        placeholder={currentItem.description ? "" : "Search..."}
+                        value={inventorySearch}
+                        onInput={handleInventorySearch}
+                        className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-1.5 px-2 sm:py-2 sm:px-3 text-xs sm:text-sm pl-8 sm:pl-10 ${itemErrors.inventory ? 'border-red-300' : ''}`}
+                        style="min-width: 0; width: 100%;"
+                        onFocus={() => {
+                          if (inventorySearch) {
+                            setShowInventoryResults(true);
+                          }
+                        }}
+                        onClick={() => {
+                          setShowInventoryResults(true);
+                        }}
+                      />
+                      {currentItem.description && (
+                        <div className="absolute inset-y-0 right-0 pr-2 sm:pr-3 flex items-center">
+                          <span className="text-xs sm:text-sm text-primary-600 bg-primary-50 px-1 sm:px-2 py-1 rounded-full">
+                            {currentItem.description}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Search Results */}
+                    {showInventoryResults && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
+                        {loading.inventory ? (
+                          <div className="px-4 py-3 text-sm text-gray-500">
+                            Loading inventory...
+                          </div>
+                        ) : filteredInventory.length > 0 ? (
+                          <ul className="py-1">
+                            {filteredInventory.map(item => (
+                              <li 
+                                key={item._id}
+                                className="px-3 py-1 hover:bg-gray-100 cursor-pointer flex justify-between items-center text-xs"
+                                onClick={() => handleInventorySelect(item)}
+                              >
+                                <span>
+                                  {item.name} {item.barcode && `(${item.barcode})`}
+                                </span>
+                                <span className="text-primary-600 font-medium">{process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}{(item.price || 0).toFixed(2)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="px-4 py-3 text-sm text-gray-500">
+                            {inventorySearch ? 'No inventory items found.' : 'Type to search inventory'}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-                
-                {itemErrors.inventory && (
-                  <p className={errorClasses}>{itemErrors.inventory}</p>
-                )}
-              </div>
 
-              {/* Quantity */}
-              <div>
-                <label htmlFor="quantity" className={labelClasses}>
-                  Quantity
-                </label>
-                <input
-                  type="number"
-                  id="quantity"
-                  name="quantity"
-                  min="1"
-                  step="1"
-                  value={currentItem.quantity}
-                  onInput={handleItemChange}
-                  className={`${inputClasses} ${itemErrors.quantity ? 'border-red-300' : ''}`}
-                />
-                {itemErrors.quantity && (
-                  <p className={errorClasses}>{itemErrors.quantity}</p>
-                )}
-              </div>
-
-              {/* Unit Price */}
-              <div>
-                <label htmlFor="unitPrice" className={labelClasses}>
-                  Unit Price
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                    <span className="text-gray-500 text-xs sm:text-sm">{process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}</span>
-                  </div>
-                  <input
-                    type="number"
-                    id="unitPrice"
-                    name="unitPrice"
-                    min="0"
-                    step="0.01"
-                    value={currentItem.unitPrice || ''}
-                    onInput={handleItemChange}
-                    className={`${inputClasses} ${itemErrors.unitPrice ? 'border-red-300' : ''} pl-7 sm:pl-8 bg-gray-50`}
-                    placeholder="0.00"
-                    readOnly
-                  />
+                {/* Add Button */}
+                <div style="flex-shrink: 0;">
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    disabled={!currentItem.inventory || !currentItem.unitPrice}
+                    className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 border border-transparent py-1.5 text-xs sm:py-2 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    style="padding-left: 8px; padding-right: 8px; white-space: nowrap; min-width: 40px;"
+                  >
+                    <svg className="h-3 w-3 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    </svg>
+                    <span className="hidden sm:inline ml-1">Add</span>
+                  </button>
                 </div>
-                {itemErrors.unitPrice && (
-                  <p className={errorClasses}>{itemErrors.unitPrice}</p>
-                )}
               </div>
+              
+              {/* Error message */}
+              {itemErrors.inventory && (
+                <p className={errorClasses}>{itemErrors.inventory}</p>
+              )}
             </div>
 
-            {/* Add Button */}
-            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-              <div>
-                {currentItem.description && currentItem.unitPrice > 0 && (
-                  <p className="text-xs sm:text-sm text-gray-600">
-                    Total: <span className="font-medium">{process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}{currentItem.total.toFixed(2)}</span>
-                  </p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={addItem}
-                className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 border border-transparent px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm w-full sm:w-auto"
-              >
-                <svg className="h-3 w-3 sm:h-5 sm:w-5 mr-1 sm:mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-                Add Item
-              </button>
-            </div>
           </div>
           )}
 
@@ -655,18 +611,104 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {item.isEditing ? (
-                            <input
-                              type="number"
-                              min="1"
-                              step="1"
-                              value={item.editingQuantity}
-                              onChange={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
-                              onInput={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
-                              className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                              autoFocus
-                            />
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newQty = Math.max(1, parseFloat(item.editingQuantity) - 1);
+                                  handleEditingItemChange(item.id, 'quantity', newQty.toString());
+                                }}
+                                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                                </svg>
+                              </button>
+                              <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={item.editingQuantity}
+                                onChange={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
+                                onInput={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
+                                className="w-16 px-2 py-1 border border-gray-300 rounded text-sm text-center"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newQty = parseFloat(item.editingQuantity) + 1;
+                                  handleEditingItemChange(item.id, 'quantity', newQty.toString());
+                                }}
+                                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                              </button>
+                            </div>
                           ) : (
-                            item.quantity
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newQty = Math.max(1, parseFloat(item.quantity) - 1);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    items: prev.items.map(currentItem => {
+                                      if (currentItem.id === item.id) {
+                                        const newTotal = newQty * currentItem.unitPrice;
+                                        return {
+                                          ...currentItem,
+                                          quantity: newQty,
+                                          total: newTotal,
+                                          editingQuantity: newQty
+                                        };
+                                      }
+                                      return currentItem;
+                                    })
+                                  }));
+                                }}
+                                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => startEditingItem(item.id)}
+                                className="w-8 text-center font-medium bg-white border border-gray-300 rounded px-1 py-0.5 hover:border-primary-500 hover:bg-gray-50 transition-colors cursor-pointer text-sm"
+                              >
+                                {item.quantity}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newQty = parseFloat(item.quantity) + 1;
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    items: prev.items.map(currentItem => {
+                                      if (currentItem.id === item.id) {
+                                        const newTotal = newQty * currentItem.unitPrice;
+                                        return {
+                                          ...currentItem,
+                                          quantity: newQty,
+                                          total: newTotal,
+                                          editingQuantity: newQty
+                                        };
+                                      }
+                                      return currentItem;
+                                    })
+                                  }));
+                                }}
+                                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                              </button>
+                            </div>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -927,113 +969,87 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-gray-900">Add Item</h3>
               
-              {/* Inventory Search - Mobile */}
-              <div id="inventorySearchContainer" className="relative">
-                <label htmlFor="inventorySearchMobile" className={labelClasses}>
-                  Search Inventory
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    id="inventorySearchMobile"
-                    placeholder={currentItem.description || "Search for inventory items..."}
-                    value={inventorySearch}
-                    onInput={handleInventorySearch}
-                    className={`${inputClasses} ${itemErrors.inventory ? 'border-red-300' : ''} pl-9`}
-                    onFocus={() => {
-                      if (inventorySearch) {
+              {/* Search field and Add button in same row - Mobile */}
+              <div className="flex gap-1 items-center">
+                {/* Inventory Search - Mobile */}
+                <div id="inventorySearchContainer" className="relative" style="flex: 1; min-width: 0;">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                      <svg className="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      id="inventorySearchMobile"
+                      placeholder={currentItem.description || "Search..."}
+                      value={inventorySearch}
+                      onInput={handleInventorySearch}
+                      className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-1.5 px-2 text-xs pl-8 ${itemErrors.inventory ? 'border-red-300' : ''}`}
+                      style="min-width: 0; width: 100%;"
+                      onFocus={() => {
+                        if (inventorySearch) {
+                          setShowInventoryResults(true);
+                        }
+                      }}
+                      onClick={() => {
                         setShowInventoryResults(true);
-                      }
-                    }}
-                    onClick={() => {
-                      setShowInventoryResults(true);
-                    }}
-                  />
-                </div>
-                
-                {/* Search Results - Mobile */}
-                {showInventoryResults && (
-                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-48 overflow-y-auto">
-                    {loading.inventory ? (
-                      <div className="px-3 py-2 text-xs text-gray-500">
-                        Loading...
-                      </div>
-                    ) : filteredInventory.length > 0 ? (
-                      <ul className="py-1">
-                        {filteredInventory.map(item => (
-                          <li 
-                            key={item._id}
-                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-xs"
-                            onClick={() => handleInventorySelect(item)}
-                          >
-                            <div className="flex justify-between items-center">
-                              <span className="truncate">{item.name}</span>
-                              <span className="text-primary-600 font-medium ml-2">{process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}{(item.price || 0).toFixed(2)}</span>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="px-3 py-2 text-xs text-gray-500">
-                        {inventorySearch ? 'No items found.' : 'Type to search'}
-                      </div>
-                    )}
+                      }}
+                    />
                   </div>
-                )}
-                
-                {itemErrors.inventory && (
-                  <p className={errorClasses}>{itemErrors.inventory}</p>
-                )}
-              </div>
-
-              {/* Quantity and Add Button - Mobile */}
-              <div className="flex space-x-2">
-                <div className="flex-1">
-                  <label htmlFor="quantityMobile" className={labelClasses}>
-                    Quantity
-                  </label>
-                  <input
-                    type="number"
-                    id="quantityMobile"
-                    name="quantity"
-                    min="1"
-                    step="1"
-                    value={currentItem.quantity}
-                    onInput={handleItemChange}
-                    className={`${inputClasses} ${itemErrors.quantity ? 'border-red-300' : ''}`}
-                  />
-                  {itemErrors.quantity && (
-                    <p className={errorClasses}>{itemErrors.quantity}</p>
+                  
+                  {/* Search Results - Mobile */}
+                  {showInventoryResults && (
+                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-48 overflow-y-auto">
+                      {loading.inventory ? (
+                        <div className="px-3 py-2 text-xs text-gray-500">
+                          Loading...
+                        </div>
+                      ) : filteredInventory.length > 0 ? (
+                        <ul className="py-1">
+                          {filteredInventory.map(item => (
+                            <li 
+                              key={item._id}
+                              className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-xs"
+                              onClick={() => handleInventorySelect(item)}
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="truncate">{item.name}</span>
+                                <span className="text-primary-600 font-medium ml-2">{process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}{(item.price || 0).toFixed(2)}</span>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="px-3 py-2 text-xs text-gray-500">
+                          {inventorySearch ? 'No items found.' : 'Type to search'}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-                
-                <div className="flex-shrink-0 flex items-end">
+
+                {/* Add Button - Mobile */}
+                <div style="flex-shrink: 0;">
                   <button
                     type="button"
                     onClick={addItem}
-                    className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 border border-transparent px-3 py-1.5 text-xs"
+                    disabled={!currentItem.inventory || !currentItem.unitPrice}
+                    className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 border border-transparent py-1.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    style="padding-left: 8px; padding-right: 8px; white-space: nowrap; min-width: 40px;"
                   >
-                    <svg className="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <svg className="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                     </svg>
-                    Add
                   </button>
                 </div>
               </div>
-
-              {/* Current item preview - Mobile */}
-              {currentItem.description && currentItem.unitPrice > 0 && (
-                <div className="bg-blue-50 rounded-md p-3">
-                  <p className="text-xs text-blue-800">
-                    <span className="font-medium">{currentItem.description}</span> - {process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}{currentItem.unitPrice.toFixed(2)} × {currentItem.quantity} = <span className="font-medium">{process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}{currentItem.total.toFixed(2)}</span>
-                  </p>
-                </div>
+              
+              {/* Error message - Mobile */}
+              {itemErrors.inventory && (
+                <p className={errorClasses}>{itemErrors.inventory}</p>
               )}
+
             </div>
           )}
 
@@ -1073,17 +1089,103 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                       <div className="flex items-center space-x-2">
                         <span className="text-xs text-gray-500">Qty:</span>
                         {item.isEditing ? (
-                          <input
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={item.editingQuantity}
-                            onChange={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
-                            className="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs"
-                            autoFocus
-                          />
+                          <div className="flex items-center space-x-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newQty = Math.max(1, parseFloat(item.editingQuantity) - 1);
+                                handleEditingItemChange(item.id, 'quantity', newQty.toString());
+                              }}
+                              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                            >
+                              <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                              </svg>
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={item.editingQuantity}
+                              onChange={(e) => handleEditingItemChange(item.id, 'quantity', e.target.value)}
+                              className="w-12 px-1 py-0.5 border border-gray-300 rounded text-xs text-center"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newQty = parseFloat(item.editingQuantity) + 1;
+                                handleEditingItemChange(item.id, 'quantity', newQty.toString());
+                              }}
+                              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                            >
+                              <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                            </button>
+                          </div>
                         ) : (
-                          <span className="text-xs font-medium text-gray-900">{item.quantity}</span>
+                          <div className="flex items-center space-x-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newQty = Math.max(1, parseFloat(item.quantity) - 1);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  items: prev.items.map(currentItem => {
+                                    if (currentItem.id === item.id) {
+                                      const newTotal = newQty * currentItem.unitPrice;
+                                      return {
+                                        ...currentItem,
+                                        quantity: newQty,
+                                        total: newTotal,
+                                        editingQuantity: newQty
+                                      };
+                                    }
+                                    return currentItem;
+                                  })
+                                }));
+                              }}
+                              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                            >
+                              <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => startEditingItem(item.id)}
+                              className="w-6 text-center text-xs font-medium text-gray-900 bg-white border border-gray-300 rounded px-1 py-0.5 hover:border-primary-500 hover:bg-gray-50 transition-colors cursor-pointer"
+                            >
+                              {item.quantity}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newQty = parseFloat(item.quantity) + 1;
+                                setFormData(prev => ({
+                                  ...prev,
+                                  items: prev.items.map(currentItem => {
+                                    if (currentItem.id === item.id) {
+                                      const newTotal = newQty * currentItem.unitPrice;
+                                      return {
+                                        ...currentItem,
+                                        quantity: newQty,
+                                        total: newTotal,
+                                        editingQuantity: newQty
+                                      };
+                                    }
+                                    return currentItem;
+                                  })
+                                }));
+                              }}
+                              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                            </button>
+                          </div>
                         )}
                       </div>
 
@@ -1166,12 +1268,12 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
           )}
         </div>
         
-        {/* Form Actions */}
-        <div className="flex flex-row justify-end space-x-3 mt-6">
+        {/* Form Actions - Desktop */}
+        <div className="hidden lg:flex lg:justify-end lg:space-x-3 mt-6">
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500 px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm flex-1 sm:flex-none sm:w-auto"
+            className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500 px-4 py-2 text-sm"
           >
             Cancel
           </button>
@@ -1179,16 +1281,43 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
           <button
             type="submit"
             disabled={isLoading}
-            className={`inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 border border-transparent px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm flex-1 sm:flex-none sm:w-auto ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 border border-transparent px-4 py-2 text-sm ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {isLoading && (
-              <svg className="animate-spin -ml-1 mr-2 h-3 w-3 sm:h-4 sm:w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             )}
-            {isLoading ? 'Saving...' : initialData ? 'Update Quotation' : 'Create Quotation'}
+            {isLoading ? 'Saving...' : initialData ? 'Update Order' : 'Create Order'}
           </button>
+        </div>
+
+        {/* Fixed Footer Actions - Mobile */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
+          <div className="flex space-x-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500 px-3 py-2 text-sm"
+            >
+              Cancel
+            </button>
+            
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`flex-1 inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 border border-transparent px-3 py-2 text-sm ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isLoading && (
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              )}
+              {isLoading ? 'Saving...' : initialData ? 'Update Order' : 'Create Order'}
+            </button>
+          </div>
         </div>
       </form>
 
