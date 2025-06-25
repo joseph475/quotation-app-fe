@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "webpack --mode development --watch",
+    "start": "npm run build && npx http-server dist -p $PORT",
     "dev": "webpack serve --mode development",
     "build": "webpack --mode production",
     "vercel-build": "npm run build",
@@ -19,7 +19,8 @@
   "dependencies": {
     "preact": "^10.26.5",
     "preact-router": "^4.1.2",
-    "react-to-print": "^3.1.0"
+    "react-to-print": "^3.1.0",
+    "http-server": "^14.1.1"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
