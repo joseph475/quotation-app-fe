@@ -115,7 +115,7 @@ For more detailed instructions on setting up the backend, refer to the [Backend 
 
 ## Deployment
 
-This application is ready for deployment on Vercel. See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+This application is ready for deployment on Render. See [RENDER_DEPLOYMENT_GUIDE.md](RENDER_DEPLOYMENT_GUIDE.md) for detailed deployment instructions.
 
 ### Quick Deployment Steps
 
@@ -126,21 +126,20 @@ This application is ready for deployment on Vercel. See [DEPLOYMENT.md](DEPLOYME
 
 2. **Deploy Backend:**
    - Push backend code to a Git repository
-   - Deploy to Vercel with MongoDB Atlas connection
-   - Set environment variables in Vercel dashboard
+   - Deploy to Render with MongoDB Atlas connection
+   - Set environment variables in Render dashboard
 
 3. **Deploy Frontend:**
    - Update API URL in `src/services/api.js` with your backend URL
    - Push frontend code to a Git repository
-   - Deploy to Vercel
+   - Deploy to Render
 
 ### Files Added for Deployment
 
-- `vercel.json` - Vercel configuration for frontend
-- `../quotation-app-be/vercel.json` - Vercel configuration for backend
+- `render.yaml` - Render configuration for frontend
 - `.env.example` - Environment variables template for frontend
 - `../quotation-app-be/.env.example` - Environment variables template for backend
-- `DEPLOYMENT.md` - Comprehensive deployment guide
+- `RENDER_DEPLOYMENT_GUIDE.md` - Comprehensive deployment guide
 - `deploy.sh` - Deployment preparation script
 
-For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+For detailed deployment instructions, see [RENDER_DEPLOYMENT_GUIDE.md](RENDER_DEPLOYMENT_GUIDE.md).
