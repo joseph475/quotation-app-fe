@@ -9,6 +9,7 @@ import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { syncAfterQuotationConversion, syncAfterQuotationStatusUpdate } from '../../utils/dataSync';
 import { getCustomerDisplayName } from '../../utils/customerHelpers';
+import { getDeliveryUsers } from '../../utils/deliveryUsersCache';
 import realTimeSync from '../../utils/realTimeSync';
 
 const QuotationsPage = () => {
@@ -262,9 +263,9 @@ const QuotationsPage = () => {
     // Load delivery users
     try {
       setDeliveryUsersLoading(true);
-      const response = await api.quotations.getDeliveryUsers();
-      if (response && response.success) {
-        setDeliveryUsers(response.data || []);
+      const cachedDeliveryUsers = await getDeliveryUsers();
+      if (cachedDeliveryUsers && Array.isArray(cachedDeliveryUsers)) {
+        setDeliveryUsers(cachedDeliveryUsers);
       } else {
         setDeliveryUsers([]);
       }
@@ -745,95 +746,6 @@ const QuotationsPage = () => {
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
           <p class="mt-2 text-sm text-gray-500">Loading quotations...</p>
-        </div>
-      )}
-
-      {/* Quotation Summary Cards - Only show for admin users */}
-      {(user?.role === 'admin' || user?.data?.role === 'admin') && (
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-          <div class="bg-white overflow-hidden shadow rounded-lg">
-            <div class="px-3 py-4 sm:px-4 sm:py-5 lg:p-6">
-              <div class="flex items-center">
-                <div class="flex-shrink-0 bg-primary-100 rounded-md p-3">
-                  <svg class="h-6 w-6 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <div class="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt class="text-sm font-medium text-gray-500 truncate">
-                      {user?.role === 'user' ? 'My Quotations' : 'Total Quotations'}
-                    </dt>
-                    <dd class="text-lg font-medium text-gray-900">
-                      {(quotations || []).length}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-white overflow-hidden shadow rounded-lg">
-            <div class="px-4 py-5 sm:p-6">
-              <div class="flex items-center">
-                <div class="flex-shrink-0 bg-primary-100 rounded-md p-3">
-                  <svg class="h-6 w-6 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div class="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt class="text-sm font-medium text-gray-500 truncate">Total Value</dt>
-                    <dd class="text-lg font-medium text-gray-900">${totalQuotationAmount.toFixed(2)}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-white overflow-hidden shadow rounded-lg">
-            <div class="px-4 py-5 sm:p-6">
-              <div class="flex items-center">
-                <div class="flex-shrink-0 bg-green-100 rounded-md p-3">
-                  <svg class="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div class="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt class="text-sm font-medium text-gray-500 truncate">Approved</dt>
-                    <dd class="text-lg font-medium text-gray-900">
-                      {(quotations || []).filter(quotation => 
-                        quotation.status === 'accepted' || quotation.status === 'approved'
-                      ).length}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-white overflow-hidden shadow rounded-lg">
-            <div class="px-4 py-5 sm:p-6">
-              <div class="flex items-center">
-                <div class="flex-shrink-0 bg-yellow-100 rounded-md p-3">
-                  <svg class="h-6 w-6 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div class="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt class="text-sm font-medium text-gray-500 truncate">Pending</dt>
-                    <dd class="text-lg font-medium text-gray-900">
-                      {(quotations || []).filter(quotation => 
-                        quotation.status === 'draft' || quotation.status === 'pending'
-                      ).length}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 

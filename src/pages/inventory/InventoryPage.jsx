@@ -10,6 +10,13 @@ import { getFromStorage, storeInStorage } from '../../utils/localStorageHelpers'
 import { getItemStatus } from '../../utils/lowStockHelpers';
 import { createInventoryHistoryRecord, saveInventoryHistory } from '../../utils/inventoryHistoryHelpers';
 import { useConfirmModal } from '../../contexts/ModalContext';
+import { 
+  getInventoryItems, 
+  invalidateInventoryCache, 
+  updateInventoryItemInCache, 
+  addInventoryItemToCache, 
+  removeInventoryItemFromCache 
+} from '../../utils/inventoryCache';
 
 const InventoryPage = () => {
   // Get user data from auth context
@@ -41,57 +48,35 @@ const InventoryPage = () => {
   const [pagination, setPagination] = useState({});
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   
-  // Fetch ALL inventory items for client-side search
-  const fetchAllItems = async (useCache = true) => {
+  // Fetch ALL inventory items using the new cache system
+  const fetchAllItems = async (forceRefresh = false) => {
     if (loading) return; // Prevent multiple simultaneous requests
     
     setLoading(true);
     setError(null);
     
     try {
-      // Check cache first if useCache is true
-      if (useCache) {
-        const storedInventory = getFromStorage('allInventory');
-        
-        if (storedInventory && Array.isArray(storedInventory) && storedInventory.length > 0) {
-          // Add status field based on quantity and unit using new low stock logic
-          const itemsWithStatus = storedInventory.map(item => {
-            const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
-            return { ...item, status };
-          });
-          
-          setAllItems(itemsWithStatus);
-          setTotalItems(itemsWithStatus.length);
-          setLoading(false);
-          return;
-        }
-      }
+      // Use the new inventory cache system
+      const cachedInventory = await getInventoryItems(forceRefresh);
       
-      // Fetch ALL items from API (no pagination)
-      const inventoryResponse = await api.inventory.getAll({ 
-        limit: 10000, // Large limit to get all items
-        sort: 'name' // Default sort by name
-      });
-      
-      if (inventoryResponse && inventoryResponse.success) {
+      if (cachedInventory && Array.isArray(cachedInventory)) {
         // Add status field based on quantity and unit using new low stock logic
-        const itemsWithStatus = (inventoryResponse.data || []).map(item => {
+        const itemsWithStatus = cachedInventory.map(item => {
           const status = getItemStatus(item.quantity || 0, item.unit || 'pcs');
           return { ...item, status };
         });
         
         setAllItems(itemsWithStatus);
         setTotalItems(itemsWithStatus.length);
-        
-        // Store ALL items in local storage for fast searching
-        storeInStorage('allInventory', inventoryResponse.data || []);
       } else {
-        throw new Error(inventoryResponse?.message || 'Failed to fetch inventory items');
+        setAllItems([]);
+        setTotalItems(0);
       }
     } catch (err) {
       console.error('Error fetching inventory data:', err);
       setError(err.message || 'Failed to load inventory data. Please try again.');
       setAllItems([]);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
@@ -376,9 +361,9 @@ const InventoryPage = () => {
               <button 
                 class="btn btn-outline flex items-center text-xs sm:text-sm px-2 py-1.5 sm:px-3 sm:py-2"
                 onClick={() => {
-                  // Clear local storage and refetch from API
-                  localStorage.removeItem('allInventory');
-                  fetchAllItems(false);
+                  // Invalidate cache and refetch from API
+                  invalidateInventoryCache();
+                  fetchAllItems(true);
                 }}
                 disabled={loading}
               >
@@ -647,15 +632,14 @@ const InventoryPage = () => {
                                       const response = await api.inventory.delete(item._id);
                                       
                                       if (response && response.success) {
+                                        // Remove item from cache
+                                        removeInventoryItemFromCache(item._id);
+                                        
                                         // Remove item from allItems state immediately
                                         setAllItems(prev => prev.filter(i => i._id !== item._id));
                                         
                                         // Update total count
                                         setTotalItems(prev => prev - 1);
-                                        
-                                        // Update local storage
-                                        const updatedItems = allItems.filter(i => i._id !== item._id);
-                                        storeInStorage('allInventory', updatedItems);
                                         
                                         setError(null);
                                       } else {
@@ -850,6 +834,13 @@ const InventoryPage = () => {
                   status: getItemStatus(response.data.quantity || 0, response.data.unit || 'pcs') 
                 };
                 
+                // Update cache
+                if (currentItem) {
+                  updateInventoryItemInCache(currentItem._id, response.data);
+                } else {
+                  addInventoryItemToCache(response.data);
+                }
+                
                 // Update allItems state (which is used for display)
                 if (currentItem) {
                   // Update existing item in the list
@@ -862,12 +853,6 @@ const InventoryPage = () => {
                   // Update total count
                   setTotalItems(prev => prev + 1);
                 }
-                
-                // Update local storage
-                const updatedItems = currentItem 
-                  ? allItems.map(item => item._id === currentItem._id ? response.data : item)
-                  : [response.data, ...allItems];
-                storeInStorage('allInventory', updatedItems);
                 
                 setIsFormOpen(false);
                 setCurrentItem(null);

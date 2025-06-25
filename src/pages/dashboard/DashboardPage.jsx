@@ -2,6 +2,7 @@ import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { getDashboardData } from '../../utils/dashboardCache';
 
 const DashboardPage = () => {
   // Get user data from auth context
@@ -43,106 +44,93 @@ const DashboardPage = () => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
+        setError(null);
         
-        try {
-          // Fetch dashboard summary
-          const summaryResponse = await api.dashboard.getSummary();
+        // Use cached dashboard data
+        const cachedData = await getDashboardData();
+        
+        // Get change percentages from API or use zeros if not available
+        const changes = cachedData.summary.changes || {
+          sales: '0%',
+          quotations: '0%',
+          inventory: '0%',
+          customers: '0%'
+        };
+
+        // Format stats data
+        const stats = [
+          { 
+            name: 'Total Sales', 
+            value: formatCurrency(cachedData.summary.sales?.total || 0), 
+            change: changes.sales, 
+            changeType: changes.sales.startsWith('+') ? 'increase' : 
+                       changes.sales.startsWith('-') ? 'decrease' : 'neutral'
+          },
+          { 
+            name: 'Pending Orders', 
+            value: (cachedData.summary.counts?.quotations || 0).toString(), 
+            change: changes.quotations, 
+            changeType: changes.quotations.startsWith('+') ? 'increase' : 
+                       changes.quotations.startsWith('-') ? 'decrease' : 'neutral'
+          },
+          { 
+            name: 'Inventory Items', 
+            value: (cachedData.summary.counts?.inventory || 0).toString(), 
+            change: changes.inventory, 
+            changeType: changes.inventory.startsWith('+') ? 'increase' : 
+                       changes.inventory.startsWith('-') ? 'decrease' : 'neutral'
+          },
+          { 
+            name: 'Active Customers', 
+            value: (cachedData.summary.counts?.customers || 0).toString(), 
+            change: changes.customers, 
+            changeType: changes.customers.startsWith('+') ? 'increase' : 
+                       changes.customers.startsWith('-') ? 'decrease' : 'neutral'
+          },
+        ];
+
+        // Format the sales data to ensure it has the right structure
+        const formattedSales = cachedData.recentSales.map(sale => {
+          // Format the ID to be more user-friendly (remove ObjectId format)
+          let formattedId = sale._id;
+          if (formattedId && formattedId.length > 8) {
+            // If it's a MongoDB ObjectId, use the last 8 characters
+            formattedId = `S-${formattedId.substring(formattedId.length - 8)}`;
+          }
           
-          // Fetch recent sales
-          const recentSalesResponse = await api.dashboard.getRecentSales();
-          
-          // Fetch top selling items
-          const topSellingResponse = await api.dashboard.getTopSellingItems();
-          
-          // Get change percentages from API or use zeros if not available
-          const changes = summaryResponse.data.changes || {
-            sales: '0%',
-            quotations: '0%',
-            inventory: '0%',
-            customers: '0%'
+          return {
+            id: formattedId,
+            customer: sale.customer,
+            total: sale.total,
+            status: sale.status,
+            createdAt: sale.createdAt
           };
+        });
 
-          // Format stats data
-          const stats = [
-            { 
-              name: 'Total Sales', 
-              value: formatCurrency(summaryResponse.data.sales?.total || 0), 
-              change: changes.sales, 
-              changeType: changes.sales.startsWith('+') ? 'increase' : 
-                         changes.sales.startsWith('-') ? 'decrease' : 'neutral'
-            },
-            { 
-              name: 'Pending Orders', 
-              value: (summaryResponse.data.counts?.quotations || 0).toString(), 
-              change: changes.quotations, 
-              changeType: changes.quotations.startsWith('+') ? 'increase' : 
-                         changes.quotations.startsWith('-') ? 'decrease' : 'neutral'
-            },
-            { 
-              name: 'Inventory Items', 
-              value: (summaryResponse.data.counts?.inventory || 0).toString(), 
-              change: changes.inventory, 
-              changeType: changes.inventory.startsWith('+') ? 'increase' : 
-                         changes.inventory.startsWith('-') ? 'decrease' : 'neutral'
-            },
-            { 
-              name: 'Active Customers', 
-              value: (summaryResponse.data.counts?.customers || 0).toString(), 
-              change: changes.customers, 
-              changeType: changes.customers.startsWith('+') ? 'increase' : 
-                         changes.customers.startsWith('-') ? 'decrease' : 'neutral'
-            },
-          ];
+        // Format the top selling items to ensure they have the right structure
+        const formattedTopSellingItems = cachedData.topSellingItems.map(item => {
+          return {
+            id: item._id,
+            name: item.name,
+            itemCode: item.itemCode,
+            currentStock: item.currentStock,
+            totalQuantitySold: item.totalQuantitySold,
+            totalRevenue: item.totalRevenue,
+            salesCount: item.salesCount
+          };
+        });
 
-          // Format the sales data to ensure it has the right structure
-          const formattedSales = recentSalesResponse.data.map(sale => {
-            // Format the ID to be more user-friendly (remove ObjectId format)
-            let formattedId = sale._id;
-            if (formattedId && formattedId.length > 8) {
-              // If it's a MongoDB ObjectId, use the last 8 characters
-              formattedId = `S-${formattedId.substring(formattedId.length - 8)}`;
-            }
-            
-            return {
-              id: formattedId,
-              customer: sale.customer,
-              total: sale.total,
-              status: sale.status,
-              createdAt: sale.createdAt
-            };
-          });
-
-          // Format the top selling items to ensure they have the right structure
-          const formattedTopSellingItems = topSellingResponse.data.map(item => {
-            return {
-              id: item._id,
-              name: item.name,
-              itemCode: item.itemCode,
-              currentStock: item.currentStock,
-              totalQuantitySold: item.totalQuantitySold,
-              totalRevenue: item.totalRevenue,
-              salesCount: item.salesCount
-            };
-          });
-
-          setDashboardData({
-            stats,
-            recentSales: formattedSales,
-            topSellingItems: formattedTopSellingItems
-          });
-          
-          console.log('Dashboard data loaded from API successfully');
-        } catch (apiError) {
-          console.error('Error fetching dashboard data from API:', apiError);
-          
-          // Set a user-friendly error message
-          setError('Failed to load dashboard data. Please check your connection and try again.');
-        }
+        setDashboardData({
+          stats,
+          recentSales: formattedSales,
+          topSellingItems: formattedTopSellingItems
+        });
         
-        setLoading(false);
+        console.log('Dashboard data loaded from cache successfully');
       } catch (err) {
-        console.error('Error in dashboard data loading:', err);
+        console.error('Error loading dashboard data:', err);
         setError('Failed to load dashboard data. Please check your connection and try again.');
+      } finally {
         setLoading(false);
       }
     };

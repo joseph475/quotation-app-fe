@@ -98,14 +98,16 @@ const useDataLoader = (key, fetchFunction, options = {}) => {
     }
   }, [key, fetchFunction, isCacheStale]);
 
-  // Refresh data with throttling
+  // Refresh data with aggressive throttling
   const refresh = useCallback(() => {
     const now = Date.now();
     const timeSinceLastUpdate = now - lastUpdateRef.current;
     
-    // Throttle refresh calls to prevent excessive updates (minimum 1 second between calls)
-    if (timeSinceLastUpdate < 1000) {
-      console.log(`Throttling refresh for ${key}, last update was ${timeSinceLastUpdate}ms ago`);
+    // Balanced throttle: minimum 1 second between calls for quotations (reduced for better real-time feel)
+    const minInterval = key.includes('quotations') ? 1000 : 1000;
+    
+    if (timeSinceLastUpdate < minInterval) {
+      console.log(`Throttling refresh for ${key}, last update was ${timeSinceLastUpdate}ms ago (min: ${minInterval}ms)`);
       
       // Clear existing timeout and set a new one
       if (updateThrottleRef.current) {
@@ -116,7 +118,7 @@ const useDataLoader = (key, fetchFunction, options = {}) => {
         updateThrottleRef.current = setTimeout(() => {
           lastUpdateRef.current = Date.now();
           resolve(loadData(true));
-        }, 1000 - timeSinceLastUpdate);
+        }, minInterval - timeSinceLastUpdate);
       });
     }
     
