@@ -123,20 +123,31 @@ export const NotificationProvider = ({ children }) => {
         
         console.log('Creating notification for admin, creator name:', creatorName);
         
-        // Check if we already processed this quotation to prevent duplicates
+        // Enhanced deduplication with timestamp and localStorage backup
         const quotationId = data.quotationId || data._id || data.id;
-        const processKey = `quotation_created_${quotationId}`;
+        const timestamp = data.timestamp || new Date().toISOString();
+        const processKey = `quotation_created_${quotationId}_${timestamp}`;
         
-        if (processedQuotations.current.has(processKey)) {
-          console.log('Duplicate notification prevented for quotation:', quotationId);
+        // Check both in-memory and localStorage for duplicates
+        const storageKey = `processed_notifications_${userId}`;
+        const storedProcessed = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const allProcessed = new Set([...processedQuotations.current, ...storedProcessed]);
+        
+        if (allProcessed.has(processKey)) {
+          console.log('Duplicate notification prevented for quotation:', quotationId, 'timestamp:', timestamp);
           return;
         }
         
-        // Mark this quotation as processed
+        // Mark this quotation as processed in both memory and storage
         processedQuotations.current.add(processKey);
+        storedProcessed.push(processKey);
+        
+        // Keep only last 100 processed items to prevent storage bloat
+        const recentProcessed = storedProcessed.slice(-100);
+        localStorage.setItem(storageKey, JSON.stringify(recentProcessed));
         
         const newNotification = {
-          id: Date.now() + Math.random(),
+          id: `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
           timestamp: new Date(),
           read: false,
           type: 'quotation_created',
@@ -147,6 +158,18 @@ export const NotificationProvider = ({ children }) => {
         };
 
         setNotifications(prev => {
+          // Additional check to prevent duplicate notifications in state
+          const existingNotification = prev.find(n => 
+            n.type === 'quotation_created' && 
+            n.data?.quotationId === quotationId &&
+            Math.abs(new Date(n.timestamp) - new Date()) < 5000 // Within 5 seconds
+          );
+          
+          if (existingNotification) {
+            console.log('Duplicate notification found in state, skipping');
+            return prev;
+          }
+          
           console.log('Adding notification to list, current count:', prev.length);
           return [newNotification, ...prev];
         });
@@ -183,17 +206,28 @@ export const NotificationProvider = ({ children }) => {
         if (currentUserId === quotationCreatorId) {
           console.log('User is the creator of this quotation');
           
-          // Check for duplicate status change notifications
+          // Enhanced deduplication for status changes
           const quotationId = quotation._id || quotation.id;
-          const statusProcessKey = `quotation_status_${quotationId}_${newStatus}`;
+          const timestamp = data.timestamp || new Date().toISOString();
+          const statusProcessKey = `quotation_status_${quotationId}_${newStatus}_${timestamp}`;
           
-          if (processedQuotations.current.has(statusProcessKey)) {
-            console.log('Duplicate status notification prevented for quotation:', quotationId, 'status:', newStatus);
+          // Check both in-memory and localStorage for duplicates
+          const storageKey = `processed_notifications_${userId}`;
+          const storedProcessed = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          const allProcessed = new Set([...processedQuotations.current, ...storedProcessed]);
+          
+          if (allProcessed.has(statusProcessKey)) {
+            console.log('Duplicate status notification prevented for quotation:', quotationId, 'status:', newStatus, 'timestamp:', timestamp);
             return;
           }
           
           // Mark this status change as processed
           processedQuotations.current.add(statusProcessKey);
+          storedProcessed.push(statusProcessKey);
+          
+          // Keep only last 100 processed items
+          const recentProcessed = storedProcessed.slice(-100);
+          localStorage.setItem(storageKey, JSON.stringify(recentProcessed));
           
           const statusMessages = {
             'pending': 'Your order is pending review',
@@ -206,7 +240,7 @@ export const NotificationProvider = ({ children }) => {
             console.log('Creating status notification for user:', statusMessages[newStatus]);
             
             const newNotification = {
-              id: Date.now() + Math.random(),
+              id: `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
               timestamp: new Date(),
               read: false,
               type: 'quotation_status_update',
@@ -217,6 +251,19 @@ export const NotificationProvider = ({ children }) => {
             };
 
             setNotifications(prev => {
+              // Additional check to prevent duplicate notifications in state
+              const existingNotification = prev.find(n => 
+                n.type === 'quotation_status_update' && 
+                n.data?._id === quotationId &&
+                n.message === statusMessages[newStatus] &&
+                Math.abs(new Date(n.timestamp) - new Date()) < 5000 // Within 5 seconds
+              );
+              
+              if (existingNotification) {
+                console.log('Duplicate status notification found in state, skipping');
+                return prev;
+              }
+              
               console.log('Adding status notification to list');
               return [newNotification, ...prev];
             });
@@ -238,7 +285,7 @@ export const NotificationProvider = ({ children }) => {
       unsubscribeCreated();
       unsubscribeStatusChanged();
     };
-  }, [user, userRole, userId]); // Simplified dependencies
+  }, [user?.id || user?._id, user?.role]); // More stable dependencies
 
   // Load notifications from localStorage on mount
   useEffect(() => {

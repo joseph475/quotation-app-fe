@@ -1526,7 +1526,7 @@ const QuotationsPage = () => {
                             {item.description}
                           </h4>
                           <span className="text-xs font-semibold text-gray-900">
-                            ${parseFloat(item.total).toFixed(2)}
+                            ₱{parseFloat(item.total).toFixed(2)}
                           </span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
@@ -1536,7 +1536,7 @@ const QuotationsPage = () => {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">Unit Price:</span>
-                            <span className="text-gray-900">${parseFloat(item.unitPrice).toFixed(2)}</span>
+                            <span className="text-gray-900">₱{parseFloat(item.unitPrice).toFixed(2)}</span>
                           </div>
                         </div>
                         {item.notes && (
@@ -1553,7 +1553,7 @@ const QuotationsPage = () => {
                     <div className="bg-primary-50 rounded-lg p-3 border border-primary-200">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-primary-900">Total:</span>
-                        <span className="text-lg font-bold text-primary-900">${(selectedQuotation.total || 0).toFixed(2)}</span>
+                        <span className="text-lg font-bold text-primary-900">₱{(selectedQuotation.total || 0).toFixed(2)}</span>
                       </div>
                     </div>
                   </div>

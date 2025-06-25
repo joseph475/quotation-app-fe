@@ -19,6 +19,8 @@ class RealTimeSync {
     this.isConnected = false;
     this.heartbeatInterval = null;
     this.connectionId = null;
+    this.isConnecting = false; // Prevent multiple simultaneous connections
+    this.lastEventTimestamps = new Map(); // Track event timestamps for deduplication
   }
 
   /**
@@ -28,9 +30,22 @@ class RealTimeSync {
     // Enable WebSocket in both development and production
     const isProduction = process.env.NODE_ENV === 'production';
 
+    // Prevent multiple simultaneous connections
+    if (this.isConnecting) {
+      console.log('WebSocket connection already in progress');
+      return;
+    }
+
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       console.log('WebSocket already connected');
       return;
+    }
+
+    // Close any existing connection before creating a new one
+    if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
+      console.log('Closing existing WebSocket connection before reconnecting');
+      this.ws.close();
+      this.ws = null;
     }
 
     const token = getAuthToken();
@@ -38,6 +53,8 @@ class RealTimeSync {
       console.log('No auth token available, skipping WebSocket connection');
       return;
     }
+
+    this.isConnecting = true;
 
     try {
       // Use appropriate WebSocket URL based on environment
@@ -74,6 +91,7 @@ class RealTimeSync {
       
     } catch (error) {
       console.error('Error creating WebSocket connection:', error);
+      this.isConnecting = false;
       this.scheduleReconnect();
     }
   }
@@ -84,6 +102,7 @@ class RealTimeSync {
   handleOpen(event) {
     console.log('WebSocket connected successfully');
     this.isConnected = true;
+    this.isConnecting = false; // Reset connecting flag
     this.reconnectAttempts = 0;
     this.reconnectDelay = 1000;
     
@@ -134,6 +153,7 @@ class RealTimeSync {
   handleClose(event) {
     console.log('WebSocket connection closed:', event.code, event.reason);
     this.isConnected = false;
+    this.isConnecting = false; // Reset connecting flag
     this.stopHeartbeat();
     
     // Notify listeners about disconnection
@@ -151,6 +171,7 @@ class RealTimeSync {
   handleError(error) {
     console.log('WebSocket not available, will use polling fallback');
     this.isConnected = false;
+    this.isConnecting = false; // Reset connecting flag
     this.notifyListeners('connection', { status: 'polling_fallback' });
   }
 
