@@ -25,13 +25,8 @@ class RealTimeSync {
    * Initialize WebSocket connection
    */
   connect() {
-    // Only enable WebSocket in development environment
+    // Enable WebSocket in both development and production
     const isProduction = process.env.NODE_ENV === 'production';
-    
-    if (isProduction) {
-      console.log('WebSocket disabled in production environment');
-      return;
-    }
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       console.log('WebSocket already connected');
@@ -48,9 +43,18 @@ class RealTimeSync {
       // Use appropriate WebSocket URL based on environment
       let wsUrl;
       if (isProduction) {
-        // In production, use the same host as the current page but with /ws path
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+        // In production, use the Railway backend URL
+        // Get the API URL and replace http/https with ws/wss
+        const apiUrl = process.env.REACT_APP_API_URL || '';
+        if (apiUrl) {
+          // Extract the base URL from API URL (remove /api/v1)
+          const baseUrl = apiUrl.replace('/api/v1', '');
+          wsUrl = baseUrl.replace(/^https?:/, baseUrl.startsWith('https:') ? 'wss:' : 'ws:') + '/ws';
+        } else {
+          // Fallback: use current host with wss
+          const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+        }
       } else {
         // For local development, try to use the same host as the current page
         // This allows WebSocket to work when accessing from mobile devices
