@@ -1,8 +1,14 @@
+[phases.setup]
+nixPkgs = ["nodejs", "npm"]
+
+[phases.install]
+cmds = ["npm ci"]
+
 [phases.build]
-cmds = ["npm install", "npm run build"]
+cmds = ["npm run build"]
 
 [phases.start]
-cmd = "npx http-server dist -p $PORT -a 0.0.0.0 --cors -c-1"
+cmd = "npm start"
 
 [variables]
 NODE_ENV = "production"
