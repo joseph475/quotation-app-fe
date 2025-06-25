@@ -1,10 +1,13 @@
 services:
   - type: web
-    name: quotation-app-fe
+    name: quotation-app-fe-node
     runtime: node
-    buildCommand: npm ci && npm run build && node verify-deployment.js
+    region: oregon
+    plan: free
+    buildCommand: npm ci && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
     healthCheckPath: /health
+    autoDeploy: true
