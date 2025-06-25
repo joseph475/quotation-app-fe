@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Simple PWA Icon</title>
+</head>
+<body>
+    <h2>Creating PWA Icon...</h2>
+    <canvas id="canvas" width="192" height="192" style="border: 1px solid #ccc;"></canvas>
+    <br><br>
+    <button onclick="downloadIcon()">Download Icon</button>
+    
+    <script>
+        // Create a simple icon
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Fill with blue background
+        ctx.fillStyle = '#2563eb';
+        ctx.fillRect(0, 0, 192, 192);
+        
+        // Add white circle
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(96, 96, 60, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Add text
+        ctx.fillStyle = '#2563eb';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('OA', 96, 105);
+        
+        function downloadIcon() {
+            const link = document.createElement('a');
+            link.download = 'icon-192x192.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Auto download
+        setTimeout(downloadIcon, 1000);
+    </script>
+</body>
+</html>
