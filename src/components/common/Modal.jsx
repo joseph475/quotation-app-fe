@@ -85,10 +85,10 @@ const Modal = ({
       <div class="hidden sm:block fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity modal-overlay" aria-hidden="true"></div>
       
       {/* Mobile: Full screen layout */}
-      <div class="sm:hidden fixed inset-0 flex flex-col">
+      <div class="sm:hidden fixed inset-0 flex flex-col bg-white z-50" style="touch-action: none;">
         <div
           ref={modalRef}
-          class="bg-white w-full h-full flex flex-col overflow-hidden"
+          class="w-full h-full flex flex-col overflow-hidden"
           {...rest}
         >
           {/* Modal header */}
@@ -112,8 +112,8 @@ const Modal = ({
             </div>
           )}
           
-          {/* Modal body */}
-          <div class="flex-1 overflow-y-auto px-4 py-4">
+          {/* Modal body - with proper touch scrolling and padding for fixed footer */}
+          <div class="flex-1 overflow-y-auto px-4 py-4 pb-20" style="-webkit-overflow-scrolling: touch; overscroll-behavior: contain;">
             {children}
           </div>
           
