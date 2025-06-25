@@ -15,7 +15,7 @@ const getApiBaseUrl = () => {
   }
   
   if (process.env.NODE_ENV === 'production') {
-    return 'https://quotation-backend-api.vercel.app/api/v1';
+    return 'https://quotation-app-be.onrender.com/api/v1/api/v1';
   }
   
   // For local development, use the same host as the current page
