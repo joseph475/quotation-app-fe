@@ -562,7 +562,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                       />
                       {currentItem.description && (
                         <div className="absolute inset-y-0 right-0 pr-2 sm:pr-3 flex items-center">
-                          <span className="text-xs sm:text-sm text-primary-600 bg-primary-50 px-1 sm:px-2 py-1 rounded-full">
+                          <span className="text-xs sm:text-sm text-black font-medium">
                             {currentItem.description}
                           </span>
                         </div>
@@ -606,13 +606,14 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                     type="button"
                     onClick={addItem}
                     disabled={!currentItem.inventory || !currentItem.unitPrice}
-                    className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 border border-transparent py-1.5 text-xs sm:py-2 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    style="padding-left: 8px; padding-right: 8px; white-space: nowrap; min-width: 40px;"
+                    className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg transform hover:scale-105 focus:ring-primary-500 border border-transparent py-2 px-4 text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-md"
+                    style="white-space: nowrap; min-width: 60px;"
                   >
-                    <svg className="h-3 w-3 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    <svg className="h-5 w-5 sm:h-6 sm:w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 1.5M7 13l-1.5-1.5M17 21a2 2 0 100-4 2 2 0 000 4zM9 21a2 2 0 100-4 2 2 0 000 4z" />
                     </svg>
-                    <span className="hidden sm:inline ml-1">Add</span>
+                    <span className="hidden sm:inline ml-2">Add to Cart</span>
+                    <span className="sm:hidden ml-1">Add</span>
                   </button>
                 </div>
               </div>
@@ -1120,7 +1121,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                     <input
                       type="text"
                       id="inventorySearchMobile"
-                      placeholder={currentItem.description || "Search..."}
+                      placeholder={currentItem.description ? "" : "Search..."}
                       value={inventorySearch}
                       onInput={handleInventorySearch}
                       className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-1.5 px-2 text-xs pl-8 ${itemErrors.inventory ? 'border-red-300' : ''}`}
@@ -1134,6 +1135,13 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                         setShowInventoryResults(true);
                       }}
                     />
+                    {currentItem.description && (
+                      <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
+                        <span className="text-xs text-black font-medium">
+                          {currentItem.description}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   
                   {/* Search Results - Mobile */}
@@ -1173,11 +1181,11 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                     type="button"
                     onClick={addItem}
                     disabled={!currentItem.inventory || !currentItem.unitPrice}
-                    className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 border border-transparent py-1.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                    style="padding-left: 8px; padding-right: 8px; white-space: nowrap; min-width: 40px;"
+                    className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg transform hover:scale-105 focus:ring-primary-500 border border-transparent py-1.5 px-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-md"
+                    style="white-space: nowrap; min-width: 38px; height: 38px;"
                   >
-                    <svg className="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 1.5M7 13l-1.5-1.5M17 21a2 2 0 100-4 2 2 0 000 4zM9 21a2 2 0 100-4 2 2 0 000 4z" />
                     </svg>
                   </button>
                 </div>
@@ -1247,9 +1255,9 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                                   const newQty = Math.max(1, parseFloat(item.editingQuantity) - 1);
                                   handleEditingItemChange(item.id, 'quantity', newQty.toString());
                                 }}
-                                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                                className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
                               >
-                                <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
                                 </svg>
                               </button>
@@ -1268,9 +1276,9 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                                   const newQty = parseFloat(item.editingQuantity) + 1;
                                   handleEditingItemChange(item.id, 'quantity', newQty.toString());
                                 }}
-                                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                                className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
                               >
-                                <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                 </svg>
                               </button>

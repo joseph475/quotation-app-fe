@@ -232,6 +232,19 @@ const QuotationsPage = () => {
     loading,
     error
   });
+
+  // Debug selectedQuotation when it changes
+  useEffect(() => {
+    if (selectedQuotation) {
+      console.log('Selected Quotation Debug:', {
+        selectedQuotation,
+        assignedDelivery: selectedQuotation.assignedDelivery,
+        assignedDeliveryType: typeof selectedQuotation.assignedDelivery,
+        deliveryUsers,
+        deliveryUsersLength: deliveryUsers?.length
+      });
+    }
+  }, [selectedQuotation, deliveryUsers]);
   
   // Get modal contexts
   const { showConfirm, showDeleteConfirm } = useConfirmModal();
@@ -1619,36 +1632,19 @@ const QuotationsPage = () => {
                           </div>
                         )}
                         
-                        {/* Contact Phone - Try multiple possible field names and also lookup from deliveryUsers */}
-                        {(() => {
-                          const driverPhone = selectedQuotation.assignedDelivery?.phone || 
-                            selectedQuotation.assignedDelivery?.phoneNumber ||
-                            selectedQuotation.assignedDelivery?.contactPhone ||
-                            (typeof selectedQuotation.assignedDelivery === 'string' 
-                              ? deliveryUsers.find(user => user._id === selectedQuotation.assignedDelivery)?.phone ||
-                                deliveryUsers.find(user => user._id === selectedQuotation.assignedDelivery)?.phoneNumber ||
-                                deliveryUsers.find(user => user._id === selectedQuotation.assignedDelivery)?.contactPhone
-                              : null);
-                          
-                          return driverPhone ? (
-                            <div className="flex justify-between items-center">
-                              <dt className="text-sm font-medium text-gray-500">Contact Phone</dt>
-                              <dd className="text-sm text-gray-900">
-                                <a 
-                                  href={`tel:${driverPhone}`}
-                                  className="text-primary-600 hover:text-primary-500"
-                                >
-                                  {driverPhone}
-                                </a>
-                              </dd>
-                            </div>
-                          ) : (
-                            <div className="flex justify-between items-center">
-                              <dt className="text-sm font-medium text-gray-500">Contact Phone</dt>
-                              <dd className="text-sm text-gray-500">Not available</dd>
-                            </div>
-                          );
-                        })()}
+                        {selectedQuotation.assignedDelivery?.phone && (
+                          <div className="flex justify-between items-center">
+                            <dt className="text-sm font-medium text-gray-500">Contact Phone</dt>
+                            <dd className="text-sm text-gray-900">
+                              <a 
+                                href={`tel:${selectedQuotation.assignedDelivery.phone}`}
+                                className="text-primary-600 hover:text-primary-500"
+                              >
+                                {selectedQuotation.assignedDelivery.phone}
+                              </a>
+                            </dd>
+                          </div>
+                        )}
                         
                         <div className="flex justify-between items-center">
                           <dt className="text-sm font-medium text-gray-500">Assignment Date</dt>
