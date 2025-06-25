@@ -1,6 +1,24 @@
 import { h } from 'preact';
 import { useState, useEffect, useRef } from 'preact/hooks';
 
+// Hook to detect mobile devices
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  return isMobile;
+};
+
 /**
  * SearchableSelect component for searchable dropdown selections
  * 
@@ -58,6 +76,9 @@ const SearchableSelect = ({
   
   // Ref for the dropdown container
   const dropdownRef = useRef(null);
+  
+  // Check if mobile
+  const isMobile = useIsMobile();
   
   // Base classes
   const baseInputClasses = 'block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm';
@@ -228,7 +249,7 @@ const SearchableSelect = ({
           
           {/* Input element */}
           <div
-            class={`${inputClasses} py-2 px-4 flex items-center justify-between cursor-pointer transition-all duration-200 ${isOpen ? 'ring-2 ring-primary-500 ring-opacity-70' : 'hover:bg-gray-50'}`}
+            class={`${inputClasses} py-3 px-4 flex items-center justify-between cursor-pointer transition-all duration-200 min-h-[44px] ${isOpen ? 'ring-2 ring-primary-500 ring-opacity-70' : 'hover:bg-gray-50'}`}
             onClick={handleInputClick}
             role="button"
             tabIndex="0"
@@ -249,79 +270,86 @@ const SearchableSelect = ({
         
         {/* Dropdown */}
         {isOpen && (
-          <div class="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 overflow-hidden">
-            {/* Search Input */}
-            <div class="p-2 border-b border-gray-200">
-              <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
-                  </svg>
+          <>
+            {/* Mobile backdrop */}
+            {isMobile && (
+              <div class="mobile-dropdown-backdrop" onClick={() => setIsOpen(false)} />
+            )}
+            
+            <div class={`${isMobile ? 'mobile-dropdown' : 'absolute z-10 mt-1 w-full'} bg-white shadow-lg rounded-md border border-gray-200 overflow-hidden`}>
+              {/* Search Input */}
+              <div class="p-2 border-b border-gray-200">
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    placeholder={searchPlaceholder}
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    onKeyDown={handleSearchKeyDown}
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                  />
                 </div>
-                <input
-                  type="text"
-                  class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  placeholder={searchPlaceholder}
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                  onKeyDown={handleSearchKeyDown}
-                  onClick={(e) => e.stopPropagation()}
-                  autoFocus
-                />
+              </div>
+              
+              {/* Options List */}
+              <div class="max-h-60 overflow-y-auto">
+                {filteredOptions.length > 0 ? (
+                  <ul class="py-1" role="listbox">
+                    {filteredOptions.map((option, index) => {
+                      const optionValue = typeof option === 'object' ? option[optionValueKey] : option;
+                      const optionLabel = typeof option === 'object' ? option[optionLabelKey] : option;
+                      
+                      return (
+                        <li
+                          key={optionValue || index}
+                          class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center justify-between"
+                          role="option"
+                          aria-selected={value === optionValue}
+                          onClick={() => handleOptionSelect(option)}
+                        >
+                          <span class="block truncate">{optionLabel}</span>
+                          {value === optionValue && (
+                            <svg class="h-5 w-5 text-primary-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                            </svg>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <div class="px-4 py-3 text-sm text-gray-500">
+                    {allowCustomValues ? (
+                      <div>
+                        <p>{noOptionsMessage}</p>
+                        {searchTerm && (
+                          <button
+                            type="button"
+                            class="mt-2 w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                            onClick={handleCustomValueSubmit}
+                          >
+                            <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                            </svg>
+                            Add "{searchTerm}"
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      noOptionsMessage
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-            
-            {/* Options List */}
-            <div class="max-h-60 overflow-y-auto">
-              {filteredOptions.length > 0 ? (
-                <ul class="py-1" role="listbox">
-                  {filteredOptions.map((option, index) => {
-                    const optionValue = typeof option === 'object' ? option[optionValueKey] : option;
-                    const optionLabel = typeof option === 'object' ? option[optionLabelKey] : option;
-                    
-                    return (
-                      <li
-                        key={optionValue || index}
-                        class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center justify-between"
-                        role="option"
-                        aria-selected={value === optionValue}
-                        onClick={() => handleOptionSelect(option)}
-                      >
-                        <span class="block truncate">{optionLabel}</span>
-                        {value === optionValue && (
-                          <svg class="h-5 w-5 text-primary-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                          </svg>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <div class="px-4 py-3 text-sm text-gray-500">
-                  {allowCustomValues ? (
-                    <div>
-                      <p>{noOptionsMessage}</p>
-                      {searchTerm && (
-                        <button
-                          type="button"
-                          class="mt-2 w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                          onClick={handleCustomValueSubmit}
-                        >
-                          <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                          </svg>
-                          Add "{searchTerm}"
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    noOptionsMessage
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+          </>
         )}
       </div>
       

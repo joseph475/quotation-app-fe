@@ -1167,11 +1167,11 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
         </div>
         
         {/* Form Actions */}
-        <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-6">
+        <div className="flex flex-row justify-end space-x-3 mt-6">
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500 px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm w-full sm:w-auto"
+            className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500 px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm flex-1 sm:flex-none sm:w-auto"
           >
             Cancel
           </button>
@@ -1179,7 +1179,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
           <button
             type="submit"
             disabled={isLoading}
-            className={`inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 border border-transparent px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm w-full sm:w-auto ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 border border-transparent px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm flex-1 sm:flex-none sm:w-auto ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {isLoading && (
               <svg className="animate-spin -ml-1 mr-2 h-3 w-3 sm:h-4 sm:w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

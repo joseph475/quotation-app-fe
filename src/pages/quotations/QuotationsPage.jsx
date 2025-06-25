@@ -6,6 +6,7 @@ import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import useRealTimeQuotations from '../../hooks/useRealTimeQuotations';
 import { useConfirmModal, useErrorModal } from '../../contexts/ModalContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { syncAfterQuotationConversion, syncAfterQuotationStatusUpdate } from '../../utils/dataSync';
 import { getCustomerDisplayName } from '../../utils/customerHelpers';
 
@@ -179,9 +180,8 @@ const QuotationsPage = () => {
   // Get current user from auth context
   const { user } = useAuth();
   
-  // Use real-time quotations hook for admin users, regular data loader for others
+  // Use real-time quotations hook for all users to monitor status changes
   const userRole = user?.role || user?.data?.role || 'guest';
-  const isAdmin = userRole === 'admin';
   
   const {
     data: quotations = [],
@@ -197,7 +197,7 @@ const QuotationsPage = () => {
     getDetailedStatus
   } = useRealTimeQuotations({
     cacheTimeout: 2 * 60 * 1000, // 2 minutes cache for quotations
-    enableRealTime: isAdmin, // Only enable real-time for admin users
+    enableRealTime: true, // Enable real-time for all users to monitor status changes
     fallbackToPolling: true,
     pollingInterval: 30000 // 30 seconds polling fallback
   });
@@ -234,6 +234,7 @@ const QuotationsPage = () => {
   // Get modal contexts
   const { showConfirm, showDeleteConfirm } = useConfirmModal();
   const { showError } = useErrorModal();
+  const { addNotification } = useNotifications();
   
   // Handle approving quotation (admin only)
   const handleApproveQuotation = async (quotation) => {
@@ -695,8 +696,8 @@ const QuotationsPage = () => {
         <div class="mb-6">
           <div class="flex items-center justify-between">
             <div>
-              <h1 class="text-2xl font-bold text-gray-900">Quotation Management</h1>
-              <p class="mt-1 text-sm text-gray-500">Create and manage quotations for your customers</p>
+              <h1 class="text-2xl font-bold text-gray-900">Order Management</h1>
+              <p class="mt-1 text-sm text-gray-500">Manage Orders for your customers</p>
             </div>
           </div>
         </div>
@@ -965,7 +966,7 @@ const QuotationsPage = () => {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            <span class="hidden sm:inline">All Quotations</span>
+            <span class="hidden sm:inline">All Orders</span>
             <span class="sm:hidden">All</span>
           </button>
           <button

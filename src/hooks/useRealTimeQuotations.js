@@ -14,8 +14,8 @@ import api from '../services/api';
 const useRealTimeQuotations = (options = {}) => {
   const {
     cacheTimeout = 2 * 60 * 1000, // 2 minutes cache
-    enableRealTime = process.env.NODE_ENV !== 'production', // Enable real-time only in development
-    fallbackToPolling = true, // Enable polling fallback for production
+    enableRealTime = process.env.NODE_ENV === 'development', // Only enable in development
+    fallbackToPolling = false, // Disable polling in production for now
     pollingInterval = 30000 // 30 seconds
   } = options;
 

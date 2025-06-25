@@ -5,6 +5,7 @@ import { getCurrentUrl } from 'preact-router';
 import { useAuth, AuthProvider } from '../contexts/AuthContext';
 import { RoleProtectedRoute } from '../utils/pageHelpers';
 import { ModalProvider } from '../contexts/ModalContext';
+import { NotificationProvider } from '../contexts/NotificationContext';
 import { ApiErrorHandler } from '../services/api';
 
 // Layout Components
@@ -72,7 +73,7 @@ const AppContent = () => {
             />
             <RoleProtectedRoute component={InventoryPage} path="/inventory" allowedRoles={['admin', 'superadmin']} />
             <RoleProtectedRoute component={SalesPage} path="/sales" allowedRoles={['admin']} />
-            <RoleProtectedRoute component={QuotationsPage} path="/quotations" allowedRoles={['admin', 'user', 'delivery']} />
+            <RoleProtectedRoute component={QuotationsPage} path="/orders" allowedRoles={['admin', 'user', 'delivery']} />
             <RoleProtectedRoute component={ProfilePage} path="/profile" allowedRoles={['admin', 'user', 'delivery', 'superadmin']} />
             <RoleProtectedRoute component={UserManagementPage} path="/user-management" allowedRoles={['admin']} />
             <RoleProtectedRoute component={ReportsPage} path="/reports" allowedRoles={['admin', 'superadmin']} />
@@ -97,8 +98,10 @@ const App = () => {
   return (
     <AuthProvider>
       <ModalProvider>
-        <ApiErrorHandler />
-        <AppContent />
+        <NotificationProvider>
+          <ApiErrorHandler />
+          <AppContent />
+        </NotificationProvider>
       </ModalProvider>
     </AuthProvider>
   );

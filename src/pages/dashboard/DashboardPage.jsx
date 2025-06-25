@@ -13,7 +13,7 @@ const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState({
     stats: [
       { name: 'Total Sales', value: '₱0', change: '0%', changeType: 'neutral' },
-      { name: 'Pending Quotations', value: '0', change: '0%', changeType: 'neutral' },
+      { name: 'Pending Orders', value: '0', change: '0%', changeType: 'neutral' },
       { name: 'Inventory Items', value: '0', change: '0%', changeType: 'neutral' },
       { name: 'Active Customers', value: '0', change: '0%', changeType: 'neutral' },
     ],
@@ -72,7 +72,7 @@ const DashboardPage = () => {
                          changes.sales.startsWith('-') ? 'decrease' : 'neutral'
             },
             { 
-              name: 'Pending Quotations', 
+              name: 'Pending Orders', 
               value: (summaryResponse.data.counts?.quotations || 0).toString(), 
               change: changes.quotations, 
               changeType: changes.quotations.startsWith('+') ? 'increase' : 

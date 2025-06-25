@@ -43,8 +43,8 @@ const Select = ({
   // Generate a unique ID if not provided
   const selectId = id || `select-${name || Math.random().toString(36).substring(2, 9)}`;
   
-  // Base classes - removed sm:text-sm to prevent iOS zoom, font size now handled by CSS
-  const baseSelectClasses = 'block w-full rounded-md focus:border-primary-500 focus:ring-2 focus:ring-primary-500 py-2 px-3 appearance-none pr-10';
+  // Base classes - optimized for mobile with better touch targets
+  const baseSelectClasses = 'block w-full rounded-md focus:border-primary-500 focus:ring-2 focus:ring-primary-500 py-3 px-3 appearance-none pr-10 min-h-[44px] leading-tight';
   
   // Variant classes
   const variantClasses = variant === 'outlined' ? 'shadow-sm border-gray-300' : 'border-transparent';

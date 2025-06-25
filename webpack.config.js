@@ -70,7 +70,9 @@ module.exports = {
       directory: path.join(__dirname, 'public'),
     },
     port: 3001,
+    host: '0.0.0.0', // Allow external connections
     hot: true,
     open: true,
+    allowedHosts: 'all', // Allow all hosts for mobile access
   },
 };

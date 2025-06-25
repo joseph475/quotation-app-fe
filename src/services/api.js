@@ -9,10 +9,28 @@ import { deduplicateRequest } from '../utils/requestDeduplication';
 import { getAuthToken } from '../utils/authHelpers';
 
 // Base API URL - connects to our MongoDB backend
-const API_BASE_URL = process.env.REACT_APP_API_URL || 
-  (process.env.NODE_ENV === 'production' 
-    ? 'https://quotation-backend-api.vercel.app/api/v1' 
-    : 'http://localhost:8000/api/v1');
+const getApiBaseUrl = () => {
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://quotation-backend-api.vercel.app/api/v1';
+  }
+  
+  // For local development, use the same host as the current page
+  // This allows API calls to work when accessing from mobile devices
+  if (typeof window !== 'undefined') {
+    const currentHost = window.location.hostname;
+    const protocol = window.location.protocol;
+    return `${protocol}//${currentHost}:8000/api/v1`;
+  }
+  
+  // Fallback for server-side rendering or when window is not available
+  return 'http://localhost:8000/api/v1';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Store error modal context reference
 let errorModalContext = null;

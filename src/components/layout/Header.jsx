@@ -1,9 +1,11 @@
 import { h } from 'preact';
 import { useState } from 'preact/hooks';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 
 const Header = ({ onMenuToggle }) => {
   const { user, logout } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
@@ -15,6 +17,23 @@ const Header = ({ onMenuToggle }) => {
   const toggleNotifications = () => {
     setIsNotificationsOpen(!isNotificationsOpen);
     if (isProfileMenuOpen) setIsProfileMenuOpen(false);
+  };
+
+  const handleNotificationClick = (notification) => {
+    if (!notification.read) {
+      markAsRead(notification.id);
+    }
+  };
+
+  const formatTimeAgo = (timestamp) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInMinutes = Math.floor((now - time) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} hours ago`;
+    return `${Math.floor(diffInMinutes / 1440)} days ago`;
   };
 
   return (
@@ -34,52 +53,95 @@ const Header = ({ onMenuToggle }) => {
             </button>
             
             <div class="flex-shrink-0 flex items-center">
-              <h1 class="text-xl font-bold text-primary-600">Quotation App</h1>
+              <h1 class="text-xl font-bold text-primary-600">Ordering App</h1>
             </div>
           </div>
           
           <div class="flex items-center">
-            {/* Notifications */}
-            <div class="ml-4 relative">
-              <button
-                type="button"
-                class="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                onClick={toggleNotifications}
-              >
-                <span class="sr-only">View notifications</span>
-                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-              </button>
-              
-              {/* Notifications dropdown */}
-              {isNotificationsOpen && (
-                <div class="origin-top-right absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
-                  <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                    <div class="px-4 py-2 border-b border-gray-200">
-                      <h3 class="text-sm font-medium text-gray-900">Notifications</h3>
-                    </div>
-                    <div class="max-h-60 overflow-y-auto">
-                      <div class="px-4 py-3 hover:bg-gray-50 border-b border-gray-100">
-                        <p class="text-sm font-medium text-gray-900">New quotation request</p>
-                        <p class="text-xs text-gray-500">Customer: ABC Corp - 10 minutes ago</p>
+            {/* Notifications - Hidden for delivery users */}
+            {user && user.role !== 'delivery' && (
+              <div class="ml-4 relative">
+                <button
+                  type="button"
+                  class="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 relative"
+                  onClick={toggleNotifications}
+                >
+                  <span class="sr-only">View notifications</span>
+                  <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {/* Notification badge */}
+                  {unreadCount > 0 && (
+                    <span class="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+                
+                {/* Notifications dropdown */}
+                {isNotificationsOpen && (
+                  <div class="origin-top-right absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                      <div class="px-4 py-2 border-b border-gray-200 flex justify-between items-center">
+                        <h3 class="text-sm font-medium text-gray-900">Notifications</h3>
+                        {notifications.length > 0 && (
+                          <button
+                            onClick={markAllAsRead}
+                            class="text-xs text-primary-600 hover:text-primary-800"
+                          >
+                            Mark all read
+                          </button>
+                        )}
                       </div>
-                      <div class="px-4 py-3 hover:bg-gray-50 border-b border-gray-100">
-                        <p class="text-sm font-medium text-gray-900">Low inventory alert</p>
-                        <p class="text-xs text-gray-500">Item: Widget X - 1 hour ago</p>
+                      <div class="max-h-60 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <div class="px-4 py-8 text-center">
+                            <p class="text-sm text-gray-500">No notifications</p>
+                          </div>
+                        ) : (
+                          notifications.slice(0, 10).map((notification, index) => (
+                            <div
+                              key={notification.id}
+                              class={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
+                                index < notifications.length - 1 ? 'border-b border-gray-100' : ''
+                              } ${!notification.read ? 'bg-blue-50' : ''}`}
+                              onClick={() => handleNotificationClick(notification)}
+                            >
+                              <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                  <p class={`text-sm ${!notification.read ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                                    {notification.title}
+                                  </p>
+                                  <p class="text-xs text-gray-500 mt-1">
+                                    {notification.message}
+                                  </p>
+                                  <p class="text-xs text-gray-400 mt-1">
+                                    {formatTimeAgo(notification.timestamp)}
+                                  </p>
+                                </div>
+                                {!notification.read && (
+                                  <div class="w-2 h-2 bg-blue-500 rounded-full ml-2 mt-1"></div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
-                      <div class="px-4 py-3 hover:bg-gray-50">
-                        <p class="text-sm font-medium text-gray-900">Sale completed</p>
-                        <p class="text-xs text-gray-500">Customer: XYZ Ltd - 3 hours ago</p>
-                      </div>
-                    </div>
-                    <div class="px-4 py-2 border-t border-gray-200 text-center">
-                      <a href="#" class="text-sm text-primary-600 hover:text-primary-800">View all notifications</a>
+                      {notifications.length > 0 && (
+                        <div class="px-4 py-2 border-t border-gray-200 text-center">
+                          <button
+                            onClick={clearAll}
+                            class="text-sm text-red-600 hover:text-red-800"
+                          >
+                            Clear all notifications
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* Profile dropdown */}
             <div class="ml-3 relative">

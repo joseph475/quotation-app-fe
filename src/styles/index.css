@@ -136,9 +136,78 @@ input, textarea, select, [contenteditable] {
     }
   }
   
+  /* Mobile-optimized select styling for iOS */
+  select {
+    /* Improve appearance on iOS */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'><path fill='%23666' d='M2 0L0 2h4zm0 5L0 3h4z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem center;
+    background-size: 0.65rem auto;
+    padding-right: 2.5rem;
+  }
+  
+  /* iOS-specific select improvements */
+  @supports (-webkit-touch-callout: none) {
+    select {
+      /* Better touch target size for iOS */
+      min-height: 44px;
+      /* Improve readability */
+      line-height: 1.5;
+      /* Better spacing */
+      padding: 0.75rem 2.5rem 0.75rem 0.75rem;
+    }
+  }
+  
   /* Filter dropdown focus styles */
   select:focus {
     @apply outline-none ring-offset-1 ring-opacity-50;
+  }
+  
+  /* Mobile dropdown improvements */
+  @media (max-width: 768px) {
+    /* Custom dropdown positioning for mobile */
+    .mobile-dropdown {
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 90vw !important;
+      max-width: 400px !important;
+      max-height: 70vh !important;
+      z-index: 9999 !important;
+      border-radius: 12px !important;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    }
+    
+    /* Mobile dropdown backdrop */
+    .mobile-dropdown-backdrop {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      background-color: rgba(0, 0, 0, 0.5) !important;
+      z-index: 9998 !important;
+    }
+    
+    /* Better touch targets for mobile */
+    .mobile-dropdown li {
+      min-height: 44px !important;
+      display: flex !important;
+      align-items: center !important;
+      padding: 12px 16px !important;
+      font-size: 16px !important;
+    }
+    
+    /* Search input in mobile dropdown */
+    .mobile-dropdown input {
+      min-height: 44px !important;
+      font-size: 16px !important;
+      padding: 12px 16px !important;
+    }
   }
   
   .btn {

@@ -25,8 +25,13 @@ class RealTimeSync {
    * Initialize WebSocket connection
    */
   connect() {
-    // WebSocket is now supported in production with proper hosting platforms
+    // Only enable WebSocket in development environment
     const isProduction = process.env.NODE_ENV === 'production';
+    
+    if (isProduction) {
+      console.log('WebSocket disabled in production environment');
+      return;
+    }
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       console.log('WebSocket already connected');
@@ -41,9 +46,18 @@ class RealTimeSync {
 
     try {
       // Use appropriate WebSocket URL based on environment
-      const wsUrl = isProduction 
-        ? 'wss://your-backend-url.railway.app/ws'  // Replace with your actual backend URL
-        : 'ws://localhost:8000/ws';
+      let wsUrl;
+      if (isProduction) {
+        // In production, use the same host as the current page but with /ws path
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+      } else {
+        // For local development, try to use the same host as the current page
+        // This allows WebSocket to work when accessing from mobile devices
+        const currentHost = window.location.hostname;
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${wsProtocol}//${currentHost}:8000/ws`;
+      }
 
       console.log('Connecting to WebSocket:', wsUrl);
       
@@ -219,7 +233,8 @@ class RealTimeSync {
    * Handle quotation status changed event
    */
   handleQuotationStatusChanged(data) {
-    console.log('Quotation status changed:', data);
+    console.log('RealTimeSync: Quotation status changed:', data);
+    console.log('RealTimeSync: Number of listeners for quotation_status_changed:', this.listeners.get('quotation_status_changed')?.size || 0);
     
     // Clear quotation caches to force refresh
     clearAllQuotationCaches();
