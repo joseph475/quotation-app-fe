@@ -13,10 +13,10 @@ import api from '../services/api';
  */
 const useRealTimeQuotations = (options = {}) => {
   const {
-    cacheTimeout = 2 * 60 * 1000, // 2 minutes cache
-    enableRealTime = process.env.NODE_ENV === 'development', // Only enable in development
-    fallbackToPolling = false, // Disable polling in production for now
-    pollingInterval = 30000 // 30 seconds
+    cacheTimeout = 5 * 60 * 1000, // 5 minutes cache (increased from 2 minutes)
+    enableRealTime = true, // Enable real-time but with better throttling
+    fallbackToPolling = false, // Completely disable polling
+    pollingInterval = 60000 // 60 seconds (increased from 30)
   } = options;
 
   const { user } = useAuth();
@@ -48,7 +48,7 @@ const useRealTimeQuotations = (options = {}) => {
   // Throttle function to prevent too many rapid updates
   const throttleRef = useRef(null);
   
-  // Handle real-time quotation events with throttling
+  // Handle real-time quotation events with aggressive throttling
   const handleQuotationEvent = useCallback((eventData) => {
     console.log('Received quotation event:', eventData);
     
@@ -56,14 +56,15 @@ const useRealTimeQuotations = (options = {}) => {
     setLastUpdateTime(new Date());
     setUpdateCount(prev => prev + 1);
     
-    // Throttle the data refresh to prevent too many rapid updates
+    // Aggressive throttle: wait 5 seconds before refreshing to batch multiple updates
     if (throttleRef.current) {
       clearTimeout(throttleRef.current);
     }
     
     throttleRef.current = setTimeout(() => {
+      console.log('Refreshing quotations after throttle delay...');
       refreshQuotations();
-    }, 1000); // Wait 1 second before refreshing to batch multiple updates
+    }, 2000); // Wait 2 seconds before refreshing (reduced from 5s for better real-time feel)
   }, [refreshQuotations]);
 
   // Handle connection status changes

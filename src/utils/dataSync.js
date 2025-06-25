@@ -7,6 +7,7 @@
 
 import api from '../services/api';
 import { storeInStorage, getFromStorage } from './localStorageHelpers';
+import { invalidateInventoryCache, getInventoryItems } from './inventoryCache';
 
 /**
  * Refresh all data in localStorage from the API
@@ -52,11 +53,16 @@ export const refreshDataType = async (dataType) => {
   try {
     console.log(`Refreshing ${dataType} data...`);
     
+    if (dataType === 'inventory') {
+      // Use the new inventory cache system
+      invalidateInventoryCache();
+      await getInventoryItems(true); // Force refresh
+      console.log(`Refreshed ${dataType} data using cache system`);
+      return true;
+    }
+    
     let apiCall;
     switch (dataType) {
-      case 'inventory':
-        apiCall = api.inventory.getAll;
-        break;
       case 'quotations':
         apiCall = api.quotations.getAll;
         break;

@@ -5,6 +5,8 @@ import Button from '../common/Button';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { getFromStorage } from '../../utils/localStorageHelpers';
+import { getInventoryItems, searchInventoryItems } from '../../utils/inventoryCache';
+import { getDeliveryUsers } from '../../utils/deliveryUsersCache';
 
 /**
  * QuotationForm component for creating and editing quotations
@@ -88,20 +90,17 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
           setCustomers(storedCustomers);
         }
         
-        // Always fetch all inventory items from API for quotations
+        // Use cached inventory items for fast loading
         try {
-          const inventoryResponse = await api.inventory.getAll({ 
-            limit: 10000, // Large limit to get all items
-            sort: 'name' // Sort by name for better UX
-          });
-          if (inventoryResponse && inventoryResponse.success && inventoryResponse.data) {
-            setInventoryItems(inventoryResponse.data);
+          const cachedInventory = await getInventoryItems();
+          if (cachedInventory && Array.isArray(cachedInventory)) {
+            setInventoryItems(cachedInventory);
           } else {
             setInventoryItems([]);
           }
-        } catch (apiError) {
-          console.error('Error fetching inventory from API:', apiError);
-          // Fallback to local storage if API fails
+        } catch (cacheError) {
+          console.error('Error fetching inventory from cache:', cacheError);
+          // Fallback to local storage if cache fails
           const storedInventory = getFromStorage('inventory');
           if (storedInventory && Array.isArray(storedInventory)) {
             setInventoryItems(storedInventory);
@@ -123,14 +122,14 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
         if (user && user.role === 'admin' && initialData) {
           setLoading(prev => ({ ...prev, delivery: true }));
           try {
-            const deliveryResponse = await api.users.getAll({ role: 'delivery' });
-            if (deliveryResponse && deliveryResponse.success && deliveryResponse.data) {
-              // Filter to ensure only delivery users are included (client-side backup)
-              const filteredDeliveryUsers = deliveryResponse.data.filter(user => user.role === 'delivery');
-              setDeliveryUsers(filteredDeliveryUsers);
+            const cachedDeliveryUsers = await getDeliveryUsers();
+            if (cachedDeliveryUsers && Array.isArray(cachedDeliveryUsers)) {
+              setDeliveryUsers(cachedDeliveryUsers);
+            } else {
+              setDeliveryUsers([]);
             }
           } catch (error) {
-            console.error('Error loading delivery users:', error);
+            console.error('Error loading delivery users from cache:', error);
             setDeliveryUsers([]);
           } finally {
             setLoading(prev => ({ ...prev, delivery: false }));
@@ -610,9 +609,9 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                     style="white-space: nowrap; min-width: 60px;"
                   >
                     <svg className="h-5 w-5 sm:h-6 sm:w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 1.5M7 13l-1.5-1.5M17 21a2 2 0 100-4 2 2 0 000 4zM9 21a2 2 0 100-4 2 2 0 000 4z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
-                    <span className="hidden sm:inline ml-2">Add to Cart</span>
+                    <span className="hidden sm:inline ml-2">Add</span>
                     <span className="sm:hidden ml-1">Add</span>
                   </button>
                 </div>
@@ -1182,11 +1181,12 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                     onClick={addItem}
                     disabled={!currentItem.inventory || !currentItem.unitPrice}
                     className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg transform hover:scale-105 focus:ring-primary-500 border border-transparent py-1.5 px-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-md"
-                    style="white-space: nowrap; min-width: 38px; height: 38px;"
+                    style="white-space: nowrap; min-width: 60px; height: 38px;"
                   >
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 1.5M7 13l-1.5-1.5M17 21a2 2 0 100-4 2 2 0 000 4zM9 21a2 2 0 100-4 2 2 0 000 4z" />
+                    <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
+                    <span className="text-xs">Add</span>
                   </button>
                 </div>
               </div>

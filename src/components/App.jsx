@@ -7,6 +7,7 @@ import { RoleProtectedRoute } from '../utils/pageHelpers';
 import { ModalProvider } from '../contexts/ModalContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { ApiErrorHandler } from '../services/api';
+import useDeliveryUsersPreloader from '../hooks/useDeliveryUsersPreloader';
 
 // Layout Components
 import Header from './layout/Header';
@@ -30,12 +31,27 @@ const AppContent = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
   
+  // Preload delivery users cache for admin users
+  const { 
+    isPreloading: isDeliveryUsersPreloading, 
+    preloadError: deliveryUsersPreloadError, 
+    cacheStats: deliveryUsersCacheStats 
+  } = useDeliveryUsersPreloader();
+  
   console.log('AppContent render - User:', { 
     id: user?._id || user?.id, 
     role: user?.role, 
     email: user?.email,
     isAuthenticated
   });
+  
+  if (deliveryUsersCacheStats) {
+    console.log('Delivery users cache stats:', deliveryUsersCacheStats);
+  }
+  
+  if (deliveryUsersPreloadError) {
+    console.warn('Delivery users cache preload error:', deliveryUsersPreloadError);
+  }
   
   // Check if the current route is an auth route (login, register, etc.)
   const isAuthRoute = currentUrl === '/login';
