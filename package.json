@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "npx http-server dist -p ${PORT:-8080} -a 0.0.0.0 --cors -c-1 -P http://localhost:${PORT:-8080}?",
+    "start": "node server.js",
     "dev": "webpack serve --mode development",
     "build": "webpack --mode production",
     "vercel-build": "npm run build",
@@ -19,6 +19,7 @@
     "preact": "^10.26.5",
     "preact-router": "^4.1.2",
     "react-to-print": "^3.1.0",
+    "express": "^4.18.2",
     "http-server": "^14.1.1",
     "webpack": "^5.99.7",
     "webpack-cli": "^6.0.1",

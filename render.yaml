@@ -1,18 +1,9 @@
 services:
   - type: web
     name: quotation-app-fe
-    env: static
+    env: node
     buildCommand: npm install && npm run build
-    staticPublishPath: ./dist
-    headers:
-      - source: "/*"
-        headers:
-          - key: "Cache-Control"
-            value: "no-cache"
-    routes:
-      - type: rewrite
-        source: "/*"
-        destination: "/index.html"
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
