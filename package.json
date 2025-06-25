@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "npx http-server dist -p ${PORT:-8080} -a 0.0.0.0 --cors -c-1",
+    "start": "npx http-server dist -p ${PORT:-8080} -a 0.0.0.0 --cors -c-1 -P http://localhost:${PORT:-8080}?",
     "dev": "webpack serve --mode development",
     "build": "webpack --mode production",
     "vercel-build": "npm run build",
