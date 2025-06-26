@@ -2,6 +2,7 @@ import { h, Fragment } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import Modal from '../../components/common/Modal';
 import QuotationForm from '../../components/quotations/QuotationForm';
+import CancelButton from '../../components/quotations/CancelButton';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import useRealTimeQuotations from '../../hooks/useRealTimeQuotations';
@@ -1054,6 +1055,14 @@ const QuotationsPage = () => {
                           Reject
                         </button>
                       )}
+
+                      {/* Cancel Button */}
+                      <CancelButton
+                        quotation={quotation}
+                        user={user}
+                        onCancellationUpdate={refreshQuotations}
+                        className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded"
+                      />
                     </div>
                   </td>
                 </tr>
@@ -1241,6 +1250,14 @@ const QuotationsPage = () => {
                     Reject
                   </button>
                 )}
+
+                {/* Cancel Button for Mobile */}
+                <CancelButton
+                  quotation={quotation}
+                  user={user}
+                  onCancellationUpdate={refreshQuotations}
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2 text-xs font-medium rounded"
+                />
               </div>
             </div>
           ))

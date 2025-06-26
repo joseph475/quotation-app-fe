@@ -180,17 +180,25 @@ class RealTimeSync {
    */
   scheduleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('Max reconnection attempts reached');
+      console.log('Max reconnection attempts reached, giving up');
+      this.notifyListeners('connection', { status: 'failed' });
+      return;
+    }
+
+    // Prevent multiple reconnection attempts
+    if (this.isConnecting) {
+      console.log('Reconnection already in progress, skipping');
       return;
     }
 
     this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1); // Exponential backoff
+    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000); // Cap at 30 seconds
     
-    console.log(`Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms`);
+    console.log(`Scheduling reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`);
     
     setTimeout(() => {
-      if (!this.isConnected) {
+      // Double-check we're not already connected or connecting
+      if (!this.isConnected && !this.isConnecting) {
         this.connect();
       }
     }, delay);

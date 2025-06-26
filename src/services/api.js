@@ -446,6 +446,19 @@ const api = {
       method: 'POST',
     }),
     getDeliveryUsers: () => request('/quotations/delivery-users'),
+    // Cancellation endpoints
+    cancel: (id, reason) => request(`/quotations/${id}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+    approveCancellation: (id, reason) => request(`/quotations/${id}/approve-cancellation`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+    denyCancellation: (id, reason) => request(`/quotations/${id}/deny-cancellation`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
   },
   
   // Sales endpoints
