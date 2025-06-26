@@ -143,12 +143,28 @@ const useRealTimeQuotations = (options = {}) => {
     }
   }, [refreshQuotations]);
 
-  // Force reconnect function
+  // Force reconnect function with safety checks
   const reconnect = useCallback(() => {
     console.log('Forcing real-time reconnection...');
+    const status = realTimeSync.getStatus();
+    
+    // Don't reconnect if already connected or if we've hit max attempts
+    if (status.isConnected) {
+      console.log('Already connected, skipping reconnect');
+      return;
+    }
+    
+    if (status.reconnectAttempts >= 5) {
+      console.log('Max reconnect attempts reached, not forcing reconnection');
+      return;
+    }
+    
     realTimeSync.disconnect();
     setTimeout(() => {
-      realTimeSync.connect();
+      const currentStatus = realTimeSync.getStatus();
+      if (!currentStatus.isConnected) {
+        realTimeSync.connect();
+      }
     }, 1000);
   }, [realTimeSync]);
 
