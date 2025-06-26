@@ -19,9 +19,9 @@ const CancelButton = ({ quotation, user, onCancellationUpdate, className = '' })
     return user?.id || user?._id || user?.data?.id || user?.data?._id;
   };
 
-  // Get the quotation creator ID - handle different structures
+  // Get the quotation creator ID - handle different structures (Supabase uses created_by)
   const getQuotationCreatorId = () => {
-    return quotation?.createdBy?._id || quotation?.createdBy?.id || quotation?.createdBy;
+    return quotation?.created_by || quotation?.createdBy?._id || quotation?.createdBy?.id || quotation?.createdBy;
   };
 
   // Debug logging
@@ -88,16 +88,16 @@ const CancelButton = ({ quotation, user, onCancellationUpdate, className = '' })
       
       switch (actionType) {
         case 'direct':
-          response = await api.quotations.cancel(quotation._id, cancellationReason);
+          response = await api.quotations.cancel(quotation._id || quotation.id, cancellationReason);
           break;
         case 'request':
-          response = await api.quotations.cancel(quotation._id, cancellationReason);
+          response = await api.quotations.cancel(quotation._id || quotation.id, cancellationReason);
           break;
         case 'approve':
-          response = await api.quotations.approveCancellation(quotation._id, cancellationReason);
+          response = await api.quotations.approveCancellation(quotation._id || quotation.id, cancellationReason);
           break;
         case 'deny':
-          response = await api.quotations.denyCancellation(quotation._id, cancellationReason);
+          response = await api.quotations.denyCancellation(quotation._id || quotation.id, cancellationReason);
           break;
         default:
           throw new Error('Invalid action type');
@@ -243,7 +243,7 @@ const CancelButton = ({ quotation, user, onCancellationUpdate, className = '' })
 
             {/* Quotation Info */}
             <div className="bg-gray-50 p-3 rounded-md">
-              <p className="text-sm font-medium">Quotation: {quotation.quotationNumber}</p>
+              <p className="text-sm font-medium">Quotation: {quotation.quotation_number || quotation.quotationNumber}</p>
               <p className="text-sm text-gray-600">Status: {quotation.status}</p>
               <p className="text-sm text-gray-600">
                 Total: {process.env.REACT_APP_CURRENCY_SYMBOL || '₱'}{quotation.total?.toFixed(2)}

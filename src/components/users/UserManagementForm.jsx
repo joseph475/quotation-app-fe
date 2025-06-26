@@ -21,7 +21,7 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
     name: '',
     email: '',
     phone: '',
-    role: 'user',
+    role: 'customer',
     department: '',
     address: '',
     isActive: true,
@@ -40,7 +40,7 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
         name: user.name || '',
         email: user.email || '',
         phone: user.phone || '',
-        role: user.role || 'user',
+        role: user.role || 'customer',
         department: user.department || '',
         address: user.address || '',
         isActive: user.isActive !== undefined ? user.isActive : true,
@@ -77,7 +77,7 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
     const newErrors = {};
     if (!formData.name) newErrors.name = 'Name is required';
     if (!formData.email) newErrors.email = 'Email is required';
-    if (formData.role === 'user' && !formData.address) newErrors.address = 'Address is required for user accounts';
+    if (formData.role === 'customer' && !formData.address) newErrors.address = 'Address is required for customer accounts';
     if (!user && !formData.password) newErrors.password = 'Password is required for new users';
     if (formData.password && formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
@@ -233,7 +233,7 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
                 onChange={handleChange}
                 class="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
               >
-                <option value="user">User</option>
+                <option value="customer">Customer</option>
                 <option value="delivery">Delivery</option>
               </select>
             </div>
@@ -242,8 +242,8 @@ const UserManagementForm = ({ user, onSubmit, isLoading = false, error = '' }) =
             )}
           </div>
 
-          {/* Address Input - Only show for user role */}
-          {formData.role === 'user' && (
+          {/* Address Input - Only show for customer role */}
+          {formData.role === 'customer' && (
             <Input
               id="address"
               name="address"

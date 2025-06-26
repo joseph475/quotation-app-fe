@@ -764,8 +764,8 @@ const ReportsPage = () => {
           ${data.customers.map(customer => {
             // Count sales for this customer
             const customerSales = data.sales.filter(sale => 
-              sale.customer === customer._id || 
-              (sale.customer && sale.customer._id === customer._id)
+              sale.customer === customer.id || 
+              (sale.customer && sale.customer.id === customer.id)
             );
             const totalPurchases = customerSales.reduce((sum, sale) => sum + (sale.total || 0), 0);
             

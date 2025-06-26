@@ -96,7 +96,7 @@ export const updateItemInStorage = (dataType, itemId, updatedItem) => {
     const storedData = getFromStorage(dataType);
     if (storedData && Array.isArray(storedData)) {
       const updatedData = storedData.map(item => 
-        item._id === itemId ? { ...item, ...updatedItem } : item
+        item.id === itemId ? { ...item, ...updatedItem } : item
       );
       storeInStorage(dataType, updatedData);
       console.log(`Updated ${dataType} item ${itemId} in localStorage`);

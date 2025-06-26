@@ -271,9 +271,9 @@ const DeliveryReportComponent = ({ data, dateRange }) => {
               <tbody class="bg-white divide-y divide-gray-200">
                 {sortedDeliveries.length > 0 ? (
                   sortedDeliveries.map((delivery, index) => (
-                    <tr key={delivery._id || index} class="hover:bg-gray-50">
+                    <tr key={delivery.id || index} class="hover:bg-gray-50">
                       <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">
-                        {delivery.quotationNumber || `ORD-${delivery._id?.slice(-6) || index}`}
+                        {delivery.quotationNumber || `ORD-${delivery.id?.slice(-6) || index}`}
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {delivery.customer?.name || delivery.customerName || 'Unknown Customer'}

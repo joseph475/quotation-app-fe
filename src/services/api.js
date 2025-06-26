@@ -8,6 +8,15 @@ import { useErrorModal } from '../contexts/ModalContext';
 import { deduplicateRequest } from '../utils/requestDeduplication';
 import { getAuthToken } from '../utils/authHelpers';
 
+console.log('=== Environment Variables Test ===');
+console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+console.log('REACT_APP_SUPABASE_URL:', process.env.REACT_APP_SUPABASE_URL);
+console.log('REACT_APP_SUPABASE_ANON_KEY:', process.env.REACT_APP_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
+console.log('REACT_APP_WS_URL:', process.env.REACT_APP_WS_URL);
+console.log('REACT_APP_ENV:', process.env.REACT_APP_ENV);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('All process.env keys:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_')));
+console.log('===================================');
 // Base API URL - connects to our MongoDB backend
 const getApiBaseUrl = () => {
   if (process.env.REACT_APP_API_URL) {
@@ -87,7 +96,12 @@ async function request(endpoint, options = {}) {
         console.log('Non-auth endpoint returned 401, keeping token:', endpoint);
       }
       
-      // Return a structured error response
+      // For auth endpoints, throw an error so AuthContext can catch it
+      if (endpoint.includes('/auth/')) {
+        throw new Error('Authentication failed. Please log in again.');
+      }
+      
+      // For non-auth endpoints, return structured response
       return {
         success: false,
         status: 401,
@@ -194,22 +208,6 @@ export const ApiErrorHandler = () => {
  * API methods
  */
 const api = {
-  // Supplier Prices endpoints
-  supplierPrices: {
-    getBySupplier: (supplierId) => request(`/supplier-prices/supplier/${supplierId}`),
-    getByItem: (itemId) => request(`/supplier-prices/item/${itemId}`),
-    create: (priceData) => request('/supplier-prices', {
-      method: 'POST',
-      body: JSON.stringify(priceData),
-    }),
-    update: (supplierId, prices) => request(`/supplier-prices/supplier/${supplierId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ prices }),
-    }),
-    delete: (id) => request(`/supplier-prices/${id}`, {
-      method: 'DELETE',
-    }),
-  },
   
   // Auth endpoints
   auth: {

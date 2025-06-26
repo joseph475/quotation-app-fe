@@ -229,12 +229,15 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
   // Handle inventory selection
   const handleInventorySelect = (item) => {
     const quantity = parseFloat(currentItem.quantity) || 1;
-    const unitPrice = item.price || 0;
+    const unitPrice = parseFloat(item.price) || 0;
     const total = quantity * unitPrice;
+    
+    // Use the correct ID field - try _id first, then id, then fallback to a combination of fields
+    const inventoryId = item._id || item.id || `${item.name}-${item.price}` || item.barcode || item.itemcode;
     
     setCurrentItem({
       ...currentItem,
-      inventory: item._id,
+      inventory: inventoryId,
       description: item.name,
       unitPrice: unitPrice,
       total: total
@@ -243,6 +246,15 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
     // Clear search term and hide results after selection
     setInventorySearch('');
     setShowInventoryResults(false);
+    
+    // Clear any existing inventory error
+    if (itemErrors.inventory) {
+      setItemErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.inventory;
+        return newErrors;
+      });
+    }
   };
 
   // Add item to quotation
@@ -581,7 +593,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                           <ul className="py-1">
                             {filteredInventory.map(item => (
                               <li 
-                                key={item._id}
+                                key={item.id}
                                 className="px-3 py-1 hover:bg-gray-100 cursor-pointer flex justify-between items-center text-xs"
                                 onClick={() => handleInventorySelect(item)}
                               >
@@ -606,7 +618,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                   <button
                     type="button"
                     onClick={addItem}
-                    disabled={!currentItem.inventory || !currentItem.unitPrice}
+                    disabled={!currentItem.inventory || currentItem.unitPrice <= 0}
                     className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg transform hover:scale-105 focus:ring-primary-500 border border-transparent py-2 px-4 text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-md"
                     style="white-space: nowrap; min-width: 60px;"
                   >
@@ -1081,7 +1093,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                       >
                         <option value="">No delivery assignment</option>
                         {deliveryUsers.map(user => (
-                          <option key={user._id} value={user._id}>
+                          <option key={user.id} value={user.id}>
                             {user.name}
                           </option>
                         ))}
@@ -1160,7 +1172,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                         <ul className="py-1">
                           {filteredInventory.map(item => (
                             <li 
-                              key={item._id}
+                              key={item.id}
                               className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-xs"
                               onClick={() => handleInventorySelect(item)}
                             >
@@ -1185,7 +1197,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                   <button
                     type="button"
                     onClick={addItem}
-                    disabled={!currentItem.inventory || !currentItem.unitPrice}
+                    disabled={!currentItem.inventory || currentItem.unitPrice <= 0}
                     className="inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg transform hover:scale-105 focus:ring-primary-500 border border-transparent py-1.5 px-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-md"
                     style="white-space: nowrap; min-width: 60px; height: 38px;"
                   >
@@ -1292,35 +1304,37 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                           )
                         ) : (
                           <div className="flex items-center space-x-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const currentQty = parseFloat(item.quantity) || 1;
-                                const newQty = Math.max(1, currentQty - 1);
-                                const unitPrice = parseFloat(item.unitPrice) || 0;
-                                const newTotal = newQty * unitPrice;
-                                
-                                setFormData(prev => ({
-                                  ...prev,
-                                  items: prev.items.map(currentItem => {
-                                    if (currentItem.id === item.id) {
-                                      return {
-                                        ...currentItem,
-                                        quantity: newQty,
-                                        total: newTotal,
-                                        editingQuantity: newQty
-                                      };
-                                    }
-                                    return currentItem;
-                                  })
-                                }));
-                              }}
-                              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
-                            >
-                              <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
-                              </svg>
-                            </button>
+                            { user.role === 'customer' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const currentQty = parseFloat(item.quantity) || 1;
+                                  const newQty = Math.max(1, currentQty - 1);
+                                  const unitPrice = parseFloat(item.unitPrice) || 0;
+                                  const newTotal = newQty * unitPrice;
+                                  
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    items: prev.items.map(currentItem => {
+                                      if (currentItem.id === item.id) {
+                                        return {
+                                          ...currentItem,
+                                          quantity: newQty,
+                                          total: newTotal,
+                                          editingQuantity: newQty
+                                        };
+                                      }
+                                      return currentItem;
+                                    })
+                                  }));
+                                }}
+                                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                              >
+                                <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                                </svg>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => startEditingItem(item.id)}
@@ -1328,35 +1342,37 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                             >
                               {item.quantity}
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const currentQty = parseFloat(item.quantity) || 1;
-                                const newQty = currentQty + 1;
-                                const unitPrice = parseFloat(item.unitPrice) || 0;
-                                const newTotal = newQty * unitPrice;
-                                
-                                setFormData(prev => ({
-                                  ...prev,
-                                  items: prev.items.map(currentItem => {
-                                    if (currentItem.id === item.id) {
-                                      return {
-                                        ...currentItem,
-                                        quantity: newQty,
-                                        total: newTotal,
-                                        editingQuantity: newQty
-                                      };
-                                    }
-                                    return currentItem;
-                                  })
-                                }));
-                              }}
-                              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                              </svg>
-                            </button>
+                            { user.role === 'customer' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const currentQty = parseFloat(item.quantity) || 1;
+                                  const newQty = currentQty + 1;
+                                  const unitPrice = parseFloat(item.unitPrice) || 0;
+                                  const newTotal = newQty * unitPrice;
+                                  
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    items: prev.items.map(currentItem => {
+                                      if (currentItem.id === item.id) {
+                                        return {
+                                          ...currentItem,
+                                          quantity: newQty,
+                                          total: newTotal,
+                                          editingQuantity: newQty
+                                        };
+                                      }
+                                      return currentItem;
+                                    })
+                                  }));
+                                }}
+                                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1466,7 +1482,7 @@ const QuotationForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
                     >
                       <option value="">No delivery assignment</option>
                       {deliveryUsers.map(user => (
-                        <option key={user._id} value={user._id}>
+                        <option key={user.id} value={user.id}>
                           {user.name}
                         </option>
                       ))}

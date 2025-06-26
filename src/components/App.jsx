@@ -77,29 +77,29 @@ const AppContent = () => {
         {!isAuthRoute && <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />}
         <main class={`flex-1 overflow-auto ${isAuthRoute ? '' : 'p-4 bg-gray-50'}`}>
           <Router onChange={handleRouteChange}>
-            {/* For users with 'user' or 'delivery' role, redirect to quotations page */}
+            {/* For users with 'customer' or 'delivery' role, redirect to quotations page */}
             <RoleProtectedRoute 
               component={({ user }) => {
-                if (user?.role === 'user' || user?.role === 'delivery') return <QuotationsPage />;
+                if (user?.role === 'customer' || user?.role === 'delivery') return <QuotationsPage />;
                 if (user?.role === 'superadmin') return <InventoryPage />;
                 return <DashboardPage />;
               }} 
               path="/" 
-              allowedRoles={['admin', 'user', 'delivery', 'superadmin']} 
+              allowedRoles={['admin', 'customer', 'delivery', 'superadmin']} 
             />
             <RoleProtectedRoute component={InventoryPage} path="/inventory" allowedRoles={['admin', 'superadmin']} />
             <RoleProtectedRoute component={SalesPage} path="/sales" allowedRoles={['admin']} />
-            <RoleProtectedRoute component={QuotationsPage} path="/orders" allowedRoles={['admin', 'user', 'delivery']} />
-            <RoleProtectedRoute component={ProfilePage} path="/profile" allowedRoles={['admin', 'user', 'delivery', 'superadmin']} />
+            <RoleProtectedRoute component={QuotationsPage} path="/orders" allowedRoles={['admin', 'customer', 'delivery']} />
+            <RoleProtectedRoute component={ProfilePage} path="/profile" allowedRoles={['admin', 'customer', 'delivery', 'superadmin']} />
             <RoleProtectedRoute component={UserManagementPage} path="/user-management" allowedRoles={['admin']} />
             <RoleProtectedRoute component={ReportsPage} path="/reports" allowedRoles={['admin', 'superadmin']} />
-            <RoleProtectedRoute component={DeviceManagementPage} path="/device-management" allowedRoles={['admin', 'user']} />
+            <RoleProtectedRoute component={DeviceManagementPage} path="/device-management" allowedRoles={['admin', 'customer']} />
             <LoginPage path="/login" />
-            {/* Redirect to quotations for user/delivery role, dashboard for admin */}
+            {/* Redirect to quotations for customer/delivery role, dashboard for admin */}
             <RoleProtectedRoute 
-              component={({ user }) => (user?.role === 'user' || user?.role === 'delivery') ? <QuotationsPage /> : <DashboardPage />} 
+              component={({ user }) => (user?.role === 'customer' || user?.role === 'delivery') ? <QuotationsPage /> : <DashboardPage />} 
               default 
-              allowedRoles={['admin', 'user', 'delivery']} 
+              allowedRoles={['admin', 'customer', 'delivery']} 
             />
           </Router>
         </main>

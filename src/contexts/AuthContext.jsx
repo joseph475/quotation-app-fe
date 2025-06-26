@@ -13,18 +13,21 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
 
   // Check for existing authentication on app load
   useEffect(() => {
     // Simple check - just verify if we have valid data in localStorage
     const checkAuth = () => {
       try {
-        const user = getAuthUser();
-        console.log('AuthContext: Checking authentication...', user ? 'User found' : 'No user');
+        const userData = getAuthUser();
+        console.log('AuthContext: Checking authentication...', userData ? 'User found' : 'No user');
+        setUser(userData);
         setIsLoading(false);
       } catch (error) {
         console.error('AuthContext: Error checking authentication:', error);
         clearAuthUserAndCache(); // Clear any corrupted data
+        setUser(null);
         setIsLoading(false);
       }
     };
@@ -59,7 +62,10 @@ export const AuthProvider = ({ children }) => {
         // Save user data and token to localStorage
         saveAuthUser(response.user, response.token);
         
-        console.log('LOGIN: User data saved to localStorage');
+        // Update user state
+        setUser(response.user);
+        
+        console.log('LOGIN: User data saved to localStorage and state');
         
         setIsLoading(false);
         
@@ -97,6 +103,7 @@ export const AuthProvider = ({ children }) => {
     clearAuthUserAndCache();
     
     // Reset state
+    setUser(null);
     setIsLoading(false);
     setError(null);
     
@@ -106,15 +113,58 @@ export const AuthProvider = ({ children }) => {
     route('/login', true);
   };
 
+  /**
+   * Update user profile
+   */
+  const updateProfile = async (userData) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      console.log('UPDATE PROFILE: Starting update process');
+      
+      // Make API call to update profile
+      const response = await api.auth.updateProfile(userData);
+      
+      console.log('UPDATE PROFILE: API response:', {
+        success: response?.success,
+        hasUser: !!response?.user
+      });
+      
+      if (response && response.success) {
+        // Get current auth data
+        const currentUser = getCurrentUser();
+        const currentToken = localStorage.getItem('authToken');
+        
+        // Update user data in localStorage with new profile data
+        const updatedUser = { ...currentUser, ...response.data };
+        saveAuthUser(updatedUser, currentToken);
+        
+        // Update the user state to trigger re-render
+        setUser(updatedUser);
+        
+        console.log('UPDATE PROFILE: User data updated in localStorage and state');
+        
+        setIsLoading(false);
+        
+        return updatedUser;
+      } else {
+        throw new Error(response.message || 'Profile update failed');
+      }
+    } catch (err) {
+      console.error('UPDATE PROFILE: Error:', err);
+      setError(err.message || 'Profile update failed. Please try again.');
+      setIsLoading(false);
+      throw err;
+    }
+  };
+
   // Get current user from localStorage (no state needed)
   const getCurrentUser = () => getAuthUser();
   const checkIsAuthenticated = () => isAuthenticated();
 
   const value = {
-    // Instead of storing user in state, provide functions to get current data
-    get user() {
-      return getCurrentUser();
-    },
+    user,
     get isAuthenticated() {
       return checkIsAuthenticated();
     },
@@ -122,6 +172,7 @@ export const AuthProvider = ({ children }) => {
     error,
     login,
     logout,
+    updateProfile,
   };
 
   return (

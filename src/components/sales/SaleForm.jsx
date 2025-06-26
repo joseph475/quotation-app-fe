@@ -147,7 +147,7 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
         const storedUsers = getFromStorage('users');
         if (storedUsers && Array.isArray(storedUsers)) {
           // Filter users to only include those who can be customers (user role)
-          const customerUsers = storedUsers.filter(user => user.role === 'user');
+          const customerUsers = storedUsers.filter(user => user.role === 'customer');
           if (isMounted) {
             setCustomers(customerUsers);
           }
@@ -211,9 +211,9 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
   useEffect(() => {
     if (initialData) {
       // Handle customer which might be an object or string ID
-      const customerId = typeof initialData.customer === 'object' && initialData.customer?._id
-        ? initialData.customer._id
-        : initialData.customer;
+      const customerId = typeof initialData.customer === 'object' && initialData.customer?.id
+        ? initialData.customer.id
+        : (initialData.customer_id || initialData.customer);
       
       const customerName = typeof initialData.customer === 'object' && initialData.customer?.name
         ? initialData.customer.name
@@ -221,9 +221,12 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
       
       setFormData({
         ...initialData,
+        saleNumber: initialData.sale_number || initialData.saleNumber, // Handle Supabase field name
         customer: customerId, // Ensure customer is set as ID string
         customerName: customerName, // Store customer name for display
-        date: initialData.date || new Date().toISOString().split('T')[0],
+        date: initialData.created_at ? initialData.created_at.split('T')[0] : (initialData.date || new Date().toISOString().split('T')[0]),
+        status: initialData.payment_status || initialData.status || 'paid', // Handle Supabase field name
+        amountPaid: initialData.amount_paid || initialData.amountPaid || 0, // Handle Supabase field name
       });
     } else {
       // Generate a new sale number for new sales
@@ -232,7 +235,7 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
         saleNumber: `S-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
       }));
     }
-  }, [initialData?._id]); // Only depend on the ID to prevent infinite loops
+  }, [initialData?.id]); // Only depend on the ID to prevent infinite loops
 
   // Handle form field changes
   const handleChange = (e) => {
@@ -312,7 +315,7 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
   const handleCustomerSelect = (customer) => {
     setFormData(prev => ({
       ...prev,
-      customer: customer._id,
+      customer: customer.id,
       customerName: customer.name
     }));
     
@@ -344,7 +347,7 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
     
     setCurrentItem({
       ...currentItem,
-      inventory: item._id,
+      inventory: item.id,
       description: item.name,
       unitPrice: unitPrice,
       discount: discount, // Set the discount from the inventory item
@@ -403,18 +406,19 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
     }));
   };
 
-  // Calculate totals
-  const subtotal = formData.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-  const discountAmount = formData.items.reduce((sum, item) => {
+  // Calculate totals with safety checks
+  const items = formData.items || [];
+  const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+  const discountAmount = items.reduce((sum, item) => {
     const itemSubtotal = item.quantity * item.unitPrice;
     return sum + (itemSubtotal * (item.discount / 100));
   }, 0);
-  const taxAmount = formData.items.reduce((sum, item) => {
+  const taxAmount = items.reduce((sum, item) => {
     const itemSubtotal = item.quantity * item.unitPrice;
     const itemDiscountAmount = itemSubtotal * (item.discount / 100);
     return sum + ((itemSubtotal - itemDiscountAmount) * (item.tax / 100));
   }, 0);
-  const totalAmount = formData.items.reduce((sum, item) => sum + item.total, 0);
+  const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
 
   // Handle form submission
   const handleSubmit = (e) => {
@@ -424,7 +428,10 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
     const newErrors = {};
     if (!formData.customer) newErrors.customer = 'Customer is required';
     if (!formData.date) newErrors.date = 'Date is required';
-    if (formData.items.length === 0) newErrors.items = 'At least one item is required';
+    // Only require items for new sales, not when editing existing sales
+    if (!initialData && (!formData.items || formData.items.length === 0)) {
+      newErrors.items = 'At least one item is required';
+    }
     
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -433,7 +440,7 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
     
     // Prepare sale data for submission
     // Map items to remove the frontend-only 'id' field and ensure proper structure
-    const mappedItems = formData.items.map(item => ({
+    const mappedItems = (formData.items || []).map(item => ({
       inventory: item.inventory, // This is the MongoDB ObjectId reference
       description: item.description,
       quantity: item.quantity,
@@ -618,7 +625,7 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
                         <ul className="py-1">
                           {filteredCustomers.map(customer => (
                             <li 
-                              key={customer._id}
+                              key={customer.id}
                               className="px-3 py-2 hover:bg-primary-50 cursor-pointer flex justify-between items-center text-sm transition-colors duration-150"
                               onClick={() => handleCustomerSelect(customer)}
                             >

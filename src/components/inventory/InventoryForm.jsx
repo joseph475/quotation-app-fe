@@ -83,7 +83,7 @@ const InventoryForm = ({ initialData, onCancel, onSave, isLoading = false }) => 
     const { id, ID, itemcode, ...dataWithoutClientIds } = formData;
     
     const inventoryData = initialData
-      ? { ...dataWithoutClientIds, _id: initialData._id }
+      ? { ...dataWithoutClientIds, _id: initialData._id || initialData.id }
       : { ...dataWithoutClientIds };
     
     // Call the save handler

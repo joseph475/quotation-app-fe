@@ -92,7 +92,7 @@ const DashboardPage = () => {
         // Format the sales data to ensure it has the right structure
         const formattedSales = cachedData.recentSales.map(sale => {
           // Format the ID to be more user-friendly (remove ObjectId format)
-          let formattedId = sale._id;
+          let formattedId = sale.id;
           if (formattedId && formattedId.length > 8) {
             // If it's a MongoDB ObjectId, use the last 8 characters
             formattedId = `S-${formattedId.substring(formattedId.length - 8)}`;
@@ -110,7 +110,7 @@ const DashboardPage = () => {
         // Format the top selling items to ensure they have the right structure
         const formattedTopSellingItems = cachedData.topSellingItems.map(item => {
           return {
-            id: item._id,
+            id: item.id,
             name: item.name,
             itemCode: item.itemCode,
             currentStock: item.currentStock,

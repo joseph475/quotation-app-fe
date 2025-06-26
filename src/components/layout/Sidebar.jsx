@@ -20,12 +20,12 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   }
 
   // Extract role directly from localStorage data
-  let userRole = 'user';
+  let userRole = 'customer';
 
   if (userData.data) {
-    userRole = userData.data.role || 'user';
+    userRole = userData.data.role || 'customer';
   } else {
-    userRole = userData.role || 'user';
+    userRole = userData.role || 'customer';
   }
 
   // Define navigation based on role
@@ -51,7 +51,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         { name: 'Profile', path: '/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' }
       ];
     } else {
-      // User role
+      // Customer role
       return [
         { name: 'Orders', path: '/orders', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
         { name: 'Profile', path: '/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' }

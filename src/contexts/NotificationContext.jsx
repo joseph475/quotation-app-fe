@@ -197,8 +197,8 @@ export const NotificationProvider = ({ children }) => {
         let quotationCreatorId = null;
         if (typeof quotation.createdBy === 'string') {
           quotationCreatorId = quotation.createdBy;
-        } else if (quotation.createdBy._id) {
-          quotationCreatorId = quotation.createdBy._id;
+        } else if (quotation.createdBy.id) {
+          quotationCreatorId = quotation.createdBy.id;
         }
         
         console.log('Comparing user IDs:', { currentUserId, quotationCreatorId });
@@ -207,7 +207,7 @@ export const NotificationProvider = ({ children }) => {
           console.log('User is the creator of this quotation');
           
           // Enhanced deduplication for status changes
-          const quotationId = quotation._id || quotation.id;
+          const quotationId = quotation.id || quotation.id;
           const timestamp = data.timestamp || new Date().toISOString();
           const statusProcessKey = `quotation_status_${quotationId}_${newStatus}_${timestamp}`;
           
@@ -254,7 +254,7 @@ export const NotificationProvider = ({ children }) => {
               // Additional check to prevent duplicate notifications in state
               const existingNotification = prev.find(n => 
                 n.type === 'quotation_status_update' && 
-                n.data?._id === quotationId &&
+                n.data?.id === quotationId &&
                 n.message === statusMessages[newStatus] &&
                 Math.abs(new Date(n.timestamp) - new Date()) < 5000 // Within 5 seconds
               );

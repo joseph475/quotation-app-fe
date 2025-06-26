@@ -14,7 +14,7 @@ const UserManagementPage = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [activeTab, setActiveTab] = useState('user');
+  const [activeTab, setActiveTab] = useState('customer');
   // Fetch users on component mount
   useEffect(() => {
     fetchUsers();
@@ -34,14 +34,14 @@ const UserManagementPage = () => {
         
         // Map the response to match our component's expected format
         const formattedUsers = allUsers.map(user => ({
-          id: user._id,
+          id: user._id || user.id,
           name: user.name,
           email: user.email,
           phone: user.phone || 'No phone number',
           role: user.role,
           department: user.department || 'No department',
           address: user.address || '',
-          isActive: user.isActive !== undefined ? user.isActive : true,
+          isActive: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
         }));
         
         setUsers(formattedUsers);
@@ -64,8 +64,14 @@ const UserManagementPage = () => {
     setSuccessMessage('');
 
     try {
-      // Use the role from the form data
-      const userData = { ...formData };
+      // Use the role from the form data and convert field names to match database
+      const userData = { 
+        ...formData,
+        is_active: formData.isActive // Convert camelCase to snake_case
+      };
+      // Remove the camelCase version and frontend-only fields
+      delete userData.isActive;
+      delete userData.confirmPassword; // Don't send confirmPassword to backend
       
       if (selectedUser) {
         // Update existing user
@@ -96,14 +102,14 @@ const UserManagementPage = () => {
         if (response && response.success) {
           // Add the new user to the local state
           const newUser = {
-            id: response.data._id,
+            id: response.data._id || response.data.id,
             name: response.data.name,
             email: response.data.email,
             phone: response.data.phone || 'No phone number',
             role: response.data.role,
             department: response.data.department || 'No department',
             address: response.data.address || '',
-            isActive: response.data.isActive !== undefined ? response.data.isActive : true,
+            isActive: response.data.is_active !== undefined ? response.data.is_active : (response.data.isActive !== undefined ? response.data.isActive : true),
           };
           setUsers([...users, newUser]);
           setSuccessMessage('User created successfully!');
@@ -266,14 +272,14 @@ const UserManagementPage = () => {
         <div class="border-b border-gray-200 mb-6">
           <nav class="-mb-px flex space-x-8">
             <button
-              onClick={() => setActiveTab('user')}
+              onClick={() => setActiveTab('customer')}
               class={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'user'
+                activeTab === 'customer'
                   ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              User Accounts ({users.filter(user => user.role === 'user').length})
+              User Accounts ({users.filter(user => user.role === 'customer').length})
             </button>
             <button
               onClick={() => setActiveTab('delivery')}

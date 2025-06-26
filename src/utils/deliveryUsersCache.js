@@ -178,7 +178,7 @@ export const updateDeliveryUserInCache = (userId, updatedUser) => {
     // Update memory cache
     if (memoryCache.data && Array.isArray(memoryCache.data)) {
       memoryCache.data = memoryCache.data.map(user => 
-        user._id === userId ? { ...user, ...updatedUser } : user
+        user.id === userId ? { ...user, ...updatedUser } : user
       );
     }
     
@@ -186,7 +186,7 @@ export const updateDeliveryUserInCache = (userId, updatedUser) => {
     const cachedData = getFromStorage(CACHE_CONFIG.DELIVERY_USERS_KEY);
     if (cachedData && Array.isArray(cachedData)) {
       const updatedData = cachedData.map(user => 
-        user._id === userId ? { ...user, ...updatedUser } : user
+        user.id === userId ? { ...user, ...updatedUser } : user
       );
       storeInStorage(CACHE_CONFIG.DELIVERY_USERS_KEY, updatedData);
     }
@@ -216,7 +216,7 @@ export const addDeliveryUserToCache = (newUser) => {
       storeInStorage(CACHE_CONFIG.DELIVERY_USERS_KEY, updatedData);
     }
     
-    console.log(`Delivery users cache: Added new user ${newUser._id} to cache`);
+    console.log(`Delivery users cache: Added new user ${newUser.id} to cache`);
     return true;
   } catch (error) {
     console.error('Delivery users cache: Failed to add user to cache:', error);
@@ -231,13 +231,13 @@ export const removeDeliveryUserFromCache = (userId) => {
   try {
     // Update memory cache
     if (memoryCache.data && Array.isArray(memoryCache.data)) {
-      memoryCache.data = memoryCache.data.filter(user => user._id !== userId);
+      memoryCache.data = memoryCache.data.filter(user => user.id !== userId);
     }
     
     // Update localStorage cache
     const cachedData = getFromStorage(CACHE_CONFIG.DELIVERY_USERS_KEY);
     if (cachedData && Array.isArray(cachedData)) {
-      const updatedData = cachedData.filter(user => user._id !== userId);
+      const updatedData = cachedData.filter(user => user.id !== userId);
       storeInStorage(CACHE_CONFIG.DELIVERY_USERS_KEY, updatedData);
     }
     

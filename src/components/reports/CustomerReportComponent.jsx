@@ -34,8 +34,8 @@ const CustomerReportComponent = ({ data, dateRange }) => {
     const processedCustomers = data.customers.map(customer => {
       // Calculate customer metrics
       const customerSales = data.sales.filter(sale => 
-        (typeof sale.customer === 'string' && sale.customer === customer._id) ||
-        (sale.customer?._id === customer._id)
+        (typeof sale.customer === 'string' && sale.customer === customer.id) ||
+        (sale.customer?.id === customer.id)
       );
       
       const totalSpent = customerSales.reduce((sum, sale) => sum + (sale.total || 0), 0);

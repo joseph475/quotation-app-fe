@@ -109,7 +109,7 @@ const InventoryPage = () => {
       
       const query = searchTerm.toLowerCase();
       return (
-        item.name.toLowerCase().includes(query) ||
+        (item.name && item.name.toLowerCase().includes(query)) ||
         (item.barcode && item.barcode.toLowerCase().includes(query)) ||
         (item.itemcode && item.itemcode.toString().includes(query))
       );
@@ -117,13 +117,15 @@ const InventoryPage = () => {
     .sort((a, b) => {
       let comparison = 0;
       if (sortBy === 'name') {
-        comparison = a.name.localeCompare(b.name);
+        const aName = a.name || '';
+        const bName = b.name || '';
+        comparison = aName.localeCompare(bName);
       } else if (sortBy === 'itemcode') {
-        comparison = a.itemcode - b.itemcode;
+        comparison = (a.itemcode || 0) - (b.itemcode || 0);
       } else if (sortBy === 'cost') {
-        comparison = a.cost - b.cost;
+        comparison = (a.cost || 0) - (b.cost || 0);
       } else if (sortBy === 'price') {
-        comparison = a.price - b.price;
+        comparison = (a.price || 0) - (b.price || 0);
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
@@ -571,7 +573,7 @@ const InventoryPage = () => {
                       <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
                           <div class="h-10 w-10 flex-shrink-0 bg-gray-100 rounded-md flex items-center justify-center text-gray-500">
-                            {item.name.charAt(0)}
+                            {item.name ? item.name.charAt(0) : '?'}
                           </div>
                           <div class="ml-4">
                             <div class="text-sm font-medium text-gray-900">{item.name}</div>
@@ -615,7 +617,7 @@ const InventoryPage = () => {
                                       setLoading(true);
                                       
                                       const deleteHistoryRecord = createInventoryHistoryRecord({
-                                        itemId: item._id,
+                                        itemId: item.id,
                                         itemName: item.name,
                                         itemCode: item.itemcode,
                                         operation: 'delete_item',
@@ -629,14 +631,15 @@ const InventoryPage = () => {
                                       // Save inventory history
                                       saveInventoryHistory(deleteHistoryRecord);
                                       
-                                      const response = await api.inventory.delete(item._id);
+                                      const itemId = item._id || item.id;
+                                      const response = await api.inventory.delete(itemId);
                                       
                                       if (response && response.success) {
                                         // Remove item from cache
-                                        removeInventoryItemFromCache(item._id);
+                                        removeInventoryItemFromCache(itemId);
                                         
                                         // Remove item from allItems state immediately
-                                        setAllItems(prev => prev.filter(i => i._id !== item._id));
+                                        setAllItems(prev => prev.filter(i => (i._id || i.id) !== itemId));
                                         
                                         // Update total count
                                         setTotalItems(prev => prev - 1);
@@ -812,7 +815,7 @@ const InventoryPage = () => {
         size="5xl"
       >
         <InventoryForm
-          key={currentItem ? currentItem._id : 'new-item'}
+          key={currentItem ? currentItem.id : 'new-item'}
           initialData={currentItem}
           isLoading={formLoading}
           onCancel={() => setIsFormOpen(false)}
@@ -822,7 +825,7 @@ const InventoryPage = () => {
               let response;
               if (currentItem) {
                 // Update existing item
-                response = await api.inventory.update(currentItem._id, itemData);
+                response = await api.inventory.update(currentItem.id, itemData);
               } else {
                 // Create new item
                 response = await api.inventory.create(itemData);
@@ -836,7 +839,7 @@ const InventoryPage = () => {
                 
                 // Update cache
                 if (currentItem) {
-                  updateInventoryItemInCache(currentItem._id, response.data);
+                  updateInventoryItemInCache(currentItem.id, response.data);
                 } else {
                   addInventoryItemToCache(response.data);
                 }
@@ -845,7 +848,7 @@ const InventoryPage = () => {
                 if (currentItem) {
                   // Update existing item in the list
                   setAllItems(prev => prev.map(item => 
-                    item._id === currentItem._id ? newItemWithStatus : item
+                    item.id === currentItem.id ? newItemWithStatus : item
                   ));
                 } else {
                   // Add new item to the START of the list

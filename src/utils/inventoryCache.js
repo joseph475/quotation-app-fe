@@ -207,7 +207,7 @@ export const updateInventoryItemInCache = (itemId, updatedItem) => {
     // Update memory cache
     if (memoryCache.data && Array.isArray(memoryCache.data)) {
       memoryCache.data = memoryCache.data.map(item => 
-        item._id === itemId ? { ...item, ...updatedItem } : item
+        item.id === itemId ? { ...item, ...updatedItem } : item
       );
     }
     
@@ -215,7 +215,7 @@ export const updateInventoryItemInCache = (itemId, updatedItem) => {
     const cachedData = getFromStorage(CACHE_CONFIG.INVENTORY_KEY);
     if (cachedData && Array.isArray(cachedData)) {
       const updatedData = cachedData.map(item => 
-        item._id === itemId ? { ...item, ...updatedItem } : item
+        item.id === itemId ? { ...item, ...updatedItem } : item
       );
       storeInStorage(CACHE_CONFIG.INVENTORY_KEY, updatedData);
     }
@@ -245,7 +245,7 @@ export const addInventoryItemToCache = (newItem) => {
       storeInStorage(CACHE_CONFIG.INVENTORY_KEY, updatedData);
     }
     
-    console.log(`Inventory cache: Added new item ${newItem._id} to cache`);
+    console.log(`Inventory cache: Added new item ${newItem.id} to cache`);
     return true;
   } catch (error) {
     console.error('Inventory cache: Failed to add item to cache:', error);
@@ -260,13 +260,13 @@ export const removeInventoryItemFromCache = (itemId) => {
   try {
     // Update memory cache
     if (memoryCache.data && Array.isArray(memoryCache.data)) {
-      memoryCache.data = memoryCache.data.filter(item => item._id !== itemId);
+      memoryCache.data = memoryCache.data.filter(item => item.id !== itemId);
     }
     
     // Update localStorage cache
     const cachedData = getFromStorage(CACHE_CONFIG.INVENTORY_KEY);
     if (cachedData && Array.isArray(cachedData)) {
-      const updatedData = cachedData.filter(item => item._id !== itemId);
+      const updatedData = cachedData.filter(item => item.id !== itemId);
       storeInStorage(CACHE_CONFIG.INVENTORY_KEY, updatedData);
     }
     

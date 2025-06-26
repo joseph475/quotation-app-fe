@@ -93,7 +93,7 @@ const SalesPage = () => {
           setLoading(true);
           // Implement soft delete by updating the sale status to "cancelled"
           // Using "cancelled" instead of "deleted" as it's a valid enum value in the backend
-          const response = await api.sales.update(saleToDelete._id, {
+          const response = await api.sales.update(saleToDelete.id, {
             ...saleToDelete,
             status: 'cancelled'
           });
@@ -148,32 +148,34 @@ const SalesPage = () => {
   // Also exclude sales with "cancelled" status as per requirement
   const filteredSales = sales.filter(sale => {
     // Skip sales with "cancelled" status
-    if (sale.status === 'cancelled') return false;
+    const currentStatus = sale.payment_status || sale.status;
+    if (currentStatus === 'cancelled') return false;
     
-    const matchesTab = activeTab === 'all' || sale.status?.toLowerCase() === activeTab.toLowerCase();
+    const matchesTab = activeTab === 'all' || currentStatus?.toLowerCase() === activeTab.toLowerCase();
     
     // Handle customer which might be an object or string
-    const customerName = getCustomerDisplayName(sale.customer);
+    const customerName = sale.customer_id || getCustomerDisplayName(sale.customer);
       
     const matchesSearch = customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         (sale.saleNumber?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+                         ((sale.sale_number || sale.saleNumber)?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
     // Simple date filtering logic
     let matchesDate = true;
+    const saleDate = sale.created_at || sale.createdAt;
     if (dateFilter === 'today') {
-      matchesDate = new Date(sale.createdAt).toDateString() === new Date().toDateString();
+      matchesDate = new Date(saleDate).toDateString() === new Date().toDateString();
     } else if (dateFilter === 'week') {
       const today = new Date();
       const weekAgo = new Date();
       weekAgo.setDate(today.getDate() - 7);
-      const saleDate = new Date(sale.createdAt);
-      matchesDate = saleDate >= weekAgo && saleDate <= today;
+      const saleDateObj = new Date(saleDate);
+      matchesDate = saleDateObj >= weekAgo && saleDateObj <= today;
     } else if (dateFilter === 'month') {
       const today = new Date();
       const monthAgo = new Date();
       monthAgo.setMonth(today.getMonth() - 1);
-      const saleDate = new Date(sale.createdAt);
-      matchesDate = saleDate >= monthAgo && saleDate <= today;
+      const saleDateObj = new Date(saleDate);
+      matchesDate = saleDateObj >= monthAgo && saleDateObj <= today;
     }
     
     return matchesTab && matchesSearch && matchesDate;
@@ -374,31 +376,31 @@ const SalesPage = () => {
                 </tr>
               ) : (
                 filteredSales.map((sale) => (
-                  <tr key={sale._id}>
+                  <tr key={sale.id}>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">
-                      {sale.saleNumber}
+                      {sale.sale_number || sale.saleNumber}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {getCustomerDisplayName(sale.customer)}
+                      {getCustomerDisplayName(sale.customer) || sale.customer_id}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       ₱{(sale.total || 0).toFixed(2)}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(sale.createdAt)}
+                      {formatDate(sale.created_at || sale.createdAt)}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                       <span class={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        sale.status === 'paid' ? 'bg-green-100 text-green-800' : 
-                        sale.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
+                        (sale.payment_status || sale.status) === 'paid' ? 'bg-green-100 text-green-800' : 
+                        (sale.payment_status || sale.status) === 'cancelled' ? 'bg-red-100 text-red-800' : 
                         'bg-yellow-100 text-yellow-800'
                       }`}>
-                        {sale.status === 'paid' ? 'Paid' : 
-                         sale.status === 'partially_paid' ? 'Partially Paid' :
-                         sale.status === 'pending' ? 'Pending' :
-                         sale.status === 'cancelled' ? 'Cancelled' :
-                         sale.status === 'refunded' ? 'Refunded' : 
-                         sale.status}
+                        {(sale.payment_status || sale.status) === 'paid' ? 'Paid' : 
+                         (sale.payment_status || sale.status) === 'partially_paid' ? 'Partially Paid' :
+                         (sale.payment_status || sale.status) === 'pending' ? 'Pending' :
+                         (sale.payment_status || sale.status) === 'cancelled' ? 'Cancelled' :
+                         (sale.payment_status || sale.status) === 'refunded' ? 'Refunded' : 
+                         (sale.payment_status || sale.status)}
                       </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -445,7 +447,7 @@ const SalesPage = () => {
                                 onConfirm: async () => {
                                   try {
                                     setLoading(true);
-                                    const response = await api.sales.update(sale._id, {
+                                    const response = await api.sales.update(sale.id, {
                                       ...sale,
                                       status: 'refunded'
                                     });
@@ -769,7 +771,7 @@ const SalesPage = () => {
             onSave={async (saleData) => {
               try {
                 setFormLoading(true);
-                const response = await api.sales.update(selectedSale._id, saleData);
+                const response = await api.sales.update(selectedSale.id, saleData);
                 
                 if (response && response.success) {
                   // Get updated sales list
