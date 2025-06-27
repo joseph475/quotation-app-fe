@@ -8,15 +8,6 @@ import { useErrorModal } from '../contexts/ModalContext';
 import { deduplicateRequest } from '../utils/requestDeduplication';
 import { getAuthToken } from '../utils/authHelpers';
 
-console.log('=== Environment Variables Test ===');
-console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
-console.log('REACT_APP_SUPABASE_URL:', process.env.REACT_APP_SUPABASE_URL);
-console.log('REACT_APP_SUPABASE_ANON_KEY:', process.env.REACT_APP_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
-console.log('REACT_APP_WS_URL:', process.env.REACT_APP_WS_URL);
-console.log('REACT_APP_ENV:', process.env.REACT_APP_ENV);
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('All process.env keys:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_')));
-console.log('===================================');
 // Base API URL - connects to our MongoDB backend
 const getApiBaseUrl = () => {
   if (process.env.REACT_APP_API_URL) {
