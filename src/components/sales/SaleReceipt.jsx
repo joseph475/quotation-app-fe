@@ -368,7 +368,7 @@ const SaleReceipt = ({ sale, onClose, onPrint }) => {
   return (
     <>
       {/* Receipt Content - visible in the modal */}
-      <div className="border border-gray-200 p-4 rounded-lg max-w-2xl mx-auto bg-white shadow-md">
+      <div className="border border-gray-200 p-3 sm:p-4 rounded-lg max-w-2xl mx-auto bg-white shadow-md">
         {/* Header */}
         <div className="text-center mb-3">
           <h1 className="text-xl font-bold">SALES RECEIPT</h1>
@@ -478,18 +478,18 @@ const SaleReceipt = ({ sale, onClose, onPrint }) => {
       </div>
 
       {/* Container for UI elements (not visible when printing) */}
-      <div className="bg-white p-4 no-print">
+      <div className="bg-white p-3 sm:p-4 no-print">
         {/* Action Buttons */}
-        <div className="mt-6 flex justify-end space-x-4">
+        <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            className="w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors duration-200"
           >
             Close
           </button>
           <button
             onClick={handlePrint}
-            className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700"
+            className="w-full sm:w-auto px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors duration-200"
           >
             Print Receipt
           </button>

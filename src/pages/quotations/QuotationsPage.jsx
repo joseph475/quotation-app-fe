@@ -1131,7 +1131,7 @@ const QuotationsPage = () => {
           </div>
         ) : (
           filteredQuotations.map((quotation) => (
-            <div key={quotation.id} class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div key={quotation.id} class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 border-l-4 border-l-primary-500">
               {/* Header */}
               <div class="flex items-start justify-between mb-3">
                 <div class="flex-1 min-w-0">

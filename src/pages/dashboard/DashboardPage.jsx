@@ -110,13 +110,13 @@ const DashboardPage = () => {
         // Format the top selling items to ensure they have the right structure
         const formattedTopSellingItems = cachedData.topSellingItems.map(item => {
           return {
-            id: item.id,
+            id: item._id || item.id, // Handle both _id and id formats
             name: item.name,
             itemCode: item.itemCode,
-            currentStock: item.currentStock,
-            totalQuantitySold: item.totalQuantitySold,
-            totalRevenue: item.totalRevenue,
-            salesCount: item.salesCount
+            currentStock: item.currentStock || 0,
+            totalQuantitySold: item.totalQuantitySold || 0,
+            totalRevenue: item.totalRevenue || 0,
+            salesCount: item.salesCount || 0
           };
         });
 
@@ -213,41 +213,43 @@ const DashboardPage = () => {
       </div>
 
       {/* Stats Grid */}
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div class="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-2 lg:grid-cols-4 mb-8">
         {stats.map((stat) => (
           <div key={stat.name} class="bg-white overflow-hidden shadow rounded-lg">
-            <div class="px-4 py-5 sm:p-6">
-              <div class="flex items-center">
-                <div class="flex-shrink-0 bg-primary-100 rounded-md p-3">
-                  <svg class="h-6 w-6 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <div class="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt class="text-sm font-medium text-gray-500 truncate">{stat.name}</dt>
-                    <dd>
-                      <div class="text-lg font-medium text-gray-900">{stat.value}</div>
-                    </dd>
-                  </dl>
+            <div class="px-3 py-4 sm:px-4 sm:py-5 lg:p-6">
+              <div class="flex flex-col sm:flex-row sm:items-center">
+                <div class="flex items-center mb-3 sm:mb-0">
+                  <div class="flex-shrink-0 bg-primary-100 rounded-md p-2 sm:p-3">
+                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                  <div class="ml-3 sm:ml-5 w-0 flex-1">
+                    <dl>
+                      <dt class="text-xs sm:text-sm font-medium text-gray-500 truncate">{stat.name}</dt>
+                      <dd>
+                        <div class="text-base sm:text-lg font-medium text-gray-900">{stat.value}</div>
+                      </dd>
+                    </dl>
+                  </div>
                 </div>
               </div>
-              <div class="mt-4">
-                <div class={`inline-flex items-baseline px-2.5 py-0.5 rounded-full text-sm font-medium ${
+              <div class="mt-3 sm:mt-4">
+                <div class={`inline-flex items-baseline px-2 py-0.5 sm:px-2.5 rounded-full text-xs sm:text-sm font-medium ${
                   stat.changeType === 'increase' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                 }`}>
                   {stat.changeType === 'increase' ? (
-                    <svg class="-ml-1 mr-0.5 flex-shrink-0 self-center h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <svg class="-ml-1 mr-0.5 flex-shrink-0 self-center h-4 w-4 sm:h-5 sm:w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                       <path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                     </svg>
                   ) : (
-                    <svg class="-ml-1 mr-0.5 flex-shrink-0 self-center h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <svg class="-ml-1 mr-0.5 flex-shrink-0 self-center h-4 w-4 sm:h-5 sm:w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                       <path fill-rule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                     </svg>
                   )}
                   <span>{stat.change}</span>
                 </div>
-                <div class="text-xs text-gray-500 mt-1">Compared to last month</div>
+                <div class="text-xs text-gray-500 mt-1 hidden sm:block">Compared to last month</div>
               </div>
             </div>
           </div>
@@ -271,20 +273,20 @@ const DashboardPage = () => {
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th scope="col" class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                  <th scope="col" class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th scope="col" class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th scope="col" class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Status</th>
+                  <th scope="col" class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Date</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 {filteredSales.map((sale) => (
                   <tr key={sale.id}>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">{sale.id}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{sale.customer ? sale.customer.name : 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(sale.total)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm font-medium text-primary-600">{sale.id}</td>
+                    <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm text-gray-900">{sale.customer ? sale.customer.name : 'N/A'}</td>
+                    <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm text-gray-900">{formatCurrency(sale.total)}</td>
+                    <td class="px-3 py-4 sm:px-6 whitespace-nowrap hidden sm:table-cell">
                       <span class={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         sale.status === 'completed' ? 'bg-green-100 text-green-800' : 
                         sale.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
@@ -293,7 +295,7 @@ const DashboardPage = () => {
                         {sale.status ? sale.status.charAt(0).toUpperCase() + sale.status.slice(1) : 'N/A'}
                       </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(sale.createdAt)}</td>
+                    <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm text-gray-500 hidden md:table-cell">{formatDate(sale.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -323,22 +325,22 @@ const DashboardPage = () => {
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty Sold</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales Count</th>
+                  <th scope="col" class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                  <th scope="col" class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty Sold</th>
+                  <th scope="col" class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Revenue</th>
+                  <th scope="col" class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Sales Count</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 {filteredTopSellingItems.map((item) => (
                   <tr key={item.id}>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.totalQuantitySold}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(item.totalRevenue)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">{item.name}</td>
+                    <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm text-gray-900">{item.totalQuantitySold}</td>
+                    <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm text-gray-900 hidden sm:table-cell">{formatCurrency(item.totalRevenue)}</td>
+                    <td class="px-3 py-4 sm:px-6 whitespace-nowrap hidden md:table-cell">
                       <div class="flex items-center">
                         <div class="h-2.5 w-2.5 rounded-full mr-2 bg-green-500"></div>
-                        <span class="text-sm text-gray-500">
+                        <span class="text-xs sm:text-sm text-gray-500">
                           {item.salesCount} sales
                         </span>
                       </div>

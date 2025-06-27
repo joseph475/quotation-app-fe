@@ -21,12 +21,37 @@ class RealTimeSync {
     this.connectionId = null;
     this.isConnecting = false; // Prevent multiple simultaneous connections
     this.lastEventTimestamps = new Map(); // Track event timestamps for deduplication
+    this.reconnectTimeout = null; // Track reconnection timeout
+    this.lastDisconnectTime = null; // Track when we last disconnected
+    this.minReconnectInterval = 5000; // Minimum 5 seconds between reconnection attempts
+    this.isDestroyed = false; // Flag to prevent reconnection after cleanup
+    this.connectionAttemptCount = 0; // Track total connection attempts
+    this.maxConnectionAttempts = 10; // Maximum total connection attempts before giving up
   }
 
   /**
    * Initialize WebSocket connection
    */
   connect() {
+    // Check if we've been destroyed or hit max attempts
+    if (this.isDestroyed) {
+      console.log('RealTimeSync has been destroyed, skipping connection');
+      return;
+    }
+
+    if (this.connectionAttemptCount >= this.maxConnectionAttempts) {
+      console.log('Maximum connection attempts reached, giving up permanently');
+      this.notifyListeners('connection', { status: 'permanently_failed' });
+      return;
+    }
+
+    // Enforce minimum interval between reconnection attempts
+    const now = Date.now();
+    if (this.lastDisconnectTime && (now - this.lastDisconnectTime) < this.minReconnectInterval) {
+      console.log('Too soon to reconnect, waiting...');
+      return;
+    }
+
     // Enable WebSocket in both development and production
     const isProduction = process.env.NODE_ENV === 'production';
 
@@ -55,6 +80,7 @@ class RealTimeSync {
     }
 
     this.isConnecting = true;
+    this.connectionAttemptCount++;
 
     try {
       // Use appropriate WebSocket URL based on environment
@@ -154,13 +180,14 @@ class RealTimeSync {
     console.log('WebSocket connection closed:', event.code, event.reason);
     this.isConnected = false;
     this.isConnecting = false; // Reset connecting flag
+    this.lastDisconnectTime = Date.now(); // Track disconnect time
     this.stopHeartbeat();
     
     // Notify listeners about disconnection
     this.notifyListeners('connection', { status: 'disconnected' });
     
-    // Attempt to reconnect if not a clean close
-    if (event.code !== 1000) {
+    // Attempt to reconnect if not a clean close and not destroyed
+    if (event.code !== 1000 && !this.isDestroyed) {
       this.scheduleReconnect();
     }
   }
@@ -172,22 +199,35 @@ class RealTimeSync {
     console.log('WebSocket not available, will use polling fallback');
     this.isConnected = false;
     this.isConnecting = false; // Reset connecting flag
+    this.lastDisconnectTime = Date.now(); // Track disconnect time
     this.notifyListeners('connection', { status: 'polling_fallback' });
   }
 
   /**
-   * Schedule reconnection attempt
+   * Schedule reconnection attempt with improved safeguards
    */
   scheduleReconnect() {
+    // Check if we should stop trying
+    if (this.isDestroyed) {
+      console.log('RealTimeSync destroyed, cancelling reconnection');
+      return;
+    }
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.log('Max reconnection attempts reached, giving up');
       this.notifyListeners('connection', { status: 'failed' });
       return;
     }
 
+    if (this.connectionAttemptCount >= this.maxConnectionAttempts) {
+      console.log('Max total connection attempts reached, giving up permanently');
+      this.notifyListeners('connection', { status: 'permanently_failed' });
+      return;
+    }
+
     // Prevent multiple reconnection attempts
-    if (this.isConnecting) {
-      console.log('Reconnection already in progress, skipping');
+    if (this.isConnecting || this.reconnectTimeout) {
+      console.log('Reconnection already scheduled or in progress, skipping');
       return;
     }
 
@@ -196,9 +236,11 @@ class RealTimeSync {
     
     console.log(`Scheduling reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`);
     
-    setTimeout(() => {
-      // Double-check we're not already connected or connecting
-      if (!this.isConnected && !this.isConnecting) {
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null; // Clear timeout reference
+      
+      // Double-check we're not already connected or connecting and not destroyed
+      if (!this.isConnected && !this.isConnecting && !this.isDestroyed) {
         this.connect();
       }
     }, delay);
@@ -327,13 +369,46 @@ class RealTimeSync {
     console.log('Disconnecting WebSocket...');
     this.stopHeartbeat();
     
+    // Clear any pending reconnection timeout
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    
     if (this.ws) {
       this.ws.close(1000, 'Client disconnect');
       this.ws = null;
     }
     
     this.isConnected = false;
+    this.isConnecting = false;
     this.connectionId = null;
+  }
+
+  /**
+   * Destroy the WebSocket connection and prevent reconnection
+   */
+  destroy() {
+    console.log('Destroying RealTimeSync...');
+    this.isDestroyed = true;
+    this.disconnect();
+    
+    // Clear all listeners
+    this.listeners.clear();
+    
+    // Reset counters
+    this.reconnectAttempts = 0;
+    this.connectionAttemptCount = 0;
+  }
+
+  /**
+   * Reset connection attempts (useful for manual reconnection)
+   */
+  resetConnectionAttempts() {
+    console.log('Resetting connection attempts');
+    this.reconnectAttempts = 0;
+    this.connectionAttemptCount = 0;
+    this.isDestroyed = false;
   }
 
   /**
@@ -342,8 +417,12 @@ class RealTimeSync {
   getStatus() {
     return {
       isConnected: this.isConnected,
+      isConnecting: this.isConnecting,
       connectionId: this.connectionId,
-      reconnectAttempts: this.reconnectAttempts
+      reconnectAttempts: this.reconnectAttempts,
+      connectionAttemptCount: this.connectionAttemptCount,
+      isDestroyed: this.isDestroyed,
+      lastDisconnectTime: this.lastDisconnectTime
     };
   }
 }
@@ -371,6 +450,8 @@ export const useRealTimeSync = () => {
   return {
     connect: () => realTimeSync.connect(),
     disconnect: () => realTimeSync.disconnect(),
+    destroy: () => realTimeSync.destroy(),
+    resetConnectionAttempts: () => realTimeSync.resetConnectionAttempts(),
     addEventListener: (event, callback) => realTimeSync.addEventListener(event, callback),
     removeEventListener: (event, callback) => realTimeSync.removeEventListener(event, callback),
     getStatus: () => realTimeSync.getStatus(),

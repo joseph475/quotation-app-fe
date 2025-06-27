@@ -13,8 +13,10 @@ import { getFromStorage } from '../../utils/localStorageHelpers';
  * @param {Object} [props.initialData] - Initial sale data for editing
  * @param {Function} props.onCancel - Cancel handler
  * @param {Function} props.onSave - Save handler
+ * @param {boolean} [props.isLoading] - Loading state
+ * @param {boolean} [props.showFooter] - Whether to show the footer (for standalone use)
  */
-const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
+const SaleForm = ({ initialData, onCancel, onSave, isLoading = false, showFooter = true, id, ...rest }) => {
   // Form state
   const [formData, setFormData] = useState({
     saleNumber: '',
@@ -474,14 +476,14 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
     onSave(saleData);
   };
 
-  // Common input classes for consistency
-  const inputClasses = "block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-2 px-3 sm:text-sm transition-all duration-200";
-  const labelClasses = "block text-sm font-medium text-gray-700 mb-1";
-  const errorClasses = "mt-2 text-sm text-red-600";
+  // Common input classes for consistency - mobile optimized
+  const inputClasses = "block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 py-1.5 px-2 sm:py-2 sm:px-3 text-xs sm:text-sm transition-all duration-200";
+  const labelClasses = "block text-xs sm:text-sm font-medium text-gray-700 mb-1";
+  const errorClasses = "mt-1 text-xs sm:text-sm text-red-600";
   const cardHeaderClasses = "bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 py-4 px-6";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6" id={id} {...rest}>
       {/* Basic Information */}
       <Card 
         title={
@@ -495,16 +497,16 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
         className="border-l-4 border-l-primary-500 shadow-md"
         headerClassName={cardHeaderClasses}
       >
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 p-6">
-          <div className="flex flex-col sm:flex-row gap-6">
+        <div className="p-4 sm:p-6 space-y-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
             {/* Sale Number */}
             <div className="flex-1">
               <label htmlFor="saleNumber" className={labelClasses}>
                 Sale Number
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
+                  <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
                   </svg>
                 </div>
@@ -514,7 +516,7 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
                   name="saleNumber"
                   value={formData.saleNumber}
                   onChange={handleChange}
-                  className={`${inputClasses} pl-10 bg-gray-50`}
+                  className={`${inputClasses} pl-8 sm:pl-10 bg-gray-50`}
                   disabled
                 />
               </div>
@@ -526,8 +528,8 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
                 Sale Date <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
+                  <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                   </svg>
                 </div>
@@ -537,7 +539,7 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
                   name="date"
                   value={formData.date}
                   onChange={handleChange}
-                  className={`${inputClasses} ${errors.date ? 'border-red-300 ring-1 ring-red-300' : ''} pl-10`}
+                  className={`${inputClasses} ${errors.date ? 'border-red-300 ring-1 ring-red-300' : ''} pl-8 sm:pl-10`}
                   required
                 />
               </div>
@@ -557,8 +559,8 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
               {initialData ? (
                 /* Read-only customer display for editing existing sales */
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
+                    <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                     </svg>
                   </div>
@@ -566,12 +568,12 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
                     type="text"
                     id="customer"
                     value={formData.customerName || 'Customer'}
-                    className={`${inputClasses} pl-10 bg-gray-50 cursor-not-allowed`}
+                    className={`${inputClasses} pl-8 sm:pl-10 bg-gray-50 cursor-not-allowed`}
                     disabled
                     readOnly
                   />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <div className="absolute inset-y-0 right-0 pr-2 sm:pr-3 flex items-center">
+                    <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                     </svg>
                   </div>
@@ -763,47 +765,54 @@ const SaleForm = ({ initialData, onCancel, onSave, isLoading = false }) => {
       </Card>
 
       {/* Form Actions */}
-      <div className="flex justify-between items-center sticky bottom-0 bg-white p-4 border-t border-gray-200 shadow-lg rounded-lg z-10">
-        <div className="flex items-center">
-          <div className="bg-primary-50 rounded-lg p-3 mr-4">
-            <svg className="h-8 w-8 text-primary-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-              <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Total Amount</p>
-            <p className="text-2xl font-bold text-primary-600">₱{totalAmount.toFixed(2)}</p>
-          </div>
-        </div>
-        <div className="flex space-x-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            className="border-gray-300 hover:bg-gray-50"
-          >
-            <svg className="h-5 w-5 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            isLoading={isLoading}
-            disabled={isLoading}
-            className="px-6"
-            leftIcon={!isLoading && (
-              <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+      {showFooter && (
+        <div className="sticky bottom-0 bg-white border-t border-gray-200 shadow-lg rounded-lg z-10">
+        <div className="p-4 space-y-4 sm:space-y-0 sm:flex sm:justify-between sm:items-center">
+          {/* Total Amount */}
+          <div className="flex items-center justify-center sm:justify-start">
+            <div className="bg-primary-50 rounded-lg p-2 sm:p-3 mr-3 sm:mr-4">
+              <svg className="h-6 w-6 sm:h-8 sm:w-8 text-primary-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
               </svg>
-            )}
-          >
-            {isLoading ? 'Saving...' : initialData ? 'Update Sale' : 'Create Sale'}
-          </Button>
+            </div>
+            <div className="text-center sm:text-left">
+              <p className="text-xs sm:text-sm text-gray-500">Total Amount</p>
+              <p className="text-xl sm:text-2xl font-bold text-primary-600">₱{totalAmount.toFixed(2)}</p>
+            </div>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              className="border-gray-300 hover:bg-gray-50 w-full sm:w-auto"
+            >
+              <svg className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={isLoading}
+              disabled={isLoading}
+              className="px-4 sm:px-6 w-full sm:w-auto"
+              leftIcon={!isLoading && (
+                <svg className="h-4 w-4 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+            >
+              {isLoading ? 'Saving...' : initialData ? 'Update Sale' : 'Create Sale'}
+            </Button>
+          </div>
         </div>
-      </div>
+        </div>
+      )}
     </form>
   );
 };

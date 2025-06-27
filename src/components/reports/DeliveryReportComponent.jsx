@@ -82,7 +82,9 @@ const DeliveryReportComponent = ({ data, dateRange }) => {
   // Helper function to get status badge class
   const getStatusBadgeClass = (status) => {
     switch (status) {
-      case 'delivered':
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'delivered': // Keep for backward compatibility
         return 'bg-green-100 text-green-800';
       case 'approved':
         return 'bg-blue-100 text-blue-800';
@@ -126,7 +128,7 @@ const DeliveryReportComponent = ({ data, dateRange }) => {
               <dl>
                 <dt class="text-sm font-medium text-gray-500 truncate">Completed</dt>
                 <dd class="text-lg font-medium text-gray-900">
-                  {filteredDeliveries.filter(d => d.status === 'delivered').length}
+                  {filteredDeliveries.filter(d => d.status === 'completed').length}
                 </dd>
               </dl>
             </div>
@@ -197,7 +199,7 @@ const DeliveryReportComponent = ({ data, dateRange }) => {
               >
                 <option value="all">All Status</option>
                 <option value="approved">Approved</option>
-                <option value="delivered">Delivered</option>
+                <option value="completed">Completed</option>
                 <option value="pending">Pending</option>
                 <option value="cancelled">Cancelled</option>
               </select>

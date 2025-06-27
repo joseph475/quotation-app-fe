@@ -270,4 +270,36 @@ input, textarea, select, [contenteditable] {
   .action-reject {
     @apply bg-warning-100 text-warning-700 hover:bg-warning-200;
   }
+  
+  /* Scrollbar utilities */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* Internet Explorer 10+ */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar { 
+    display: none;  /* Safari and Chrome */
+  }
+  
+  /* Mobile responsive table improvements */
+  @media (max-width: 1023px) {
+    .mobile-table-card {
+      @apply bg-white shadow rounded-lg p-4 border-l-4 border-l-primary-500 mb-4;
+    }
+    
+    .mobile-card-header {
+      @apply flex justify-between items-start mb-3;
+    }
+    
+    .mobile-card-content {
+      @apply space-y-2 mb-4;
+    }
+    
+    .mobile-card-actions {
+      @apply flex space-x-2;
+    }
+    
+    .mobile-card-action-btn {
+      @apply flex-1 inline-flex items-center justify-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500;
+    }
+  }
 }

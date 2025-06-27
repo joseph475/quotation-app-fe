@@ -32,7 +32,19 @@ const SalesReportComponent = ({ data, dateRange }) => {
     
     // Group sales data
     data.sales.forEach(sale => {
-      const date = new Date(sale.createdAt);
+      // Handle both field name formats (createdAt vs created_at)
+      const dateValue = sale.created_at || sale.createdAt;
+      if (!dateValue) {
+        console.warn('Sale missing date field:', sale);
+        return; // Skip this sale if no date
+      }
+      
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date value:', dateValue, 'for sale:', sale);
+        return; // Skip this sale if invalid date
+      }
+      
       let groupKey;
       
       // Determine group key based on groupBy

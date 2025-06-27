@@ -1,5 +1,5 @@
 import { h } from 'preact';
-import { useState } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 
@@ -8,6 +8,27 @@ const Header = ({ onMenuToggle }) => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const profileMenuRef = useRef(null);
+  const notificationsRef = useRef(null);
+
+  // Handle clicking outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setIsProfileMenuOpen(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+
+    if (isProfileMenuOpen || isNotificationsOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isProfileMenuOpen, isNotificationsOpen]);
 
   const toggleProfileMenu = () => {
     setIsProfileMenuOpen(!isProfileMenuOpen);
@@ -17,6 +38,16 @@ const Header = ({ onMenuToggle }) => {
   const toggleNotifications = () => {
     setIsNotificationsOpen(!isNotificationsOpen);
     if (isProfileMenuOpen) setIsProfileMenuOpen(false);
+  };
+
+  const handleProfileLinkClick = () => {
+    setIsProfileMenuOpen(false);
+  };
+
+  const handleLogoutClick = (e) => {
+    e.preventDefault();
+    setIsProfileMenuOpen(false);
+    logout();
   };
 
   const handleNotificationClick = (notification) => {
@@ -60,7 +91,7 @@ const Header = ({ onMenuToggle }) => {
           <div class="flex items-center">
             {/* Notifications - Hidden for delivery users */}
             {user && user.role !== 'delivery' && (
-              <div class="ml-4 relative">
+              <div class="ml-4 relative" ref={notificationsRef}>
                 <button
                   type="button"
                   class="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 relative"
@@ -147,7 +178,7 @@ const Header = ({ onMenuToggle }) => {
             )}
 
             {/* Profile dropdown */}
-            <div class="ml-3 relative">
+            <div class="ml-3 relative" ref={profileMenuRef}>
               <div>
                 <button
                   type="button"
@@ -180,8 +211,8 @@ const Header = ({ onMenuToggle }) => {
                       
                     </div>
                   )}
-                  <a href="/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-0">Your Profile</a>
-                  <a href="#" onClick={(e) => { e.preventDefault(); logout(); }} class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-2">Sign out</a>
+                  <a href="/profile" onClick={handleProfileLinkClick} class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-0">Your Profile</a>
+                  <a href="#" onClick={handleLogoutClick} class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-2">Sign out</a>
                 </div>
               )}
             </div>

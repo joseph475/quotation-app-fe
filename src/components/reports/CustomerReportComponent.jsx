@@ -43,7 +43,8 @@ const CustomerReportComponent = ({ data, dateRange }) => {
       const averageSpent = purchaseCount > 0 ? totalSpent / purchaseCount : 0;
       
       // Check if customer is new (created during the report period)
-      const isNew = new Date(customer.createdAt) >= startDate;
+      const customerCreatedDate = customer.created_at || customer.createdAt;
+      const isNew = customerCreatedDate && new Date(customerCreatedDate) >= startDate;
       if (isNew) {
         newCustomers++;
       }
@@ -57,7 +58,10 @@ const CustomerReportComponent = ({ data, dateRange }) => {
       
       // Get last purchase date
       const lastPurchaseDate = customerSales.length > 0 
-        ? new Date(Math.max(...customerSales.map(sale => new Date(sale.createdAt))))
+        ? new Date(Math.max(...customerSales.map(sale => {
+            const dateValue = sale.created_at || sale.createdAt;
+            return dateValue ? new Date(dateValue).getTime() : 0;
+          })))
         : null;
       
       return {
