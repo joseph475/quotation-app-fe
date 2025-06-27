@@ -1,7 +1,7 @@
 {
-  "short_name": "Quotation App",
-  "name": "Quotation App - Inventory & Sales Management",
-  "description": "Professional quotation, ordering and inventory management application",
+  "short_name": "Ordering App",
+  "name": "Ordering App - Inventory & Sales Management",
+  "description": "Professional ordering and inventory management application",
   "icons": [
     {
       "src": "favicon.ico",

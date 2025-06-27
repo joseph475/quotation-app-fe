@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Install Test</title>
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .install-prompt {
+            display: none;
+            background: #007bff;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .install-prompt.show {
+            display: block;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>PWA Install Test</h1>
+        <p>This page tests PWA install functionality.</p>
+        
+        <div id="status"></div>
+        
+        <div id="install-prompt" class="install-prompt">
+            <h3>Install App Available!</h3>
+            <p>You can install this app to your device.</p>
+            <button id="install-btn">Install App</button>
+            <button id="dismiss-btn">Dismiss</button>
+        </div>
+        
+        <div>
+            <h3>Manual Tests:</h3>
+            <button onclick="testServiceWorker()">Test Service Worker</button>
+            <button onclick="testManifest()">Test Manifest</button>
+            <button onclick="testIcons()">Test Icons</button>
+            <button onclick="simulateInstallPrompt()">Simulate Install Prompt</button>
+        </div>
+        
+        <div>
+            <h3>Browser Install Options:</h3>
+            <p><strong>Chrome/Edge:</strong> Look for install icon in address bar or Menu → Install App</p>
+            <p><strong>Safari iOS:</strong> Share button → Add to Home Screen</p>
+            <p><strong>Chrome Android:</strong> Menu → Add to Home screen</p>
+        </div>
+    </div>
+
+    <script>
+        let deferredPrompt;
+        const statusDiv = document.getElementById('status');
+        const installPrompt = document.getElementById('install-prompt');
+        const installBtn = document.getElementById('install-btn');
+        const dismissBtn = document.getElementById('dismiss-btn');
+
+        function addStatus(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            statusDiv.appendChild(div);
+        }
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    addStatus('Service Worker registered successfully', 'success');
+                    console.log('SW registered:', registration);
+                })
+                .catch(error => {
+                    addStatus('Service Worker registration failed: ' + error.message, 'error');
+                    console.log('SW registration failed:', error);
+                });
+        } else {
+            addStatus('Service Worker not supported', 'error');
+        }
+
+        // Listen for beforeinstallprompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            addStatus('beforeinstallprompt event fired!', 'success');
+            e.preventDefault();
+            deferredPrompt = e;
+            installPrompt.classList.add('show');
+        });
+
+        // Install button click
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                addStatus(`Install prompt result: ${outcome}`, outcome === 'accepted' ? 'success' : 'info');
+                deferredPrompt = null;
+                installPrompt.classList.remove('show');
+            } else {
+                addStatus('No install prompt available. Try browser menu options.', 'info');
+            }
+        });
+
+        // Dismiss button click
+        dismissBtn.addEventListener('click', () => {
+            installPrompt.classList.remove('show');
+            addStatus('Install prompt dismissed', 'info');
+        });
+
+        // App installed
+        window.addEventListener('appinstalled', () => {
+            addStatus('App was installed successfully!', 'success');
+            installPrompt.classList.remove('show');
+        });
+
+        // Test functions
+        function testServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    addStatus(`Service Worker registrations: ${registrations.length}`, 'info');
+                });
+            }
+        }
+
+        function testManifest() {
+            fetch('/manifest.json')
+                .then(response => response.json())
+                .then(manifest => {
+                    addStatus(`Manifest loaded: ${manifest.name}`, 'success');
+                })
+                .catch(error => {
+                    addStatus(`Manifest error: ${error.message}`, 'error');
+                });
+        }
+
+        function testIcons() {
+            const iconSizes = ['72x72', '96x96', '128x128', '144x144', '152x152', '192x192', '384x384', '512x512'];
+            iconSizes.forEach(size => {
+                const img = new Image();
+                img.onload = () => addStatus(`Icon ${size} loaded successfully`, 'success');
+                img.onerror = () => addStatus(`Icon ${size} failed to load`, 'error');
+                img.src = `/icons/icon-${size}.png`;
+            });
+        }
+
+        function simulateInstallPrompt() {
+            if (deferredPrompt) {
+                addStatus('Real install prompt available!', 'success');
+                installPrompt.classList.add('show');
+            } else {
+                addStatus('No install prompt available. This is normal - browser controls when to show it.', 'info');
+                addStatus('Try: 1) Use the app more, 2) Visit multiple times, 3) Check browser menu for install options', 'info');
+            }
+        }
+
+        // Initial status
+        addStatus('PWA Install Test loaded');
+        addStatus('Interact with the page to trigger install prompt criteria');
+    </script>
+</body>
+</html>

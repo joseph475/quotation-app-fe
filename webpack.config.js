@@ -67,9 +67,12 @@ module.exports = {
   ],
   devServer: {
     historyApiFallback: true,
-    static: {
-      directory: path.join(__dirname, 'public'),
-    },
+    static: [
+      {
+        directory: path.join(__dirname, 'public'),
+        publicPath: '/',
+      }
+    ],
     port: 3001,
     host: '0.0.0.0', // Allow external connections
     hot: true,
