@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Complete PWA Icons</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .icon-preview {
+            display: inline-block;
+            margin: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .icon-preview canvas {
+            border: 1px solid #ccc;
+            margin-bottom: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .download-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .manifest-code {
+            background: #f1f3f4;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Complete PWA Icon Generator</h1>
+    <p>This tool generates all the icon sizes needed for a comprehensive PWA installation experience.</p>
+    
+    <div>
+        <input type="file" id="imageInput" accept="image/*">
+        <button onclick="generateIcons()">Generate All Icons</button>
+        <button onclick="generateDefaultIcons()">Generate Default Icons</button>
+    </div>
+    
+    <div id="iconPreviews"></div>
+    
+    <div class="download-section" id="downloadSection" style="display: none;">
+        <h3>Download Icons</h3>
+        <p>Right-click each icon and "Save image as..." to download:</p>
+        <div id="downloadLinks"></div>
+        
+        <h3>Updated Manifest.json</h3>
+        <div class="manifest-code" id="manifestCode"></div>
+    </div>
+
+    <script>
+        const iconSizes = [
+            { size: 72, name: 'icon-72x72.png', purpose: 'any' },
+            { size: 96, name: 'icon-96x96.png', purpose: 'any' },
+            { size: 128, name: 'icon-128x128.png', purpose: 'any' },
+            { size: 144, name: 'icon-144x144.png', purpose: 'any' },
+            { size: 152, name: 'icon-152x152.png', purpose: 'any' },
+            { size: 192, name: 'icon-192x192.png', purpose: 'maskable any' },
+            { size: 384, name: 'icon-384x384.png', purpose: 'any' },
+            { size: 512, name: 'icon-512x512.png', purpose: 'maskable any' }
+        ];
+
+        function generateDefaultIcons() {
+            // Create a default icon with a simple design
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Generate icons for each size
+            iconSizes.forEach(iconInfo => {
+                const size = iconInfo.size;
+                canvas.width = size;
+                canvas.height = size;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, size, size);
+                
+                // Create gradient background
+                const gradient = ctx.createLinearGradient(0, 0, size, size);
+                gradient.addColorStop(0, '#2563eb');
+                gradient.addColorStop(1, '#1d4ed8');
+                
+                // Draw background
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, size, size);
+                
+                // Add rounded corners effect
+                ctx.globalCompositeOperation = 'destination-in';
+                ctx.beginPath();
+                const radius = size * 0.1;
+                ctx.roundRect(0, 0, size, size, radius);
+                ctx.fill();
+                ctx.globalCompositeOperation = 'source-over';
+                
+                // Draw icon content (Q for Quotation)
+                ctx.fillStyle = 'white';
+                ctx.font = `bold ${size * 0.4}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Q', size / 2, size / 2);
+                
+                // Add small subtitle for larger icons
+                if (size >= 192) {
+                    ctx.font = `${size * 0.08}px Arial`;
+                    ctx.fillText('Quotation App', size / 2, size * 0.8);
+                }
+                
+                displayIcon(canvas, iconInfo);
+            });
+            
+            showDownloadSection();
+        }
+
+        function generateIcons() {
+            const input = document.getElementById('imageInput');
+            if (!input.files[0]) {
+                alert('Please select an image first');
+                return;
+            }
+            
+            const file = input.files[0];
+            const img = new Image();
+            
+            img.onload = function() {
+                iconSizes.forEach(iconInfo => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const size = iconInfo.size;
+                    
+                    canvas.width = size;
+                    canvas.height = size;
+                    
+                    // Draw image scaled to fit
+                    ctx.drawImage(img, 0, 0, size, size);
+                    
+                    displayIcon(canvas, iconInfo);
+                });
+                
+                showDownloadSection();
+            };
+            
+            img.src = URL.createObjectURL(file);
+        }
+
+        function displayIcon(canvas, iconInfo) {
+            const previewsDiv = document.getElementById('iconPreviews');
+            
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'icon-preview';
+            
+            const previewCanvas = canvas.cloneNode(true);
+            const previewCtx = previewCanvas.getContext('2d');
+            previewCtx.drawImage(canvas, 0, 0);
+            
+            iconDiv.appendChild(previewCanvas);
+            
+            const label = document.createElement('div');
+            label.textContent = `${iconInfo.size}x${iconInfo.size}`;
+            iconDiv.appendChild(label);
+            
+            previewsDiv.appendChild(iconDiv);
+            
+            // Store canvas data for download
+            iconDiv.dataset.iconData = canvas.toDataURL('image/png');
+            iconDiv.dataset.iconName = iconInfo.name;
+        }
+
+        function showDownloadSection() {
+            const downloadSection = document.getElementById('downloadSection');
+            const downloadLinks = document.getElementById('downloadLinks');
+            const manifestCode = document.getElementById('manifestCode');
+            
+            downloadSection.style.display = 'block';
+            
+            // Create download links
+            downloadLinks.innerHTML = '';
+            const previews = document.querySelectorAll('.icon-preview');
+            
+            previews.forEach(preview => {
+                const link = document.createElement('a');
+                link.href = preview.dataset.iconData;
+                link.download = preview.dataset.iconName;
+                link.textContent = preview.dataset.iconName;
+                link.style.display = 'inline-block';
+                link.style.margin = '5px 10px';
+                link.style.padding = '5px 10px';
+                link.style.background = '#007bff';
+                link.style.color = 'white';
+                link.style.textDecoration = 'none';
+                link.style.borderRadius = '3px';
+                
+                downloadLinks.appendChild(link);
+            });
+            
+            // Generate manifest code
+            const manifestIcons = iconSizes.map(iconInfo => ({
+                src: `icons/${iconInfo.name}`,
+                sizes: `${iconInfo.size}x${iconInfo.size}`,
+                type: 'image/png',
+                purpose: iconInfo.purpose
+            }));
+            
+            const manifestContent = {
+                "short_name": "Quotation App",
+                "name": "Quotation App - Inventory & Sales Management",
+                "description": "Professional quotation, ordering and inventory management application",
+                "icons": [
+                    {
+                        "src": "favicon.ico",
+                        "sizes": "64x64 32x32 24x24 16x16",
+                        "type": "image/x-icon"
+                    },
+                    ...manifestIcons
+                ],
+                "start_url": "/",
+                "display": "standalone",
+                "theme_color": "#2563eb",
+                "background_color": "#ffffff",
+                "scope": "/",
+                "orientation": "any",
+                "categories": ["business", "productivity"],
+                "lang": "en",
+                "dir": "ltr"
+            };
+            
+            manifestCode.textContent = JSON.stringify(manifestContent, null, 2);
+        }
+
+        // Add roundRect polyfill for older browsers
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+                this.beginPath();
+                this.moveTo(x + radius, y);
+                this.lineTo(x + width - radius, y);
+                this.quadraticCurveTo(x + width, y, x + width, y + radius);
+                this.lineTo(x + width, y + height - radius);
+                this.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                this.lineTo(x + radius, y + height);
+                this.quadraticCurveTo(x, y + height, x, y + height - radius);
+                this.lineTo(x, y + radius);
+                this.quadraticCurveTo(x, y, x + radius, y);
+                this.closePath();
+            };
+        }
+    </script>
+</body>
+</html>

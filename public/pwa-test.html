@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Diagnostic Test</title>
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .pass {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .fail {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #install-button {
+            background-color: #28a745;
+        }
+        #install-button:hover {
+            background-color: #1e7e34;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>PWA Installation Diagnostic</h1>
+    
+    <div id="results"></div>
+    
+    <h2>Manual Actions</h2>
+    <button onclick="testManifest()">Test Manifest</button>
+    <button onclick="testServiceWorker()">Test Service Worker</button>
+    <button onclick="triggerInstallPrompt()">Trigger Install Prompt</button>
+    <button onclick="checkInstallability()">Check Installability</button>
+    
+    <button id="install-button" class="hidden" onclick="installApp()">Install App</button>
+    
+    <h2>Browser Information</h2>
+    <div id="browser-info"></div>
+    
+    <h2>Console Logs</h2>
+    <div id="console-logs" style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto;"></div>
+
+    <script>
+        let deferredPrompt;
+        const results = document.getElementById('results');
+        const consoleDiv = document.getElementById('console-logs');
+        
+        // Capture console logs
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        function logToDiv(type, ...args) {
+            const timestamp = new Date().toLocaleTimeString();
+            consoleDiv.textContent += `[${timestamp}] ${type.toUpperCase()}: ${args.join(' ')}\n`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logToDiv('log', ...args);
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            logToDiv('error', ...args);
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            logToDiv('warn', ...args);
+        };
+
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+
+        function showBrowserInfo() {
+            const info = document.getElementById('browser-info');
+            info.innerHTML = `
+                <div class="test-result info">
+                    <strong>User Agent:</strong> ${navigator.userAgent}<br>
+                    <strong>Platform:</strong> ${navigator.platform}<br>
+                    <strong>Language:</strong> ${navigator.language}<br>
+                    <strong>Online:</strong> ${navigator.onLine}<br>
+                    <strong>Service Worker Support:</strong> ${'serviceWorker' in navigator}<br>
+                    <strong>HTTPS:</strong> ${location.protocol === 'https:' || location.hostname === 'localhost'}<br>
+                    <strong>Standalone Mode:</strong> ${window.matchMedia('(display-mode: standalone)').matches}
+                </div>
+            `;
+        }
+
+        async function testManifest() {
+            try {
+                const response = await fetch('/manifest.json');
+                if (response.ok) {
+                    const manifest = await response.json();
+                    addResult('✓ Manifest loaded successfully', 'pass');
+                    console.log('Manifest content:', manifest);
+                    
+                    // Check required fields
+                    if (manifest.name) addResult('✓ Manifest has name', 'pass');
+                    else addResult('✗ Manifest missing name', 'fail');
+                    
+                    if (manifest.short_name) addResult('✓ Manifest has short_name', 'pass');
+                    else addResult('✗ Manifest missing short_name', 'fail');
+                    
+                    if (manifest.start_url) addResult('✓ Manifest has start_url', 'pass');
+                    else addResult('✗ Manifest missing start_url', 'fail');
+                    
+                    if (manifest.display) addResult(`✓ Manifest display: ${manifest.display}`, 'pass');
+                    else addResult('✗ Manifest missing display', 'fail');
+                    
+                    if (manifest.icons && manifest.icons.length > 0) {
+                        addResult(`✓ Manifest has ${manifest.icons.length} icons`, 'pass');
+                        
+                        // Check for required icon sizes
+                        const has192 = manifest.icons.some(icon => icon.sizes.includes('192x192'));
+                        const has512 = manifest.icons.some(icon => icon.sizes.includes('512x512'));
+                        
+                        if (has192) addResult('✓ Has 192x192 icon', 'pass');
+                        else addResult('✗ Missing 192x192 icon', 'fail');
+                        
+                        if (has512) addResult('✓ Has 512x512 icon', 'pass');
+                        else addResult('✗ Missing 512x512 icon', 'fail');
+                        
+                        // Test icon loading
+                        for (const icon of manifest.icons) {
+                            try {
+                                const iconResponse = await fetch(icon.src);
+                                if (iconResponse.ok) {
+                                    addResult(`✓ Icon ${icon.src} loads successfully`, 'pass');
+                                } else {
+                                    addResult(`✗ Icon ${icon.src} failed to load (${iconResponse.status})`, 'fail');
+                                }
+                            } catch (error) {
+                                addResult(`✗ Icon ${icon.src} error: ${error.message}`, 'fail');
+                            }
+                        }
+                    } else {
+                        addResult('✗ Manifest missing icons', 'fail');
+                    }
+                } else {
+                    addResult(`✗ Failed to load manifest (${response.status})`, 'fail');
+                }
+            } catch (error) {
+                addResult(`✗ Manifest error: ${error.message}`, 'fail');
+            }
+        }
+
+        async function testServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                addResult('✓ Service Worker supported', 'pass');
+                
+                try {
+                    const registration = await navigator.serviceWorker.register('/sw.js');
+                    addResult('✓ Service Worker registered successfully', 'pass');
+                    console.log('SW registered:', registration);
+                    
+                    if (registration.active) {
+                        addResult('✓ Service Worker is active', 'pass');
+                    } else if (registration.installing) {
+                        addResult('⏳ Service Worker is installing', 'info');
+                    } else if (registration.waiting) {
+                        addResult('⏳ Service Worker is waiting', 'info');
+                    }
+                } catch (error) {
+                    addResult(`✗ Service Worker registration failed: ${error.message}`, 'fail');
+                }
+            } else {
+                addResult('✗ Service Worker not supported', 'fail');
+            }
+        }
+
+        function checkInstallability() {
+            // Check if already installed
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                addResult('ℹ App is already running in standalone mode', 'info');
+                return;
+            }
+            
+            // Check if install prompt is available
+            if (deferredPrompt) {
+                addResult('✓ Install prompt is available', 'pass');
+                document.getElementById('install-button').classList.remove('hidden');
+            } else {
+                addResult('✗ Install prompt not available', 'fail');
+                addResult('Possible reasons: Already installed, not enough user engagement, browser doesn\'t support PWA install, or criteria not met', 'info');
+            }
+            
+            // Check basic PWA criteria
+            const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost';
+            if (isHTTPS) {
+                addResult('✓ Served over HTTPS (or localhost)', 'pass');
+            } else {
+                addResult('✗ Not served over HTTPS', 'fail');
+            }
+        }
+
+        function triggerInstallPrompt() {
+            if (deferredPrompt) {
+                installApp();
+            } else {
+                // Try to trigger the event manually for testing
+                const event = new Event('beforeinstallprompt');
+                window.dispatchEvent(event);
+                addResult('Manually triggered beforeinstallprompt event', 'info');
+            }
+        }
+
+        async function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                addResult(`Install prompt result: ${outcome}`, outcome === 'accepted' ? 'pass' : 'info');
+                deferredPrompt = null;
+                document.getElementById('install-button').classList.add('hidden');
+            } else {
+                addResult('No install prompt available', 'fail');
+            }
+        }
+
+        // Event listeners
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('beforeinstallprompt event fired');
+            e.preventDefault();
+            deferredPrompt = e;
+            addResult('✓ beforeinstallprompt event received', 'pass');
+            document.getElementById('install-button').classList.remove('hidden');
+        });
+
+        window.addEventListener('appinstalled', () => {
+            console.log('App was installed');
+            addResult('✓ App was installed successfully', 'pass');
+            deferredPrompt = null;
+        });
+
+        // Run initial tests
+        window.addEventListener('load', () => {
+            showBrowserInfo();
+            addResult('Page loaded, running initial tests...', 'info');
+            
+            setTimeout(() => {
+                testManifest();
+                testServiceWorker();
+                checkInstallability();
+            }, 1000);
+        });
+
+        // Add some user interaction to meet engagement requirements
+        let interactionCount = 0;
+        document.addEventListener('click', () => {
+            interactionCount++;
+            if (interactionCount === 1) {
+                addResult('✓ User interaction detected (required for install prompt)', 'pass');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -35,12 +35,25 @@
   <div id="pwa-install-prompt" style="display: none;" class="fixed bottom-4 left-4 right-4 bg-blue-600 text-white p-4 rounded-lg shadow-lg z-50">
     <div class="flex items-center justify-between">
       <div>
-        <h3 class="font-semibold">Install Ordering App</h3>
+        <h3 class="font-semibold">Install Quotation App</h3>
         <p class="text-sm opacity-90">Add to your home screen for quick access</p>
       </div>
       <div class="flex gap-2">
         <button id="pwa-install-btn" class="bg-white text-blue-600 px-4 py-2 rounded font-medium">Install</button>
         <button id="pwa-dismiss-btn" class="text-white opacity-75 hover:opacity-100">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual Install Instructions -->
+  <div id="manual-install-prompt" style="display: none;" class="fixed bottom-4 left-4 right-4 bg-green-600 text-white p-4 rounded-lg shadow-lg z-50">
+    <div class="flex items-center justify-between">
+      <div>
+        <h3 class="font-semibold">Install App Manually</h3>
+        <p class="text-sm opacity-90" id="manual-install-text">Use browser menu to install this app</p>
+      </div>
+      <div class="flex gap-2">
+        <button id="manual-install-dismiss" class="text-white opacity-75 hover:opacity-100">✕</button>
       </div>
     </div>
   </div>
