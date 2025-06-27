@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Cart Icons Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+        }
+        .icon-generator {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+            font-weight: 700;
+        }
+        .header p {
+            color: #718096;
+            font-size: 1.1em;
+        }
+        .icon-preview {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+            margin: 30px 0;
+            justify-content: center;
+        }
+        .icon-size {
+            text-align: center;
+        }
+        .icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            transition: transform 0.3s ease;
+        }
+        .icon:hover {
+            transform: translateY(-5px);
+        }
+        .icon-192 { width: 192px; height: 192px; }
+        .icon-96 { width: 96px; height: 96px; border-radius: 12px; }
+        .icon-48 { width: 48px; height: 48px; border-radius: 8px; }
+        
+        .download-section {
+            margin: 30px 0;
+            padding: 25px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-radius: 12px;
+            text-align: center;
+        }
+        .download-section h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        .download-all-btn {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            font-size: 16px;
+            padding: 15px 30px;
+            margin-top: 15px;
+        }
+        .download-all-btn:hover {
+            box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+        }
+        .features {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 25px 0;
+            border-left: 4px solid #667eea;
+        }
+        .features h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+        .features ul {
+            list-style: none;
+            padding: 0;
+        }
+        .features li {
+            padding: 8px 0;
+            color: #4a5568;
+            position: relative;
+            padding-left: 25px;
+        }
+        .features li::before {
+            content: '✨';
+            position: absolute;
+            left: 0;
+        }
+        canvas {
+            display: none;
+        }
+        .preview-canvas {
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+        }
+        .style-options {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .style-btn {
+            padding: 10px 20px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .style-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="icon-generator">
+        <div class="header">
+            <h1>🛒 Modern Cart Icons</h1>
+            <p>Generate sleek, professional shopping cart icons with perfect contrast</p>
+        </div>
+        
+        <div class="style-options">
+            <div class="style-btn active" onclick="setStyle('modern')" id="style-modern">Modern Minimal</div>
+            <div class="style-btn" onclick="setStyle('filled')" id="style-filled">Filled Cart</div>
+            <div class="style-btn" onclick="setStyle('outline')" id="style-outline">Outline Style</div>
+        </div>
+        
+        <div class="icon-preview">
+            <div class="icon-size">
+                <canvas class="icon icon-192 preview-canvas" id="preview-192" width="192" height="192"></canvas>
+                <p><strong>192x192px</strong></p>
+            </div>
+            <div class="icon-size">
+                <canvas class="icon icon-96 preview-canvas" id="preview-96" width="96" height="96"></canvas>
+                <p><strong>96x96px</strong></p>
+            </div>
+            <div class="icon-size">
+                <canvas class="icon icon-48 preview-canvas" id="preview-48" width="48" height="48"></canvas>
+                <p><strong>48x48px</strong></p>
+            </div>
+        </div>
+
+        <div class="download-section">
+            <h3>Download Icon Sizes</h3>
+            <p>Click to download individual sizes or get all at once:</p>
+            <button onclick="generateIcon(192)">📱 192x192</button>
+            <button onclick="generateIcon(512)">🖥️ 512x512</button>
+            <button onclick="generateIcon(384)">📊 384x384</button>
+            <button onclick="generateIcon(152)">🍎 152x152</button>
+            <button onclick="generateIcon(144)">📋 144x144</button>
+            <button onclick="generateIcon(128)">💻 128x128</button>
+            <button onclick="generateIcon(96)">📱 96x96</button>
+            <button onclick="generateIcon(72)">📱 72x72</button>
+            <br>
+            <button class="download-all-btn" onclick="generateAllIcons()">🎁 Download All Icons</button>
+        </div>
+
+        <div class="features">
+            <h3>✨ Enhanced Features:</h3>
+            <ul>
+                <li><strong>Multiple Styles</strong> - Choose from modern, filled, or outline designs</li>
+                <li><strong>Perfect Contrast</strong> - Pure white icons on gradient background</li>
+                <li><strong>Scalable Design</strong> - Crisp at all sizes from 48px to 512px</li>
+                <li><strong>Professional Look</strong> - Modern, clean aesthetic perfect for apps</li>
+                <li><strong>PWA Ready</strong> - All required sizes for Progressive Web Apps</li>
+                <li><strong>Instant Download</strong> - Generate and download immediately</li>
+            </ul>
+            <p><strong>Instructions:</strong> Select your preferred style, then download the icons and replace them in the <code>public/icons/</code> folder.</p>
+        </div>
+
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+
+    <script>
+        let currentStyle = 'modern';
+
+        // Draw preview icons on page load
+        window.onload = function() {
+            updatePreviews();
+        };
+
+        function setStyle(style) {
+            currentStyle = style;
+            
+            // Update active button
+            document.querySelectorAll('.style-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('style-' + style).classList.add('active');
+            
+            updatePreviews();
+        }
+
+        function updatePreviews() {
+            drawPreview('preview-192', 192);
+            drawPreview('preview-96', 96);
+            drawPreview('preview-48', 48);
+        }
+
+        function drawPreview(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            drawIcon(ctx, size);
+        }
+
+        function generateIcon(size) {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = size;
+            canvas.height = size;
+            
+            drawIcon(ctx, size);
+            
+            // Download the image
+            const link = document.createElement('a');
+            link.download = `icon-${size}x${size}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        function drawIcon(ctx, size) {
+            // Create gradient background
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            
+            // Draw background with rounded corners
+            const radius = size * 0.12;
+            ctx.fillStyle = gradient;
+            roundRect(ctx, 0, 0, size, size, radius);
+            ctx.fill();
+            
+            // Draw shopping cart based on selected style
+            if (currentStyle === 'modern') {
+                drawModernCart(ctx, size);
+            } else if (currentStyle === 'filled') {
+                drawFilledCart(ctx, size);
+            } else if (currentStyle === 'outline') {
+                drawOutlineCart(ctx, size);
+            }
+        }
+
+        function drawModernCart(ctx, size) {
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const scale = size / 200;
+            
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3 * scale;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Modern cart body - more rounded and sleek
+            ctx.beginPath();
+            const basketWidth = 55 * scale;
+            const basketHeight = 40 * scale;
+            const basketX = centerX - basketWidth/2 + 5*scale;
+            const basketY = centerY - basketHeight/2;
+            
+            // Rounded cart body
+            const cartRadius = 8 * scale;
+            roundRect(ctx, basketX, basketY, basketWidth, basketHeight, cartRadius);
+            ctx.stroke();
+
+            // Modern handle - sleeker design
+            ctx.beginPath();
+            ctx.moveTo(basketX - 12*scale, basketY + 8*scale);
+            ctx.quadraticCurveTo(basketX - 18*scale, basketY, basketX - 8*scale, basketY + 3*scale);
+            ctx.lineTo(basketX, basketY + 8*scale);
+            ctx.stroke();
+
+            // Wheels - larger and more prominent
+            const wheelRadius = 5 * scale;
+            const wheel1X = basketX + 15*scale;
+            const wheel2X = basketX + basketWidth - 15*scale;
+            const wheelY = basketY + basketHeight + 12*scale;
+
+            ctx.beginPath();
+            ctx.arc(wheel1X, wheelY, wheelRadius, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(wheel2X, wheelY, wheelRadius, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Modern grid pattern - minimal lines
+            ctx.lineWidth = 2 * scale;
+            ctx.beginPath();
+            // Single vertical line
+            ctx.moveTo(centerX + 5*scale, basketY + 8*scale);
+            ctx.lineTo(centerX + 5*scale, basketY + basketHeight - 8*scale);
+            // Single horizontal line
+            ctx.moveTo(basketX + 8*scale, centerY);
+            ctx.lineTo(basketX + basketWidth - 8*scale, centerY);
+            ctx.stroke();
+        }
+
+        function drawFilledCart(ctx, size) {
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const scale = size / 200;
+            
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2 * scale;
+
+            // Filled cart body
+            const basketWidth = 50 * scale;
+            const basketHeight = 35 * scale;
+            const basketX = centerX - basketWidth/2 + 5*scale;
+            const basketY = centerY - basketHeight/2;
+            
+            // Fill the cart
+            ctx.beginPath();
+            const cartRadius = 6 * scale;
+            roundRect(ctx, basketX, basketY, basketWidth, basketHeight, cartRadius);
+            ctx.fill();
+
+            // Handle
+            ctx.beginPath();
+            ctx.moveTo(basketX - 10*scale, basketY + 5*scale);
+            ctx.lineTo(basketX, basketY + 5*scale);
+            ctx.lineWidth = 4 * scale;
+            ctx.stroke();
+
+            // Wheels
+            const wheelRadius = 4 * scale;
+            const wheel1X = basketX + 12*scale;
+            const wheel2X = basketX + basketWidth - 12*scale;
+            const wheelY = basketY + basketHeight + 10*scale;
+
+            ctx.beginPath();
+            ctx.arc(wheel1X, wheelY, wheelRadius, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(wheel2X, wheelY, wheelRadius, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function drawOutlineCart(ctx, size) {
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const scale = size / 200;
+            
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 4 * scale;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Outline cart - thicker lines, no fill
+            const basketWidth = 52 * scale;
+            const basketHeight = 38 * scale;
+            const basketX = centerX - basketWidth/2 + 5*scale;
+            const basketY = centerY - basketHeight/2;
+            
+            // Cart outline only
+            ctx.beginPath();
+            ctx.moveTo(basketX, basketY);
+            ctx.lineTo(basketX + basketWidth, basketY);
+            ctx.lineTo(basketX + basketWidth - 6*scale, basketY + basketHeight);
+            ctx.lineTo(basketX + 6*scale, basketY + basketHeight);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Handle
+            ctx.beginPath();
+            ctx.moveTo(basketX - 15*scale, basketY + 8*scale);
+            ctx.lineTo(basketX, basketY + 3*scale);
+            ctx.stroke();
+
+            // Wheels - outline only
+            const wheelRadius = 4 * scale;
+            const wheel1X = basketX + 13*scale;
+            const wheel2X = basketX + basketWidth - 13*scale;
+            const wheelY = basketY + basketHeight + 10*scale;
+
+            ctx.beginPath();
+            ctx.arc(wheel1X, wheelY, wheelRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(wheel2X, wheelY, wheelRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+        }
+
+        function roundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        function generateAllIcons() {
+            const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+            let delay = 0;
+            
+            sizes.forEach(size => {
+                setTimeout(() => {
+                    generateIcon(size);
+                }, delay);
+                delay += 300; // 300ms delay between downloads
+            });
+            
+            alert(`🎉 Generating all ${sizes.length} ${currentStyle} style icons! Check your downloads folder.`);
+        }
+    </script>
+</body>
+</html>

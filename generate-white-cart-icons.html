@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate White Cart Icons</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .icon-generator {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .icon-preview {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+            justify-content: center;
+        }
+        .icon-size {
+            text-align: center;
+        }
+        .icon {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
+        }
+        .icon-192 { width: 192px; height: 192px; }
+        .icon-96 { width: 96px; height: 96px; border-radius: 10px; }
+        .icon-48 { width: 48px; height: 48px; border-radius: 5px; }
+        
+        .download-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f0f9ff;
+            border-radius: 8px;
+            text-align: center;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        .instructions {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #2563eb;
+        }
+        canvas {
+            display: none;
+        }
+        .preview-canvas {
+            border: 1px solid #ddd;
+            margin: 10px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="icon-generator">
+        <h1>White Shopping Cart Icons Generator</h1>
+        <p>Generate clean white shopping cart icons with perfect contrast on blue background</p>
+        
+        <div class="icon-preview">
+            <div class="icon-size">
+                <canvas class="icon icon-192 preview-canvas" id="preview-192" width="192" height="192"></canvas>
+                <p>192x192px</p>
+            </div>
+            <div class="icon-size">
+                <canvas class="icon icon-96 preview-canvas" id="preview-96" width="96" height="96"></canvas>
+                <p>96x96px</p>
+            </div>
+            <div class="icon-size">
+                <canvas class="icon icon-48 preview-canvas" id="preview-48" width="48" height="48"></canvas>
+                <p>48x48px</p>
+            </div>
+        </div>
+
+        <div class="download-section">
+            <h3>Generate All Icon Sizes</h3>
+            <p>Click the buttons below to download the improved white cart icons:</p>
+            <button onclick="generateIcon(192)">Download 192x192</button>
+            <button onclick="generateIcon(512)">Download 512x512</button>
+            <button onclick="generateIcon(384)">Download 384x384</button>
+            <button onclick="generateIcon(152)">Download 152x152</button>
+            <button onclick="generateIcon(144)">Download 144x144</button>
+            <button onclick="generateIcon(128)">Download 128x128</button>
+            <button onclick="generateIcon(96)">Download 96x96</button>
+            <button onclick="generateIcon(72)">Download 72x72</button>
+            <br><br>
+            <button onclick="generateAllIcons()" style="background: #059669; font-size: 16px; padding: 15px 30px;">📦 Download All Icons</button>
+        </div>
+
+        <div class="instructions">
+            <h3>Improvements Made:</h3>
+            <ul>
+                <li>✅ <strong>Pure white shopping cart</strong> - Perfect contrast against blue background</li>
+                <li>✅ <strong>Custom drawn cart</strong> - No emoji dependency, consistent across all devices</li>
+                <li>✅ <strong>Clean vector design</strong> - Crisp at all sizes</li>
+                <li>✅ <strong>Professional appearance</strong> - Better suited for app icons</li>
+                <li>✅ <strong>All PWA sizes included</strong> - Complete icon set</li>
+            </ul>
+            <p><strong>Instructions:</strong> Download the icons and replace the existing ones in <code>public/icons/</code> folder.</p>
+        </div>
+
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+
+    <script>
+        // Draw preview icons on page load
+        window.onload = function() {
+            drawPreview('preview-192', 192);
+            drawPreview('preview-96', 96);
+            drawPreview('preview-48', 48);
+        };
+
+        function drawPreview(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            drawIcon(ctx, size);
+        }
+
+        function generateIcon(size) {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = size;
+            canvas.height = size;
+            
+            drawIcon(ctx, size);
+            
+            // Download the image
+            const link = document.createElement('a');
+            link.download = `icon-${size}x${size}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        function drawIcon(ctx, size) {
+            // Create gradient background
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#2563eb');
+            gradient.addColorStop(1, '#1d4ed8');
+            
+            // Draw background with rounded corners
+            const radius = size * 0.1;
+            ctx.fillStyle = gradient;
+            roundRect(ctx, 0, 0, size, size, radius);
+            ctx.fill();
+            
+            // Draw white shopping cart
+            drawShoppingCart(ctx, size);
+        }
+
+        function drawShoppingCart(ctx, size) {
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const scale = size / 200; // Scale factor based on 200px reference
+            
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3 * scale;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Cart body (basket)
+            ctx.beginPath();
+            const basketWidth = 50 * scale;
+            const basketHeight = 35 * scale;
+            const basketX = centerX - basketWidth/2;
+            const basketY = centerY - basketHeight/2;
+            
+            // Draw basket outline
+            ctx.moveTo(basketX, basketY);
+            ctx.lineTo(basketX + basketWidth, basketY);
+            ctx.lineTo(basketX + basketWidth - 8*scale, basketY + basketHeight);
+            ctx.lineTo(basketX + 8*scale, basketY + basketHeight);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Cart handle
+            ctx.beginPath();
+            ctx.moveTo(basketX - 15*scale, basketY + 5*scale);
+            ctx.lineTo(basketX, basketY);
+            ctx.stroke();
+
+            // Cart wheels
+            const wheelRadius = 4 * scale;
+            const wheel1X = basketX + 12*scale;
+            const wheel2X = basketX + basketWidth - 12*scale;
+            const wheelY = basketY + basketHeight + 8*scale;
+
+            // Left wheel
+            ctx.beginPath();
+            ctx.arc(wheel1X, wheelY, wheelRadius, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Right wheel
+            ctx.beginPath();
+            ctx.arc(wheel2X, wheelY, wheelRadius, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Cart grid lines (basket pattern)
+            ctx.lineWidth = 1.5 * scale;
+            ctx.beginPath();
+            // Vertical lines
+            for(let i = 1; i < 4; i++) {
+                const x = basketX + (basketWidth * i / 4);
+                ctx.moveTo(x, basketY + 3*scale);
+                ctx.lineTo(x - 2*scale, basketY + basketHeight - 3*scale);
+            }
+            // Horizontal lines
+            for(let i = 1; i < 3; i++) {
+                const y = basketY + (basketHeight * i / 3);
+                const leftX = basketX + (8*scale * i / 3);
+                const rightX = basketX + basketWidth - (8*scale * i / 3);
+                ctx.moveTo(leftX, y);
+                ctx.lineTo(rightX, y);
+            }
+            ctx.stroke();
+        }
+
+        function roundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        function generateAllIcons() {
+            const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+            let delay = 0;
+            
+            sizes.forEach(size => {
+                setTimeout(() => {
+                    generateIcon(size);
+                }, delay);
+                delay += 200; // 200ms delay between downloads
+            });
+            
+            alert(`Generating all ${sizes.length} icon sizes! Check your downloads folder.`);
+        }
+    </script>
+</body>
+</html>
