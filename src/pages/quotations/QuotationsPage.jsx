@@ -192,13 +192,6 @@ const QuotationsPage = () => {
     loading,
     error,
     refresh: refreshQuotations,
-    isStale,
-    loadData,
-    connectionStatus,
-    lastUpdateTime,
-    updateCount,
-    reconnect,
-    getDetailedStatus
   } = useRealTimeQuotations({
     cacheTimeout: 2 * 60 * 1000, // 2 minutes cache for quotations
     enableRealTime: true, // Enable real-time for all users to monitor status changes
@@ -240,8 +233,8 @@ const QuotationsPage = () => {
     if (selectedQuotation) {
       console.log('Selected Quotation Debug:', {
         selectedQuotation,
-        assignedDelivery: selectedQuotation.assignedDelivery,
-        assignedDeliveryType: typeof selectedQuotation.assignedDelivery,
+        assignedDelivery: selectedQuotation.assigned_delivery_user,
+        assignedDeliveryType: typeof selectedQuotation.assigned_delivery_user,
         deliveryUsers,
         deliveryUsersLength: deliveryUsers?.length
       });
@@ -1514,7 +1507,7 @@ const QuotationsPage = () => {
             </div>
 
             {/* Driver Details - Only show for approved and completed quotations and hide for delivery users */}
-            {user?.role !== 'delivery' && (selectedQuotation.status === 'approved' || selectedQuotation.status === 'accepted' || selectedQuotation.status === 'completed') && selectedQuotation.assignedDelivery && (
+            {user?.role !== 'delivery' && (selectedQuotation.status === 'approved' || selectedQuotation.status === 'accepted' || selectedQuotation.status === 'completed') && selectedQuotation.assigned_delivery_user && (
               <div className="bg-white shadow overflow-hidden rounded-lg">
                 <div className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5">
                   <button
@@ -1547,35 +1540,35 @@ const QuotationsPage = () => {
                         <div className="flex justify-between items-center">
                           <dt className="text-sm font-medium text-gray-500">Driver Name</dt>
                           <dd className="text-sm text-gray-900">
-                            {typeof selectedQuotation.assignedDelivery === 'string' 
-                              ? selectedQuotation.assignedDelivery 
-                              : selectedQuotation.assignedDelivery?.name || 'Delivery Personnel'}
+                            {typeof selectedQuotation.assigned_delivery_user === 'string' 
+                              ? selectedQuotation.assigned_delivery_user 
+                              : selectedQuotation.assigned_delivery_user?.name || 'Delivery Personnel'}
                           </dd>
                         </div>
                         
-                        {selectedQuotation.assignedDelivery?.email && (
+                        {selectedQuotation.assigned_delivery_user?.email && (
                           <div className="flex justify-between items-center">
                             <dt className="text-sm font-medium text-gray-500">Contact Email</dt>
                             <dd className="text-sm text-gray-900">
                               <a 
-                                href={`mailto:${selectedQuotation.assignedDelivery.email}`}
+                                href={`mailto:${selectedQuotation.assigned_delivery_user.email}`}
                                 className="text-primary-600 hover:text-primary-500"
                               >
-                                {selectedQuotation.assignedDelivery.email}
+                                {selectedQuotation.assigned_delivery_user.email}
                               </a>
                             </dd>
                           </div>
                         )}
                         
-                        {selectedQuotation.assignedDelivery?.phone && (
+                        {selectedQuotation.assigned_delivery_user?.phone && (
                           <div className="flex justify-between items-center">
                             <dt className="text-sm font-medium text-gray-500">Contact Phone</dt>
                             <dd className="text-sm text-gray-900">
                               <a 
-                                href={`tel:${selectedQuotation.assignedDelivery.phone}`}
+                                href={`tel:${selectedQuotation.assigned_delivery_user.phone}`}
                                 className="text-primary-600 hover:text-primary-500"
                               >
-                                {selectedQuotation.assignedDelivery.phone}
+                                {selectedQuotation.assigned_delivery_user.phone}
                               </a>
                             </dd>
                           </div>
@@ -1584,7 +1577,7 @@ const QuotationsPage = () => {
                         <div className="flex justify-between items-center">
                           <dt className="text-sm font-medium text-gray-500">Assignment Date</dt>
                           <dd className="text-sm text-gray-900">
-                            {new Date(selectedQuotation.updatedAt || selectedQuotation.createdAt).toLocaleDateString()}
+                            {new Date(selectedQuotation.updated_at || selectedQuotation.created_at).toLocaleDateString()}
                           </dd>
                         </div>
                         
